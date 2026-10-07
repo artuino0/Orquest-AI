@@ -3,7 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as pty from 'node-pty'
 import { detectAll } from '../core/detect.js'
 import { EmployeeManager, type HireRequest } from '../core/employees.js'
-import { officeChanges } from '../core/worktree.js'
+import { officeChanges, officeDiff } from '../core/worktree.js'
 
 const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
 /** Repo de cada empleado, para despedirlo y quitar su oficina. */
@@ -47,6 +47,10 @@ ipcMain.handle('employee:scrollback', (_e, id: string) => manager.scrollback(id)
 ipcMain.handle('employee:changes', (_e, id: string) => {
   const emp = manager.get(id)
   return emp ? officeChanges(emp.office) : []
+})
+ipcMain.handle('employee:diff', (_e, id: string, path: string) => {
+  const emp = manager.get(id)
+  return emp ? officeDiff(emp.office, path) : ''
 })
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.resize(id, cols, rows))

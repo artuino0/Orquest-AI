@@ -55,3 +55,15 @@ export async function officeChanges(office: Office): Promise<FileChange[]> {
     .filter(Boolean)
     .map((line) => ({ status: line.slice(0, 2).trim(), path: line.slice(3) }))
 }
+
+/** Diff de un archivo de la oficina contra la base; los nuevos se muestran completos. */
+export async function officeDiff(office: Office, path: string): Promise<string> {
+  const tracked = await git(office.path, 'ls-files', '--', path)
+  if (tracked) return git(office.path, 'diff', 'HEAD', '--', path)
+  try {
+    return await git(office.path, 'diff', '--no-index', '--', '/dev/null', path)
+  } catch (err) {
+    // `git diff --no-index` sale con 1 cuando hay diferencias.
+    return ((err as { stdout?: string }).stdout ?? '').trim()
+  }
+}

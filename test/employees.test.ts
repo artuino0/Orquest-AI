@@ -92,3 +92,15 @@ describe('EmployeeManager', () => {
     expect(list.trim().split('\n')).toHaveLength(1)
   })
 })
+
+describe('officeDiff', () => {
+  it('muestra cambios de archivos existentes y nuevos', async () => {
+    const repo = await makeRepo()
+    const { createOffice, officeDiff } = await import('../src/core/worktree.js')
+    const office = await createOffice(repo, 'diff-test')
+    await writeFile(join(office.path, 'README.md'), '# proyecto\nnuevo\n')
+    await writeFile(join(office.path, 'api.ts'), 'export {}\n')
+    expect(await officeDiff(office, 'README.md')).toContain('+nuevo')
+    expect(await officeDiff(office, 'api.ts')).toContain('+export {}')
+  })
+})
