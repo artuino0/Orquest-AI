@@ -12,7 +12,11 @@
  *
  * Las tareas de QA terminan en done: no tienen código que integrar.
  */
+import type { Check } from './library.js'
 import type { Effort, ProviderId } from './providers.js'
+
+/** Regla de expedientes: ¿puede este proveedor/modelo ocupar este puesto? */
+export type SlotRule = (s: { provider: ProviderId; model?: string; role: string }) => Check
 
 export type TaskStatus = 'waiting' | 'ready' | 'in_progress' | 'delivered' | 'in_qa' | 'approved' | 'merged' | 'done'
 export type TaskKind = 'work' | 'qa'
@@ -61,6 +65,8 @@ export interface Slot {
   effort?: Effort
   /** Por qué el jefe propone a este proveedor. */
   reason?: string
+  /** Aviso del expediente (permitido, pero con reservas). */
+  warning?: string
   status: SlotStatus
   employeeId?: string
 }
@@ -69,6 +75,7 @@ export interface StaffMember {
   id: string
   role: string
   provider: ProviderId
+  model?: string
   slotId?: string
   /** false si su CLI ya no corre (se fue o se cerró la app). */
   online: boolean
@@ -111,15 +118,16 @@ export class Board {
    * El jefe propone; reemplaza lo propuesto que el usuario aún no aprueba.
    * Lo ya aprobado o contratado se queda.
    */
-  propose(slots: Omit<Slot, 'id' | 'status'>[], available: (p: ProviderId) => boolean): Slot[] {
+  propose(slots: Omit<Slot, 'id' | 'status'>[], available: (p: ProviderId) => boolean, rule?: SlotRule): Slot[] {
     if (!slots.length) throw new RuleError('La propuesta no tiene puestos.')
     for (const s of slots) {
       if (!available(s.provider)) {
         throw new RuleError(`${s.provider} no está instalado o no tiene sesión; no se puede proponer para ${s.role}.`)
       }
     }
+    const warnings = this.checkAll(slots, rule)
     this.slots = this.slots.filter((s) => s.status !== 'proposed')
-    const added = slots.map((s) => ({ ...s, id: `S${++this.seq.slot}`, status: 'proposed' as const }))
+    const added = slots.map((s, i) => ({ ...s, warning: warnings[i], id: `S${++this.seq.slot}`, status: 'proposed' as const }))
     this.slots.push(...added)
     return added
   }
@@ -128,7 +136,8 @@ export class Board {
    * El usuario aprueba la plantilla, con sus cambios: puede editar proveedor,
    * modelo y esfuerzo, quitar puestos y añadir los suyos.
    */
-  approve(final: (Partial<Slot> & Pick<Slot, 'role' | 'provider'>)[]): Slot[] {
+  approve(final: (Partial<Slot> & Pick<Slot, 'role' | 'provider'>)[], rule?: SlotRule): Slot[] {
+    const warnings = this.checkAll(final, rule)
     const proposed = new Map(this.slots.filter((s) => s.status === 'proposed').map((s) => [s.id, s]))
     this.slots = this.slots.filter((s) => s.status !== 'proposed')
     const approved = final.map((f) => {
@@ -140,11 +149,21 @@ export class Board {
         model: f.model || undefined,
         effort: f.effort,
         reason: base?.reason,
+        warning: warnings[final.indexOf(f)],
         status: 'approved' as const,
       }
     })
     this.slots.push(...approved)
     return approved
+  }
+
+  /** Aplica la regla a todos; si alguno está prohibido, nada cambia. */
+  private checkAll(slots: { provider: ProviderId; model?: string; role: string }[], rule?: SlotRule): (string | undefined)[] {
+    if (!rule) return slots.map(() => undefined)
+    const results = slots.map((s) => rule(s))
+    const blocked = results.flatMap((r) => (r.ok ? [] : [r.reason]))
+    if (blocked.length) throw new RuleError(blocked.join(' '))
+    return results.map((r) => (r.ok ? r.warning : undefined))
   }
 
   /** Puesto aprobado y libre para levantar. */
@@ -162,10 +181,10 @@ export class Board {
     return slot
   }
 
-  hired(slot: Slot, member: Omit<StaffMember, 'online' | 'slotId'>) {
+  hired(slot: Slot, member: Omit<StaffMember, 'online' | 'slotId' | 'model'>) {
     slot.status = 'hired'
     slot.employeeId = member.id
-    this.staff.push({ ...member, slotId: slot.id, online: true })
+    this.staff.push({ ...member, model: slot.model, slotId: slot.id, online: true })
   }
 
   offline(employeeId: string) {

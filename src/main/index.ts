@@ -4,7 +4,9 @@ import * as pty from 'node-pty'
 import { RuleError } from '../core/board.js'
 import { detectAll } from '../core/detect.js'
 import { EmployeeManager } from '../core/employees.js'
+import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
+import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { Studio } from '../core/studio.js'
 import { officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
@@ -13,6 +15,8 @@ import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
 let store: StudioStore
 let mcp: McpHandle
+/** Expedientes, manuales e historial: uno por estudio, compartido por todos sus proyectos. */
+let library: Library
 /** Un estudio por repo abierto en esta sesión; la UI trabaja con el actual. */
 const studios = new Map<string, Studio>()
 let current: Studio | undefined
@@ -62,7 +66,7 @@ handle('project:open', async (repo: string) => {
   const root = await repoRoot(repo)
   let s = studios.get(root)
   if (!s) {
-    s = await new Studio({ repo: root, manager, store, detect: detectAll, mcpUrl: (t) => mcp.url(t) }).init()
+    s = await new Studio({ repo: root, manager, store, library, detect: detectAll, mcpUrl: (t) => mcp.url(t) }).init()
     let pending: ReturnType<typeof setTimeout> | undefined
     const target = s
     s.on('changed', () => {
@@ -83,6 +87,23 @@ handle('task:merge', async (id: string) => void (await studio().merge(id)))
 handle('task:return', (id: string, notes: string) => studio().userReturn(id, notes))
 handle('task:diff', (id: string) => studio().diff(id))
 
+handle('library:get', () => {
+  // Un expediente por proveedor, más los que el usuario haya hecho por modelo.
+  const keys = new Map<string, Dossier>()
+  for (const p of PROVIDER_IDS) keys.set(`${p}::`, library.dossier(p))
+  for (const d of library.dossiers()) keys.set(`${d.provider}::${d.model}`, d)
+  for (const p of PROVIDER_IDS) for (const m of library.models(p)) if (m && !keys.has(`${p}::${m}`)) keys.set(`${p}::${m}`, { ...library.dossier(p, m), model: m })
+  return {
+    dossiers: [...keys.values()].map((d) => ({ ...d, stats: library.stats(d.provider, d.model || undefined) })),
+    manuals: library.manuals(),
+  }
+})
+handle('library:saveDossier', (d: Dossier) => library.saveDossier(d))
+handle('library:saveManual', (m: Manual) => library.saveManual(m))
+handle('library:check', (slots: { provider: ProviderId; model?: string; role: string }[]) =>
+  slots.map((x) => library.check(x.provider, x.model, x.role)),
+)
+
 handle('employee:fire', (id: string) => studio().fire(id))
 handle('employee:list', () => manager.list())
 handle('employee:scrollback', (id: string) => manager.scrollback(id))
@@ -99,6 +120,7 @@ ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => ma
 
 app.whenReady().then(async () => {
   store = new StudioStore(join(app.getPath('userData'), 'studio.db'))
+  library = new Library(store)
   mcp = await startMcpServer((token) => {
     for (const s of studios.values()) {
       const caller = s.caller(token)

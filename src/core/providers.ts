@@ -14,7 +14,22 @@ export type ProviderId =
   | 'kimi'
   | 'grok'
 
+import type { Permissions } from './library.js'
+
 export type Effort = 'low' | 'medium' | 'high'
+
+const EDIT_TOOLS = ['Edit', 'Write', 'NotebookEdit']
+
+/**
+ * Permisos del puesto en formato de Claude Code. Van en --settings como JSON
+ * para que reglas con espacios ("Bash(git reset --hard:*)") no se partan.
+ */
+export function claudePermissions(p: Permissions) {
+  return {
+    allow: ['mcp__orquest', ...(p.edit ? EDIT_TOOLS : []), ...p.allow.map((c) => `Bash(${c}:*)`)],
+    deny: [...(p.edit ? [] : EDIT_TOOLS), ...p.deny.map((c) => `Bash(${c}:*)`)],
+  }
+}
 
 export interface LaunchOptions {
   model?: string
@@ -57,7 +72,9 @@ export interface ProviderAdapter {
    * Argumentos para conectar la CLI al servidor MCP de Orquest. El token va en
    * la URL. undefined = no sabemos conectarla; el jefe le habla por terminal.
    */
-  mcpArgs?(url: string): string[]
+  mcpArgs?(url: string, permissions?: Permissions): string[]
+  /** Partes de los permisos del puesto que esta CLI no sabe aplicar. */
+  permissionGaps?(permissions: Permissions): string[]
   /** true si los argumentos se comprobaron contra la CLI real. */
   verified: boolean
 }
@@ -108,12 +125,13 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       return args
     },
     unsupported: () => [],
-    mcpArgs: (url) => [
+    mcpArgs: (url, permissions) => [
       '--mcp-config',
       JSON.stringify({ mcpServers: { orquest: { type: 'http', url } } }),
       // Las herramientas de Orquest se validan en la app; no piden permiso.
-      '--allowedTools',
-      'mcp__orquest',
+      // Lo demás, según el manual del puesto.
+      '--settings',
+      JSON.stringify({ permissions: permissions ? claudePermissions(permissions) : { allow: ['mcp__orquest'] } }),
     ],
     screen: {
       working: [ESC_TO_INTERRUPT, SPINNER],
@@ -137,7 +155,13 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     unsupported: (o) =>
       o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : [],
-    mcpArgs: (url) => ['-c', `mcp_servers.orquest.url=${JSON.stringify(url)}`],
+    mcpArgs: (url, permissions) => [
+      '-c',
+      `mcp_servers.orquest.url=${JSON.stringify(url)}`,
+      ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
+    ],
+    // Codex solo distingue escribir o no; los comandos los aprueba el usuario.
+    permissionGaps: (p) => (p.allow.length || p.deny.length ? ['Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.'] : []),
     screen: {
       working: [ESC_TO_INTERRUPT, /Working \(/],
       blocked: [...PERMISSION, /allow command\?/i],

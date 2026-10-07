@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { BossRequest, CliStatus, Employee, EmployeeState, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
 
-export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | null
+export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | null
 export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {
@@ -153,6 +153,6 @@ export const useStudio = defineStore('studio', () => {
   return {
     screen, clis, detecting, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf,
-    detect, openProject, pickProject, goHome, fire, select, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
+    detect, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })

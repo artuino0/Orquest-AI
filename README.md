@@ -4,7 +4,26 @@ Orquestador de agentes de código hecho juego: tu estudio es una oficina en pixe
 
 Plan completo: [docs/plan.md](docs/plan.md).
 
-## Estado: fases 1 y 2
+## Estado: fases 1, 2 y 3
+
+### Fase 3: expedientes y manuales de puesto
+
+El jefe sabe qué se necesita; el usuario sabe quién sirve para qué. Esa experiencia vive en la biblioteca del estudio (`src/core/library.ts`), guardada en SQLite y compartida entre proyectos.
+
+- **Expediente** (por proveedor, y opcionalmente por modelo; el del modelo gana): puestos permitidos, qué pasa si no se permite (`block`: el juego no deja; `warn`: deja con aviso) y notas del usuario. Arranca con el ejemplo del plan: Antigravity solo en QA.
+- **Historial contigo**, que se llena solo: entregas, integradas a la primera, rechazos de QA, regresadas, por puesto y por modelo.
+- **Manual de puesto** (por rol): prompt, documentación y skills que carga al entrar, permisos y formato de entrega (con capturas obligatorias si se pide).
+
+Cómo se aplica:
+
+- La regla del expediente se revisa al proponer (el jefe recibe el motivo con tu nota), al aprobar (la plantilla marca en rojo lo prohibido y no deja aprobar) y al levantar (si cambiaste el expediente después).
+- `leer_expedientes` le da al jefe puestos permitidos, notas e historial por modelo; su prompt le pide elegir con eso y citarlo en el motivo.
+- Los permisos del manual llegan a la CLI: en Claude Code como reglas `permissions.allow` / `deny` en `--settings` (editar, comandos permitidos, comandos prohibidos); en Codex como sandbox de escritura o solo lectura. El jefe no edita ni integra por su cuenta.
+- La entrega se valida contra el manual (p. ej. sin capturas no se acepta si el puesto las exige).
+
+Prueba de cierre (`test/phase3.test.ts`): el juego impide un puesto prohibido al proponer, aprobar y levantar; el historial se llena solo y el jefe lo lee en otro proyecto. Con Claude Code real, sembrando un historial donde haiku integró 5 de 5 a la primera en backend y sonnet 0 de 3 con 4 rechazos de QA, el jefe propuso haiku para backend citando esas cifras y tu nota, y dejó sonnet para QA, que su expediente sí permite. También se comprobó que Claude Code respeta los permisos de `--settings` (comando permitido sí, prohibido y edición no).
+
+Pendiente del plan para esta parte: la columna "En el mercado" (reporte semanal de rankings y opinión) y los límites de uso por cuenta.
 
 ### Fase 2: jefe y tablero
 
@@ -23,7 +42,7 @@ Piezas (`src/core/`):
 - `studio.ts`: orquesta un proyecto. Une tablero, CLIs, git y avisos. Herramientas MCP y acciones de la UI entran por aquí.
 - `mcp.ts`: servidor MCP local (HTTP en 127.0.0.1). Cada agente recibe su URL con un token que dice quién es; solo ve sus herramientas y cada llamada se valida. Una regla rota vuelve con el motivo.
 - `store.ts`: el tablero se guarda en SQLite local (`node:sqlite`) y se retoma al reabrir.
-- `prompts.ts`: manual base del jefe y de cada puesto (la fase 3 trae manuales por rol).
+- `prompts.ts`: prompt de arranque del jefe y del empleado (este se arma con el manual de su puesto).
 
 Herramientas: jefe `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`; empleado `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`.
 
@@ -50,6 +69,7 @@ La oficina es la pantalla principal; todo lo demás se abre encima sin salir de 
 - **Oficina** (`OfficeScreen.vue` + `world/`): mapa pixel art con Recepción, oficina del Jefe, Cafetería y un cuarto por departamento. HUD arriba con el proyecto, contadores (trabajando, te necesitan, en espera) y botones de Tablero, Entregas y Contratar. Rueda para zoom, arrastrar para mover, doble clic para centrar.
 - **Contratar** (`HireDialog.vue`): plantilla por puestos con proveedor, modelo y esfuerzo. Cada contratado entra por Recepción y camina a su escritorio.
 - **Drawer del empleado** (`EmployeeDrawer.vue`): clic en un personaje; flotante o pantalla dividida, con pestañas Terminal, Archivos (con diff), Capturas, Actividad y Tarea. La cámara sigue al elegido.
+- **Expedientes**: puestos permitidos, notas e historial por proveedor y modelo; manuales de cada puesto.
 - **Jefe**, **Plantilla**, **Tablero** y **Entregas**: contratar y hablar con el jefe, aprobar su propuesta, tareas por departamento con estado y dependencias, y la bandeja para integrar o regresar con diff y reporte de QA.
 
 ### Lógica del mundo (`src/renderer/src/world/`)
@@ -84,7 +104,6 @@ npm run typecheck
 
 ## Siguientes fases
 
-3. Expedientes y manuales de puesto.
 4. Oficina pixel art (PixiJS o Phaser).
 5. Lanzamiento abierto.
 6. Remoto móvil.

@@ -1,12 +1,14 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
 import type { Slot, Task } from '../core/board.js'
 import type { CliStatus } from '../core/detect.js'
+import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
 import type { EmployeeState } from '../core/state.js'
 import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 
+export type { Check, Dossier, Manual, Role, Stats }
 export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -14,6 +16,16 @@ export interface BossRequest {
   model?: string
   effort?: Effort
   goal: string
+}
+
+/** Expediente con su historial contigo, para la UI. */
+export interface DossierView extends Dossier {
+  stats: Stats
+}
+
+export interface LibraryView {
+  dossiers: DossierView[]
+  manuals: Manual[]
 }
 
 export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
@@ -30,6 +42,12 @@ export interface OrquestApi {
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>
   taskDiff(id: string): Promise<string>
+  // Biblioteca del estudio: expedientes y manuales (compartidos entre proyectos).
+  library(): Promise<LibraryView>
+  saveDossier(d: Dossier): Promise<void>
+  saveManual(m: Manual): Promise<void>
+  checkSlots(slots: { provider: ProviderId; model?: string; role: string }[]): Promise<Check[]>
+
   onBoard(cb: (s: StudioSnapshot) => void): () => void
   onNotice(cb: (text: string) => void): () => void
 
