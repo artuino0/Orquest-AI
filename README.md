@@ -11,7 +11,35 @@ Plan completo: [docs/plan.md](docs/plan.md).
 - **Oficinas** (`src/core/worktree.ts`): un git worktree por empleado en `<repo>.orquest/<id>`, rama `orquest/<id>`.
 - **Estado** (`src/core/state.ts`): señal OSC de hooks (`\x1b]7777;orquest:state=working\x07`) primero, lectura de pantalla por patrones de respaldo. Estados: `starting`, `working`, `blocked`, `idle`, `exited`.
 - **Plantilla viva** (`src/core/employees.ts`): contrata (worktree + CLI en node-pty), reenvía salida, sigue el estado, escribe y despide.
-- **App** (Electron + Vue 3 + Pinia + xterm.js): panel de CLIs, contratación, oficina con el estado de cada empleado y drawer con terminal en vivo, archivos tocados y tarea.
+- **App** (Electron + Vue 3 + Pinia + xterm.js + PixiJS): ver abajo.
+
+## Interfaz
+
+La oficina es la pantalla principal; todo lo demás se abre encima sin salir de ella.
+
+- **Inicio** (`HomeScreen.vue`): proyectos recientes y revisión de CLIs; sin una usable no deja abrir proyecto.
+- **Oficina** (`OfficeScreen.vue` + `world/`): mapa pixel art con Recepción, oficina del Jefe, Cafetería y un cuarto por departamento. HUD arriba con el proyecto, contadores (trabajando, te necesitan, en espera) y botones de Tablero, Entregas y Contratar. Rueda para zoom, arrastrar para mover, doble clic para centrar.
+- **Contratar** (`HireDialog.vue`): plantilla por puestos con proveedor, modelo y esfuerzo. Cada contratado entra por Recepción y camina a su escritorio.
+- **Drawer del empleado** (`EmployeeDrawer.vue`): clic en un personaje; flotante o pantalla dividida, con pestañas Terminal, Archivos (con diff), Capturas, Actividad y Tarea. La cámara sigue al elegido.
+- **Tablero** y **Entregas**: vista compacta por departamento y bandeja; se llenan con el jefe en la fase 2.
+
+### Lógica del mundo (`src/renderer/src/world/`)
+
+- `layout.ts`: plano en casillas, puertas, pasillos, escritorios estables (nadie cambia de lugar cuando entra o sale alguien) y rutas que solo pasan por puertas y pasillos.
+- `behavior.ts`: cada estado real decide lugar, pose, burbuja y monitor. Incluye ya los de fases siguientes: esperando dependencia (camina al escritorio de quien bloquea, burbuja de reloj), entregando (va con el jefe) y descansando (Cafetería).
+- `sprites.ts`: pixel art provisional dibujado desde matrices, color de playera por proveedor. Se reemplaza con los assets de "Arte y mundo".
+- `scene.ts`: solo dibuja con PixiJS lo que deciden los dos anteriores.
+
+| Estado | Lugar | Se ve |
+| --- | --- | --- |
+| llegando | camina de Recepción a su escritorio | monitor encendido |
+| trabajando | escritorio | teclea de espaldas, monitor parpadea |
+| bloqueado | escritorio | de pie, burbuja ! parpadeando |
+| esperando instrucción | escritorio | sentado, burbuja … |
+| esperando dependencia | junto al escritorio de quien bloquea | burbuja de reloj |
+| entregando | oficina del Jefe | burbuja ✓ |
+| descansando | Cafetería | burbuja zzz |
+| se fue | camina a Recepción y desaparece | — |
 
 Prueba de cierre de la fase (`test/employees.test.ts`): tres empleados de proveedores distintos trabajan a la vez en el mismo repo, cada uno en su worktree, sin pisarse.
 

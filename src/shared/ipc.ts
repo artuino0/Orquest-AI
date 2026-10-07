@@ -14,6 +14,7 @@ export interface OrquestApi {
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>
   changes(id: string): Promise<FileChange[]>
+  diff(id: string, path: string): Promise<string>
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void

@@ -15,6 +15,7 @@ const api: OrquestApi = {
   list: () => ipcRenderer.invoke('employee:list'),
   scrollback: (id) => ipcRenderer.invoke('employee:scrollback', id),
   changes: (id) => ipcRenderer.invoke('employee:changes', id),
+  diff: (id, path) => ipcRenderer.invoke('employee:diff', id, path),
   write: (id, data) => ipcRenderer.send('employee:write', id, data),
   resize: (id, cols, rows) => ipcRenderer.send('employee:resize', id, cols, rows),
   onData: (cb) => listen('employee:data', cb),

@@ -50,5 +50,5 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.term { flex: 1; padding: 8px; min-height: 0; }
+.term { flex: 1; padding: 8px; min-height: 0; height: 100%; }
 </style>
