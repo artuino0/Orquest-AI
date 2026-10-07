@@ -1,0 +1,29 @@
+:root {
+  --bg: #1b1a24;
+  --panel: #262433;
+  --line: #3a3750;
+  --text: #ece9f7;
+  --muted: #9a96b3;
+  --accent: #f2b84b;
+  --working: #4fc3f7;
+  --blocked: #ef5350;
+  --idle: #66bb6a;
+  --starting: #b39ddb;
+  --exited: #757575;
+  font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  color: var(--text);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, select, input {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 2px solid var(--line);
+  padding: 4px 8px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 8px; }
