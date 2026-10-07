@@ -7,6 +7,7 @@ import HireDialog from './HireDialog.vue'
 import BoardView from './BoardView.vue'
 import InboxPanel from './InboxPanel.vue'
 import BossPanel from './BossPanel.vue'
+import LibraryPanel from './LibraryPanel.vue'
 
 const studio = useStudio()
 const mapEl = ref<HTMLDivElement>()
@@ -55,7 +56,7 @@ onBeforeUnmount(() => {
 })
 
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
-const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss') => (studio.overlay = studio.overlay === o ? null : o)
+const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.overlay = studio.overlay === o ? null : o)
 </script>
 
 <template>
@@ -79,6 +80,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss') => (studio.overlay = stu
             Plantilla<span v-if="studio.proposal.length" class="badge">{{ studio.proposal.length }}</span>
           </button>
           <button :class="{ on: studio.overlay === 'board' }" @click="toggle('board')">Tablero</button>
+          <button :class="{ on: studio.overlay === 'library' }" @click="toggle('library')">Expedientes</button>
           <button :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
             Entregas<span v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</span>
           </button>
@@ -99,6 +101,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss') => (studio.overlay = stu
       <BoardView v-if="studio.overlay === 'board'" />
       <InboxPanel v-if="studio.overlay === 'inbox'" />
       <BossPanel v-if="studio.overlay === 'boss'" />
+      <LibraryPanel v-if="studio.overlay === 'library'" />
     </div>
 
     <EmployeeDrawer v-if="studio.selectedEmployee" :key="studio.selectedEmployee.id" />

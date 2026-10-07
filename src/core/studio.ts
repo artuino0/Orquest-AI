@@ -8,6 +8,7 @@ import { randomBytes } from 'node:crypto'
 import { Board, RuleError, type BoardSnapshot, type Slot, type Task } from './board.js'
 import type { CliStatus } from './detect.js'
 import type { EmployeeManager } from './employees.js'
+import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
 import { bossPrompt, employeePrompt, oneLine } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
@@ -34,6 +35,8 @@ export interface StudioOptions {
   mcpUrl: (token: string) => string
   /** Cuánto espera hablar_con la respuesta del empleado. */
   replyTimeoutMs?: number
+  /** Expedientes, manuales e historial del estudio; compartidos entre proyectos. */
+  library?: Library
   /** Ejecutables por proveedor (pruebas). */
   binaries?: Partial<Record<ProviderId, string>>
 }
@@ -52,9 +55,11 @@ export class Studio extends EventEmitter<StudioEvents> {
   private offices = new Map<string, Office>()
   private unsubscribe: () => void
   root = ''
+  readonly library: Library
 
   constructor(private opts: StudioOptions) {
     super()
+    this.library = opts.library ?? new Library(opts.store)
     const saved = opts.store?.load(opts.repo)
     this.board = saved ? Board.restore(saved) : new Board()
     const onState = (id: string, state: EmployeeState) => {
@@ -173,7 +178,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       office,
       binary: this.opts.binaries?.[req.provider],
       systemPrompt: viaArg ? prompt : undefined,
-      extraArgs: adapter.mcpArgs(this.opts.mcpUrl(token)),
+      extraArgs: adapter.mcpArgs(this.opts.mcpUrl(token), BOSS_PERMISSIONS),
     })
     if (!viaArg) this.notify(BOSS_ID, prompt)
     const resumed = this.board.tasks.length > 0
@@ -186,13 +191,22 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.changed()
   }
 
+  /** Regla de expedientes para el tablero. */
+  private rule = (s: { provider: ProviderId; model?: string; role: string }) => this.library.check(s.provider, s.model, s.role)
+
   private async hireSlot(slot: Slot) {
+    // El expediente pudo cambiar desde que se aprobó.
+    const check = this.rule(slot)
+    if (!check.ok) throw new RuleError(check.reason)
     const adapter = getProvider(slot.provider)
+    const manual = this.library.manual(slot.role)
     const id = `${slot.role}-${slot.provider}-${slot.id}`.toLowerCase()
     const token = this.newToken({ kind: 'employee', id })
     this.known.add(id)
     const warnings: string[] = []
-    if (!adapter.mcpArgs) warnings.push(`${adapter.name} no se conecta a las herramientas de Orquest; el jefe le habla por terminal.`)
+    if (!adapter.mcpArgs) warnings.push(`${adapter.name} no se conecta a las herramientas de Orquest ni aplica permisos por puesto; el jefe le habla por terminal.`)
+    warnings.push(...(adapter.permissionGaps?.(manual.permissions) ?? []))
+    if (check.warning) warnings.push(check.warning)
     // El manual necesita la oficina; se crea dentro de hire, así que se arma después.
     const emp = await this.opts.manager.hire({
       id,
@@ -202,11 +216,11 @@ export class Studio extends EventEmitter<StudioEvents> {
       role: slot.role,
       repo: this.root,
       binary: this.opts.binaries?.[slot.provider],
-      extraArgs: adapter.mcpArgs?.(this.opts.mcpUrl(token)) ?? [],
+      extraArgs: adapter.mcpArgs?.(this.opts.mcpUrl(token), manual.permissions) ?? [],
     })
     this.offices.set(id, emp.office)
     this.board.hired(slot, { id, role: slot.role, provider: slot.provider })
-    this.notify(id, employeePrompt(slot.role, emp.office))
+    this.notify(id, employeePrompt(manual, emp.office))
     return { id, warnings: [...warnings, ...emp.warnings] }
   }
 
@@ -239,15 +253,28 @@ export class Studio extends EventEmitter<StudioEvents> {
 
       case 'leer_expedientes': {
         const clis = await this.opts.detect()
+        const lib = this.library
         return JSON.stringify(
-          clis.map((c) => ({
-            proveedor: c.id,
-            nombre: c.name,
-            disponible: c.installed && c.session !== false,
-            version: c.version,
-            sesion: c.session,
-            conecta_con_orquest: !!getProvider(c.id).mcpArgs,
-          })),
+          clis.map((c) => {
+            const d = lib.dossier(c.id)
+            return {
+              proveedor: c.id,
+              nombre: c.name,
+              disponible: c.installed && c.session !== false,
+              version: c.version,
+              conecta_con_orquest: !!getProvider(c.id).mcpArgs,
+              puestos_permitidos: d.allowedRoles ?? 'todos',
+              si_no_se_permite: d.enforce === 'block' ? 'el juego lo rechaza' : 'se permite con aviso',
+              notas_del_usuario: d.notes || undefined,
+              historial_contigo: lib.stats(c.id),
+              por_modelo: Object.fromEntries(
+                lib.models(c.id).map((m) => {
+                  const md = lib.dossier(c.id, m)
+                  return [m || '(por defecto)', { ...lib.stats(c.id, m), ...(md.model ? { puestos_permitidos: md.allowedRoles ?? 'todos', notas_del_usuario: md.notes || undefined } : {}) }]
+                }),
+              ),
+            }
+          }),
           null,
           2,
         )
@@ -265,9 +292,11 @@ export class Studio extends EventEmitter<StudioEvents> {
             reason: p.motivo,
           })),
           ok,
+          this.rule,
         )
-        this.emit('notice', `El jefe propone una plantilla de ${slots.length} puestos. Ábrela en Contratar.`)
-        return `Propuesta enviada al usuario (${slots.map((s) => `${s.id} ${s.role}/${s.provider}`).join(', ')}). Espera su aprobación; se te avisará.`
+        this.emit('notice', `El jefe propone una plantilla de ${slots.length} puestos. Ábrela en Plantilla.`)
+        const warned = slots.filter((x) => x.warning)
+        return `Propuesta enviada al usuario (${slots.map((s) => `${s.id} ${s.role}/${s.provider}`).join(', ')}). Espera su aprobación; se te avisará.${warned.length ? ` Avisos del expediente: ${warned.map((x) => x.warning).join(' ')}` : ''}`
       }
 
       case 'levantar_empleado': {
@@ -321,6 +350,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         if (decision !== 'aprobar' && decision !== 'regresar') throw new RuleError('decision debe ser aprobar, regresar o qa.')
         if (decision === 'regresar' && !a.notas) throw new RuleError('Para regresar una entrega di qué falta en notas.')
         const t = b.review(String(a.tarea), decision === 'aprobar' ? 'approve' : 'return', a.notas ? String(a.notas) : '')
+        if (t.status !== 'approved') this.record(t, 'returned')
         if (t.status === 'approved') {
           this.emit('notice', `${t.id} (${t.title}) espera tu aprobación para integrarse. Ábrela en Entregas.`)
           return `${t.id} aprobada; queda en la bandeja del usuario para integrarse.`
@@ -378,17 +408,25 @@ export class Studio extends EventEmitter<StudioEvents> {
       case 'entregar': {
         const t = b.current(id)
         if (!t) b.deliver(id, { report: '', screenshots: [] }) // lanza el motivo
+        const member = b.member(id)
+        const manual = this.library.manual(member.role)
+        const shots = (a.capturas as string[] | undefined) ?? []
+        if (manual.requireScreenshots && t!.kind === 'work' && !shots.length) {
+          throw new RuleError(`El manual de ${member.role} pide capturas en la entrega. ${manual.delivery}`)
+        }
         let diff: { commit?: string; diffStat?: string } = {}
         if (t!.kind === 'work') diff = await commitDelivery(this.office(id), `${t!.id}: ${t!.title}`)
         const verdict = a.veredicto === 'pasa' ? 'pass' : a.veredicto === 'no_pasa' ? 'fail' : undefined
         const { task, reviewed } = b.deliver(id, {
           report: String(a.reporte),
-          screenshots: (a.capturas as string[] | undefined) ?? [],
+          screenshots: shots,
           verdict,
           ...diff,
         })
+        if (task.kind === 'work') this.record(task, 'delivered')
         if (task.kind === 'qa' && reviewed) {
           if (verdict === 'fail') {
+            this.record(reviewed, 'qa_fail')
             this.notify(reviewed.assignee, `QA rechazó ${reviewed.id}: ${a.reporte}. Usa leer_tarea, corrige y vuelve a entregar.`)
             this.notify(BOSS_ID, `QA rechazó ${reviewed.id}; regresó a ${reviewed.assignee}.`)
           } else {
@@ -403,11 +441,28 @@ export class Studio extends EventEmitter<StudioEvents> {
     throw new RuleError(`Herramienta desconocida: ${tool}`)
   }
 
+  // ── Historial ────────────────────────────────────────────────────────────
+
+  /** Anota en el expediente de quien hizo la tarea cómo le fue. */
+  private record(t: Task, outcome: Outcome) {
+    const m = this.board.staff.find((x) => x.id === t.assignee)
+    if (!m || t.kind !== 'work') return
+    this.library.record({
+      provider: m.provider,
+      model: m.model ?? '',
+      role: m.role,
+      project: this.root,
+      taskId: t.id,
+      outcome,
+      firstTry: outcome === 'merged' ? t.returns === 0 : undefined,
+    })
+  }
+
   // ── Acciones del usuario ─────────────────────────────────────────────────
 
   /** El usuario aprueba (y ajusta) la plantilla propuesta. */
   approveTemplate(slots: Parameters<Board['approve']>[0]) {
-    const approved = this.board.approve(slots)
+    const approved = this.board.approve(slots, this.rule)
     this.notify(
       BOSS_ID,
       `El usuario aprobó la plantilla: ${approved.map((s) => `${s.id} ${s.role} (${s.provider}${s.model ? ` ${s.model}` : ''})`).join(', ')}. Levanta a cada uno con levantar_empleado y asígnales tareas.`,
@@ -428,6 +483,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       throw new RuleError(result.reason)
     }
     const released = this.board.merged(t.id)
+    this.record(t, 'merged')
     const branch = await currentBranch(this.root)
     for (const r of released) {
       this.notify(
@@ -442,6 +498,7 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   userReturn(taskId: string, notes: string) {
     const t = this.board.userReturn(taskId, notes)
+    this.record(t, 'returned')
     this.notify(t.assignee, `El usuario regresó ${t.id}: ${notes}. Usa leer_tarea y vuelve a entregar.`)
     this.notify(BOSS_ID, `El usuario regresó ${t.id} a ${t.assignee}: ${notes}`)
     this.changed()
@@ -527,10 +584,11 @@ export class Studio extends EventEmitter<StudioEvents> {
         })(),
       historial: t.history.slice(-8).map((h) => h.text),
       ultimo_qa: t.qa && { veredicto: t.qa.verdict, reporte: t.qa.report },
-      entrega_esperada:
-        t.kind === 'qa'
-          ? 'entregar con veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo'
-          : 'entregar con reporte: qué hiciste, cómo probarlo y capturas si aplica',
+      entrega_esperada: (() => {
+        const m = this.library.manual(b.member(t.assignee).role)
+        const base = t.kind === 'qa' ? 'entregar con veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.' : m.delivery
+        return m.requireScreenshots && t.kind === 'work' ? `${base} Capturas obligatorias.` : base
+      })(),
     }
   }
 

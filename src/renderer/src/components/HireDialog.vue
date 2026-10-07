@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
-import type { ProviderId, SlotEdit } from '../../../shared/ipc'
+import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
 
 /**
  * El jefe propone la plantilla; aquí la apruebas tal cual o con tus cambios
@@ -24,6 +24,18 @@ watch(
   },
   { immediate: true },
 )
+
+// Expedientes: cada fila se revisa al cambiar; lo prohibido no se puede aprobar.
+const checks = ref<Check[]>([])
+watch(
+  () => rows.value.map((r) => `${r.provider}|${r.model}|${r.role}`).join(),
+  async () => {
+    checks.value = await window.orquest.checkSlots(rows.value.map((r) => ({ provider: r.provider, model: r.model || undefined, role: r.role })))
+  },
+  { immediate: true },
+)
+const blocked = computed(() => checks.value.some((c) => !c.ok))
+const checkText = (c?: Check) => (!c ? '' : c.ok ? c.warning ?? '' : c.reason)
 
 const staffed = computed(() => studio.board?.slots.filter((s) => s.status !== 'proposed') ?? [])
 const first = (): ProviderId => studio.usable[0]?.id ?? 'claude'
@@ -78,13 +90,14 @@ async function askBoss() {
               <td><button class="x" title="Quitar puesto" @click="rows.splice(i, 1)">✕</button></td>
             </tr>
             <tr v-if="r.reason" class="reason"><td colspan="5">“{{ r.reason }}”</td></tr>
+            <tr v-if="checkText(checks[i])" class="check" :class="checks[i]?.ok ? 'warn' : 'block'"><td colspan="5">{{ checks[i]?.ok ? '⚠' : '⛔' }} {{ checkText(checks[i]) }}</td></tr>
           </template>
         </tbody>
       </table>
       <p v-if="studio.error" class="err">{{ studio.error }}</p>
       <footer>
         <button @click="add">+ Puesto</button>
-        <button class="primary" :disabled="busy" @click="approve">Aprobar {{ rows.length }}</button>
+        <button class="primary" :disabled="busy || blocked" @click="approve">Aprobar {{ rows.length }}</button>
       </footer>
     </template>
 
@@ -118,6 +131,9 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; color: var(--muted); font-weight: normal; font-size: 11px; padding: 4px; }
 td { padding: 4px; vertical-align: top; }
 td select, td input { width: 100%; }
+.check td { font-size: 11px; padding-top: 0; }
+.check.warn td { color: var(--accent); }
+.check.block td { color: var(--blocked); }
 .reason td { color: var(--muted); font-size: 11px; padding-top: 0; font-style: italic; }
 ul { list-style: none; margin: 0; padding: 0; font-size: 12px; display: grid; gap: 2px; }
 small { color: var(--muted); margin-left: 6px; }
