@@ -46,6 +46,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | `names.ts` | Nombres de empleados sin repetir. |
 | `studio.ts` | Orquesta un proyecto: une todo, implementa las herramientas MCP, avisos `[Orquest]` a las terminales (cola hasta ver el prompt), burnout/descanso, capacitación, merge. |
 | `mcp.ts` | Servidor MCP HTTP local (`/mcp/<token>`, sin sesiones; el token dice quién llama y solo ve sus herramientas) y `/estado/<token>` para la barra de estado de Claude Code. |
+| `cli.ts` | Canal por comando para CLIs sin MCP: lee los campos de `orquest <herramienta> --campo valor` contra el esquema de la herramienta e instala el comando (lanzadores `.cmd` y POSIX). El comando es `src/cli/orquest.mjs`, sin dependencias; el servidor lo atiende en `/cli/<token>`. |
 | `store.ts` | SQLite local: tablero por proyecto, expedientes, manuales, historial. |
 | `prompts.ts` | Prompt del jefe y del empleado (armado con su manual). |
 
@@ -79,7 +80,8 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 
 - Correr la app en Electron de verdad (nunca se pudo en el entorno donde se escribió) y ajustar lo que falle.
 - Probar Codex con su CLI real (conexión MCP, sandbox, patrones de pantalla y contexto).
-- Conectar Antigravity, OpenCode, Command Code, Kimi y Grok a MCP (hoy no reciben herramientas ni permisos).
+- Antigravity, OpenCode, Command Code, Kimi y Grok usan las herramientas con el comando `orquest` (cada terminal nace con `ORQUEST_URL` y el comando al frente del PATH). Falta probarlo con sus CLIs reales y aplicarles permisos por puesto.
+- En Windows fallan tres pruebas desde antes del comando: `detect` (versión de un `.cmd`), `employees` (lanza un script como ejecutable) y `studio` (CRLF tras abortar un merge).
 - Límites de uso por cuenta (barra de energía, Cafetería con cuenta regresiva, turnos entre cuentas); la `statusLine` de Claude ya trae `rate_limits.five_hour`.
 - Reporte de mercado semanal (rankings + opinión) para la columna "En el mercado" de los expedientes.
 - Fase 4: mapa isométrico con el arte final (esperando diseño en Pencil). Fases 5 (lanzamiento abierto) y 6 (remoto móvil).
