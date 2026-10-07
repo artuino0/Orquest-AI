@@ -1,13 +1,21 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as pty from 'node-pty'
+import { RuleError } from '../core/board.js'
 import { detectAll } from '../core/detect.js'
-import { EmployeeManager, type HireRequest } from '../core/employees.js'
-import { officeChanges, officeDiff } from '../core/worktree.js'
+import { EmployeeManager } from '../core/employees.js'
+import { startMcpServer, type McpHandle } from '../core/mcp.js'
+import { StudioStore } from '../core/store.js'
+import { Studio } from '../core/studio.js'
+import { officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
+import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 
 const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
-/** Repo de cada empleado, para despedirlo y quitar su oficina. */
-const repos = new Map<string, string>()
+let store: StudioStore
+let mcp: McpHandle
+/** Un estudio por repo abierto en esta sesión; la UI trabaja con el actual. */
+const studios = new Map<string, Studio>()
+let current: Studio | undefined
 
 let win: BrowserWindow | null = null
 
@@ -28,35 +36,82 @@ manager.on('data', (id, data) => send('employee:data', id, data))
 manager.on('state', (id, state) => send('employee:state', id, state))
 manager.on('hired', (e) => send('employee:hired', e))
 
-ipcMain.handle('clis:detect', () => detectAll())
-ipcMain.handle('repo:pick', async () => {
+function studio(): Studio {
+  if (!current) throw new Error('No hay proyecto abierto.')
+  return current
+}
+
+/** Los motivos de las reglas llegan tal cual a la UI. */
+function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R | Promise<R>) {
+  ipcMain.handle(channel, async (_e, ...args) => {
+    try {
+      return await fn(...(args as A))
+    } catch (err) {
+      throw new Error(err instanceof RuleError ? err.message : (err as Error).message)
+    }
+  })
+}
+
+handle('clis:detect', () => detectAll())
+handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Elige el repositorio del proyecto' })
   return r.canceled ? null : r.filePaths[0]
 })
-ipcMain.handle('employee:hire', async (_e, req: HireRequest) => {
-  const emp = await manager.hire(req)
-  repos.set(emp.id, req.repo)
-  return emp
+
+handle('project:open', async (repo: string) => {
+  const root = await repoRoot(repo)
+  let s = studios.get(root)
+  if (!s) {
+    s = await new Studio({ repo: root, manager, store, detect: detectAll, mcpUrl: (t) => mcp.url(t) }).init()
+    let pending: ReturnType<typeof setTimeout> | undefined
+    const target = s
+    s.on('changed', () => {
+      // Agrupa ráfagas de cambios.
+      clearTimeout(pending)
+      pending = setTimeout(() => current === target && send('board:changed', target.snapshot()), 60)
+    })
+    s.on('notice', (text) => current === target && send('notice', text))
+    studios.set(root, s)
+  }
+  current = s
+  return s.snapshot()
 })
-ipcMain.handle('employee:fire', async (_e, id: string, removeOffice: boolean) => {
-  await manager.fire(id, repos.get(id)!, { removeOffice })
-  repos.delete(id)
-})
-ipcMain.handle('employee:list', () => manager.list())
-ipcMain.handle('employee:scrollback', (_e, id: string) => manager.scrollback(id))
-ipcMain.handle('employee:changes', (_e, id: string) => {
+handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
+handle('boss:say', (text: string) => studio().sayToBoss(text))
+handle('template:approve', (slots: SlotEdit[]) => void studio().approveTemplate(slots))
+handle('task:merge', async (id: string) => void (await studio().merge(id)))
+handle('task:return', (id: string, notes: string) => studio().userReturn(id, notes))
+handle('task:diff', (id: string) => studio().diff(id))
+
+handle('employee:fire', (id: string) => studio().fire(id))
+handle('employee:list', () => manager.list())
+handle('employee:scrollback', (id: string) => manager.scrollback(id))
+handle('employee:changes', (id: string) => {
   const emp = manager.get(id)
   return emp ? officeChanges(emp.office) : []
 })
-ipcMain.handle('employee:diff', (_e, id: string, path: string) => {
+handle('employee:diff', (id: string, path: string) => {
   const emp = manager.get(id)
   return emp ? officeDiff(emp.office, path) : ''
 })
-ipcMain.on('employee:write', (_e, id: string, data: string) => manager.write(id, data))
-ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.resize(id, cols, rows))
+ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
+ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))
 
-app.whenReady().then(createWindow)
-app.on('window-all-closed', () => {
+app.whenReady().then(async () => {
+  store = new StudioStore(join(app.getPath('userData'), 'studio.db'))
+  mcp = await startMcpServer((token) => {
+    for (const s of studios.values()) {
+      const caller = s.caller(token)
+      if (caller) return { studio: s, caller }
+    }
+    return undefined
+  })
+  createWindow()
+})
+app.on('window-all-closed', async () => {
+  for (const s of studios.values()) s.shutdown()
   manager.shutdown()
+  await mcp?.close()
+  store?.close()
   app.quit()
 })

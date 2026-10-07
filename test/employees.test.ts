@@ -58,7 +58,9 @@ describe('EmployeeManager', () => {
       ),
     )
 
-    // Cada uno en su oficina y su rama.
+    // Cada uno en su oficina dentro del repo, fuera de git, y en su rama.
+    for (const e of team) expect(e.office.path.startsWith(join(repo, '.orquest', 'oficinas'))).toBe(true)
+    expect(execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' })).toBe('')
     expect(new Set(team.map((e) => e.office.path)).size).toBe(3)
     expect(new Set(team.map((e) => e.office.branch)).size).toBe(3)
 

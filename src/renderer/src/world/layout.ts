@@ -123,6 +123,13 @@ export function deskAt(room: Room, index: number): Desk {
   return { room, index, desk, seat: { x: desk.x, y: desk.y + 1 } }
 }
 
+/** Escritorio del jefe: el grande de su oficina. */
+export function bossDesk(): Desk {
+  const room = getRoom('jefe')
+  const desk = { x: room.x + 6, y: room.y + 2 }
+  return { room, index: 0, desk, seat: { x: desk.x, y: desk.y + 1 } }
+}
+
 /**
  * Reparte escritorios conservando los ya asignados: nadie cambia de lugar
  * cuando entra o sale alguien. Si un cuarto se llena, los nuevos comparten
@@ -137,6 +144,10 @@ export function assignDesks(
   const pending: { id: string; room: Room }[] = []
 
   for (const e of employees) {
+    if (e.role === 'jefe') {
+      result.set(e.id, bossDesk())
+      continue
+    }
     const room = roomForDepartment(departmentFor(e.role))
     const prev = previous.get(e.id)
     const used = taken.get(room.id) ?? new Set<number>()

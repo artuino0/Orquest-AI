@@ -7,15 +7,32 @@ function listen<A extends unknown[]>(channel: string, cb: (...args: A) => void) 
   return () => ipcRenderer.off(channel, handler)
 }
 
+/** Quita el prefijo que Electron agrega a los errores de invoke: el motivo llega limpio. */
+async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  try {
+    return await ipcRenderer.invoke(channel, ...args)
+  } catch (err) {
+    throw new Error(String((err as Error).message).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+  }
+}
+
 const api: OrquestApi = {
-  detectClis: () => ipcRenderer.invoke('clis:detect'),
-  pickRepo: () => ipcRenderer.invoke('repo:pick'),
-  hire: (req) => ipcRenderer.invoke('employee:hire', req),
-  fire: (id, removeOffice) => ipcRenderer.invoke('employee:fire', id, removeOffice),
-  list: () => ipcRenderer.invoke('employee:list'),
-  scrollback: (id) => ipcRenderer.invoke('employee:scrollback', id),
-  changes: (id) => ipcRenderer.invoke('employee:changes', id),
-  diff: (id, path) => ipcRenderer.invoke('employee:diff', id, path),
+  detectClis: () => invoke('clis:detect'),
+  pickRepo: () => invoke('repo:pick'),
+  openProject: (repo) => invoke('project:open', repo),
+  hireBoss: (req) => invoke('boss:hire', req),
+  sayToBoss: (text) => invoke('boss:say', text),
+  approveTemplate: (slots) => invoke('template:approve', slots),
+  mergeTask: (id) => invoke('task:merge', id),
+  returnTask: (id, notes) => invoke('task:return', id, notes),
+  taskDiff: (id) => invoke('task:diff', id),
+  onBoard: (cb) => listen('board:changed', cb),
+  onNotice: (cb) => listen('notice', cb),
+  fire: (id) => invoke('employee:fire', id),
+  list: () => invoke('employee:list'),
+  scrollback: (id) => invoke('employee:scrollback', id),
+  changes: (id) => invoke('employee:changes', id),
+  diff: (id, path) => invoke('employee:diff', id, path),
   write: (id, data) => ipcRenderer.send('employee:write', id, data),
   resize: (id, cols, rows) => ipcRenderer.send('employee:resize', id, cols, rows),
   onData: (cb) => listen('employee:data', cb),

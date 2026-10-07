@@ -13,7 +13,10 @@
     "rebuild": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
-    "node-pty": "^1.1.0"
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@xterm/headless": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",

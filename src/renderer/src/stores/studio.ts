@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { CliStatus, Employee, EmployeeState, HireRequest } from '../../../shared/ipc'
+import type { BossRequest, CliStatus, Employee, EmployeeState, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
 
-export type Overlay = 'hire' | 'board' | 'inbox' | null
+export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | null
 export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {
@@ -42,10 +42,16 @@ export const useStudio = defineStore('studio', () => {
   const drawerMode = ref<DrawerMode>('float')
   const error = ref<string | null>(null)
   const activity = ref<Record<string, ActivityItem[]>>({})
+  const board = ref<StudioSnapshot | null>(null)
+  const notices = ref<{ id: number; text: string }[]>([])
 
   const usable = computed(() => clis.value.filter((c) => c.installed && c.session !== false))
   const canHire = computed(() => usable.value.length > 0 && !!repo.value)
   const selectedEmployee = computed(() => employees.value.find((e) => e.id === selected.value))
+  const proposal = computed(() => board.value?.slots.filter((s) => s.status === 'proposed') ?? [])
+  const inbox = computed(() => board.value?.tasks.filter((t) => t.status === 'approved') ?? [])
+  const bossOnline = computed(() => !!board.value?.bossOnline)
+  const tasksOf = (id: string): Task[] => board.value?.tasks.filter((t) => t.assignee === id) ?? []
   const counts = computed(() => {
     const c: Partial<Record<EmployeeState, number>> = {}
     for (const e of employees.value) c[e.state] = (c[e.state] ?? 0) + 1
@@ -65,11 +71,45 @@ export const useStudio = defineStore('studio', () => {
     }
   }
 
-  function openProject(path: string) {
+  async function openProject(path: string) {
+    error.value = null
+    try {
+      board.value = await window.orquest.openProject(path)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return
+    }
     repo.value = path
     recents.value = [path, ...recents.value.filter((r) => r !== path)].slice(0, 8)
     saveRecents(recents.value)
+    employees.value = (await window.orquest.list()).filter((e) => e.office.path.startsWith(board.value!.repo))
     screen.value = 'office'
+    overlay.value = board.value.bossOnline ? null : 'boss'
+  }
+
+  /** Corre una acción y deja el motivo del rechazo en error. */
+  async function attempt(fn: () => Promise<unknown>): Promise<boolean> {
+    error.value = null
+    try {
+      await fn()
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return false
+    }
+  }
+
+  const hireBoss = (req: BossRequest) => attempt(() => window.orquest.hireBoss(req))
+  const approveTemplate = (slots: SlotEdit[]) => attempt(() => window.orquest.approveTemplate(slots))
+  const mergeTask = (id: string) => attempt(() => window.orquest.mergeTask(id))
+  const returnTask = (id: string, notes: string) => attempt(() => window.orquest.returnTask(id, notes))
+  const sayToBoss = (text: string) => attempt(() => window.orquest.sayToBoss(text))
+
+  let noticeSeq = 0
+  function notice(text: string) {
+    const id = ++noticeSeq
+    notices.value.push({ id, text })
+    setTimeout(() => (notices.value = notices.value.filter((n) => n.id !== id)), 7000)
   }
 
   async function pickProject() {
@@ -83,20 +123,8 @@ export const useStudio = defineStore('studio', () => {
     overlay.value = null
   }
 
-  async function hire(req: Omit<HireRequest, 'repo'>): Promise<boolean> {
-    if (!repo.value) return false
-    error.value = null
-    try {
-      await window.orquest.hire({ ...req, repo: repo.value })
-      return true
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e)
-      return false
-    }
-  }
-
   async function fire(id: string) {
-    await window.orquest.fire(id, false)
+    if (!(await attempt(() => window.orquest.fire(id)))) return
     log(id, 'despedido')
     employees.value = employees.value.filter((e) => e.id !== id)
     if (selected.value === id) selected.value = null
@@ -113,6 +141,8 @@ export const useStudio = defineStore('studio', () => {
     log(e.id, `contratado como ${e.role}`)
     for (const w of e.warnings) log(e.id, `⚠ ${w}`)
   })
+  window.orquest.onBoard((b) => (board.value = b))
+  window.orquest.onNotice(notice)
   window.orquest.onState((id, state) => {
     const e = employees.value.find((x) => x.id === id)
     if (!e) return
@@ -121,8 +151,8 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    screen, clis, detecting, employees, repo, recents, selected, overlay, drawerMode, error, activity,
-    usable, canHire, selectedEmployee, counts,
-    detect, openProject, pickProject, goHome, hire, fire, select,
+    screen, clis, detecting, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
+    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf,
+    detect, openProject, pickProject, goHome, fire, select, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })

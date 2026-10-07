@@ -20,6 +20,10 @@ export interface SceneEmployee {
   role: string
   provider: string
   state: VisualState
+  /** Con state 'waiting': a quién espera (camina a su escritorio). */
+  waitingFor?: string
+  /** Con state 'delivering': lugar en la fila frente al jefe. */
+  slot?: number
 }
 
 interface ActorView {
@@ -249,16 +253,10 @@ export class OfficeScene {
         break
       }
       case 'boss': {
+        // Escritorio grande; el monitor y la silla los pone el jefe al llegar.
         const [bx, by] = at(4, 2)
-        g.rect(bx, by, TILE * 4, TILE + 4).fill(0x4e342e)
-        g.rect(bx, by, TILE * 4, 4).fill(0x795548)
-        g.rect(bx + 26, by - 10, 12, 10).fill(0x263238)
-        g.rect(bx + 28, by - 8, 8, 6).fill(0x80deea)
-        // El jefe: siempre en su escritorio, de frente.
-        const boss = new Graphics()
-        pixels(boss, characterFrame('stand', 0), { H: 0x9e9e9e, S: 0xf5d0b0, T: 0xf2b84b, P: 0x2f3a56, B: 0x1b1a24, E: 0x1b1a24 })
-        boss.position.set(bx + 27, by - 22)
-        this.furniture.addChild(boss)
+        g.rect(bx + 4, by + 4, TILE * 4 - 8, TILE + 2).fill(0x4e342e)
+        g.rect(bx + 4, by + 4, TILE * 4 - 8, 4).fill(0x795548)
         plant(1, 1)
         plant(10, 1)
         break
@@ -318,7 +316,8 @@ export class OfficeScene {
       const desk = this.desks.get(e.id)!
       let view = this.views.get(e.id)
       if (!view) view = this.addActor(e, desk)
-      view.actor.setState(e.state, { desk })
+      const dependencyDesk = e.waitingFor ? this.desks.get(e.waitingFor) : undefined
+      view.actor.setState(e.state, { desk, dependencyDesk, slot: e.slot })
     }
     // Despedidos: caminan a la salida antes de desaparecer.
     for (const [id, v] of this.views) if (!seen.has(id)) v.actor.setState('exited')
@@ -337,7 +336,7 @@ export class OfficeScene {
     root.on('pointertap', () => !this.dragging() && this.onSelect(e.id))
     this.people.addChild(root)
     const monitor = new Graphics()
-    this.drawDesk(desk)
+    if (e.role !== 'jefe') this.drawDesk(desk)
     this.monitors.addChild(monitor)
     const view: ActorView = { actor, provider: e.provider, palette: paletteFor(e.id, e.provider), root, body, bubble, ring, monitor }
     this.views.set(e.id, view)

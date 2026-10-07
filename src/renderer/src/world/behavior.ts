@@ -66,7 +66,8 @@ export function placePoint(place: Place, ctx: PlaceContext): Point {
     }
     case 'boss': {
       const r = getRoom('jefe')
-      return { x: r.x + 3 + (ctx.slot ?? 0) % 6, y: r.y + 4 }
+      // Frente al escritorio del jefe, en fila.
+      return { x: r.x + 3 + ((ctx.slot ?? 0) % 7), y: r.y + 5 }
     }
     case 'cafeteria': {
       const r = getRoom('cafeteria')
