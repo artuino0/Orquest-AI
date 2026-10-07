@@ -11,7 +11,9 @@ Diseña la interfaz de escritorio de **Orquest AI**, un orquestador de agentes d
 ## Plataforma y estilo
 
 - App de escritorio (Electron), ventana base 1280×800, mínimo 1024×640. Tema oscuro.
-- Mundo en pixel art estilo oficina vista cenital 3/4 (referencias: Stardew Valley, Habbo, Game Dev Tycoon). Casillas de 16 px, escala entera.
+- Mundo en **pixel art isométrico** (proyección 2:1, casillas de 32×16 px, escala entera). Referencias: Habbo Hotel, Theme Hospital, Two Point Hospital, Game Dev Tycoon. No vista cenital ni 3/4 tipo Stardew Valley.
+- Cuartos en corte (cutaway): solo se dibujan los muros del fondo (izquierdo y derecho) para que el interior siempre se vea; puertas en los muros que dan al pasillo.
+- Personajes en isométrico con al menos 2 direcciones (frente y espalda, espejadas para izquierda/derecha) y orden de profundidad: lo que está más abajo en pantalla tapa a lo de arriba.
 - Paneles de interfaz con estética retro coherente con el pixel art (bordes gruesos, sombras duras, tipografía monoespaciada o pixel legible), pero priorizando legibilidad: aquí se leen terminales, diffs y reportes.
 - Color por proveedor en la ropa del personaje (Claude naranja, Codex azul, Antigravity verde, OpenCode blanco, Command Code lila, Kimi rosa, Grok gris).
 - Colores de estado: trabajando (azul), bloqueado / te necesita (rojo), en espera (verde), esperando a otro (lila), lista para revisar (ámbar), jugando / limpiando contexto (turquesa), llegando (morado claro).
@@ -24,7 +26,7 @@ Diseña la interfaz de escritorio de **Orquest AI**, un orquestador de agentes d
 - Si ninguna CLI está lista, explicar qué falta y no dejar abrir proyecto.
 
 ### 2. Oficina (pantalla principal; todo lo demás se abre encima)
-Mapa con estos cuartos: **Recepción** (por donde entra cada contratado; tiene un tablón de reputación del mercado), **Oficina del Jefe**, **Cafetería** (mesas para descansar por límite de uso y **maquinitas de videojuegos** para limpiar contexto), y seis departamentos: **Desarrollo, Backend, Frontend, DBA, Infra, QA**, cada uno con hasta 8 escritorios. Pasillos y puertas: los personajes caminan por ellos.
+Mapa isométrico con estos cuartos: **Recepción** (por donde entra cada contratado; tiene un tablón de reputación del mercado), **Oficina del Jefe**, **Cafetería** (mesas para descansar por límite de uso y **maquinitas de videojuegos** para limpiar contexto), y seis departamentos: **Desarrollo, Backend, Frontend, DBA, Infra, QA**, cada uno con hasta 8 escritorios. Pasillos y puertas: los personajes caminan por ellos.
 
 Cada empleado: personaje con **nombre visible** debajo, su escritorio con monitor. Estados y cómo se ven:
 
