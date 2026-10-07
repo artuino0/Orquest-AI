@@ -7,7 +7,9 @@ import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
 import { Board, RuleError, type BoardSnapshot, type Slot, type Task } from './board.js'
 import type { CliStatus } from './detect.js'
-import type { EmployeeManager } from './employees.js'
+import type { EmployeeManager, HireRequest } from './employees.js'
+import { Journal, type JournalOwner } from './journal.js'
+import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
 import { bossPrompt, employeePrompt, oneLine } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
@@ -22,8 +24,12 @@ export const BOSS_ID = 'jefe'
 export interface StudioSnapshot extends BoardSnapshot {
   repo: string
   bossOnline: boolean
-  /** Lo que el tablero dice de cada empleado: esperando a alguien o llevando su entrega. */
-  hints: Record<string, NonNullable<ReturnType<Board['hint']>>>
+  /** Lo que el tablero dice de cada empleado: esperando a alguien, llevando su entrega o jugando. */
+  hints: Record<string, NonNullable<ReturnType<Board['hint']>> | { state: 'gaming' }>
+  /** % de contexto usado por agente, si se conoce. */
+  context: Record<string, number>
+  /** Desde qué % se manda a descansar. */
+  burnoutAt: number
 }
 
 export interface StudioOptions {
@@ -39,6 +45,21 @@ export interface StudioOptions {
   library?: Library
   /** Ejecutables por proveedor (pruebas). */
   binaries?: Partial<Record<ProviderId, string>>
+  /** URL donde una CLI reporta su estado (contexto, uso de la cuenta), por token. */
+  statusUrl?: (token: string) => string
+  /** % de contexto a partir del cual el agente se va a descansar. */
+  burnoutAt?: number
+  /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
+  handoffTimeoutMs?: number
+}
+
+/** Cómo se lanzó un agente: con esto se reinicia igual tras descansar. */
+interface Launch {
+  req: HireRequest
+  token: string
+  owner: JournalOwner
+  /** Mensajes de arranque (manual, contexto) que recibe al entrar. */
+  intro: (office: Office) => string[]
 }
 
 export interface StudioEvents {
@@ -53,9 +74,18 @@ export class Studio extends EventEmitter<StudioEvents> {
   private queues = new Map<string, string[]>()
   private waiters = new Map<string, (answer: string) => void>()
   private offices = new Map<string, Office>()
+  private launches = new Map<string, Launch>()
+  /** Quién está jugando videojuegos (limpiando contexto) y por qué. */
+  private resting = new Map<string, string>()
+  /** Pasó el umbral a media tarea: descansa en cuanto termine su turno. */
+  private restPending = new Set<string>()
+  /** Contexto con que arrancó cada sesión. */
+  private contextFloor = new Map<string, number>()
+  private handoffWaiters = new Map<string, () => void>()
   private unsubscribe: () => void
   root = ''
   readonly library: Library
+  journal!: Journal
 
   constructor(private opts: StudioOptions) {
     super()
@@ -64,25 +94,48 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.board = saved ? Board.restore(saved) : new Board()
     const onState = (id: string, state: EmployeeState) => {
       if (!this.isOurs(id)) return
-      if (state === 'idle') this.flush(id)
+      if (state === 'idle') {
+        this.flush(id)
+        if (this.restPending.has(id)) this.tryRest(id)
+      }
       this.changed()
     }
     const onExit = (id: string) => {
-      if (!this.isOurs(id)) return
+      if (!this.isOurs(id) || this.resting.has(id)) return
       this.board.offline(id)
+      this.changed()
+    }
+    const onContext = (id: string, pct: number) => {
+      if (!this.isOurs(id)) return
+      // Una sesión nueva ya arranca con contexto usado (manual, herramientas):
+      // la primera lectura tras lanzar es su piso, y para volver a descansar
+      // tiene que haber trabajado. Si no, entraría en un ciclo.
+      if (!this.contextFloor.has(id)) this.contextFloor.set(id, pct)
+      const worked = pct >= this.contextFloor.get(id)! + 10
+      if (pct >= this.burnoutAt && worked && !this.resting.has(id)) {
+        this.restPending.add(id)
+        this.tryRest(id)
+      }
       this.changed()
     }
     opts.manager.on('state', onState)
     opts.manager.on('exit', onExit)
+    opts.manager.on('context', onContext)
     this.unsubscribe = () => {
       opts.manager.off('state', onState)
       opts.manager.off('exit', onExit)
+      opts.manager.off('context', onContext)
     }
   }
 
   async init() {
     this.root = await repoRoot(this.opts.repo)
+    this.journal = new Journal(this.root)
     return this
+  }
+
+  get burnoutAt() {
+    return this.opts.burnoutAt ?? 80
   }
 
   /** Agentes de este proyecto, incluso antes de que termine su contratación. */
@@ -158,6 +211,28 @@ export class Studio extends EventEmitter<StudioEvents> {
     return this.opts.manager.isLive(BOSS_ID)
   }
 
+  /** Lanza (o relanza) la CLI de un agente con sus mensajes de arranque. */
+  private async launch(id: string, l: Launch, extra: string[] = []) {
+    this.contextFloor.delete(id)
+    const emp = await this.opts.manager.hire(l.req)
+    this.offices.set(id, emp.office)
+    // De aquí en adelante, relanzar reusa la misma oficina.
+    l.req = { ...l.req, office: emp.office }
+    this.launches.set(id, l)
+    for (const m of [...l.intro(emp.office), ...extra]) this.notify(id, m)
+    return emp
+  }
+
+  private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions']) {
+    return (
+      getProvider(provider).mcpArgs?.({
+        url: this.opts.mcpUrl(token),
+        permissions,
+        statusUrl: this.opts.statusUrl?.(token),
+      }) ?? []
+    )
+  }
+
   /** Contrata al jefe: trabaja en el repo principal, sin worktree. */
   async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }) {
     if (this.bossOnline) throw new RuleError('El jefe ya está en su oficina.')
@@ -166,28 +241,33 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.board.goal = req.goal
     const token = this.newToken({ kind: 'boss' })
     const office = { path: this.root, branch: await currentBranch(this.root) }
-    const prompt = bossPrompt(req.goal)
+    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID))
     const viaArg = takesSystemPrompt(adapter)
-    await this.opts.manager.hire({
-      id: BOSS_ID,
-      provider: req.provider,
-      model: req.model,
-      effort: req.effort,
-      role: 'jefe',
-      repo: this.root,
-      office,
-      binary: this.opts.binaries?.[req.provider],
-      systemPrompt: viaArg ? prompt : undefined,
-      extraArgs: adapter.mcpArgs(this.opts.mcpUrl(token), BOSS_PERMISSIONS),
-    })
-    if (!viaArg) this.notify(BOSS_ID, prompt)
+    const owner: JournalOwner = { id: BOSS_ID, name: 'Jefe', role: 'jefe', provider: req.provider, model: req.model }
+    await this.journal.open(owner)
     const resumed = this.board.tasks.length > 0
-    this.notify(
-      BOSS_ID,
+    await this.launch(BOSS_ID, {
+      token,
+      owner,
+      req: {
+        id: BOSS_ID,
+        provider: req.provider,
+        model: req.model,
+        effort: req.effort,
+        role: 'jefe',
+        repo: this.root,
+        office,
+        binary: this.opts.binaries?.[req.provider],
+        systemPrompt: viaArg ? prompt : undefined,
+        extraArgs: this.connectArgs(req.provider, token, BOSS_PERMISSIONS),
+      },
+      intro: () => (viaArg ? [] : [prompt]),
+    }, [
       resumed
-        ? 'Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.'
+        ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${this.journal.path(BOSS_ID)}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.`
         : 'Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.',
-    )
+    ])
+    this.fact(BOSS_ID, `contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
     this.changed()
   }
 
@@ -200,28 +280,116 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (!check.ok) throw new RuleError(check.reason)
     const adapter = getProvider(slot.provider)
     const manual = this.library.manual(slot.role)
-    const id = `${slot.role}-${slot.provider}-${slot.id}`.toLowerCase()
+    const id = `${slug(slot.name)}-${slot.role}`
     const token = this.newToken({ kind: 'employee', id })
     this.known.add(id)
     const warnings: string[] = []
     if (!adapter.mcpArgs) warnings.push(`${adapter.name} no se conecta a las herramientas de Orquest ni aplica permisos por puesto; el jefe le habla por terminal.`)
     warnings.push(...(adapter.permissionGaps?.(manual.permissions) ?? []))
     if (check.warning) warnings.push(check.warning)
-    // El manual necesita la oficina; se crea dentro de hire, así que se arma después.
-    const emp = await this.opts.manager.hire({
-      id,
-      provider: slot.provider,
-      model: slot.model,
-      effort: slot.effort,
-      role: slot.role,
-      repo: this.root,
-      binary: this.opts.binaries?.[slot.provider],
-      extraArgs: adapter.mcpArgs?.(this.opts.mcpUrl(token), manual.permissions) ?? [],
-    })
-    this.offices.set(id, emp.office)
+    const owner: JournalOwner = { id, name: slot.name, role: slot.role, provider: slot.provider, model: slot.model }
+    await this.journal.open(owner)
+    // Capacitación: quien ocupó antes el puesto dejó su bitácora.
+    const before = this.board.predecessors(slot.role).map((m) => `${m.name}: ${this.journal.path(m.id)}`)
+    const journalPath = this.journal.path(id)
+    const emp = await this.launch(id, {
+      token,
+      owner,
+      req: {
+        id,
+        provider: slot.provider,
+        model: slot.model,
+        effort: slot.effort,
+        role: slot.role,
+        repo: this.root,
+        binary: this.opts.binaries?.[slot.provider],
+        extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
+      },
+      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath })],
+    }, before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [])
     this.board.hired(slot, { id, role: slot.role, provider: slot.provider })
-    this.notify(id, employeePrompt(manual, emp.office))
-    return { id, warnings: [...warnings, ...emp.warnings] }
+    this.fact(id, `contratado como ${slot.role} (${slot.provider}${slot.model ? ` ${slot.model}` : ''})${before.length ? `; antes en el puesto: ${before.map((b) => b.split(':')[0]).join(', ')}` : ''}`)
+    return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
+  }
+
+  // ── Bitácora y descanso ──────────────────────────────────────────────────
+
+  private owner(id: string): JournalOwner | undefined {
+    const l = this.launches.get(id)
+    if (l) return l.owner
+    const m = this.board.staff.find((x) => x.id === id)
+    return m && { id: m.id, name: m.name, role: m.role, provider: m.provider, model: m.model }
+  }
+
+  /** Anota un hecho en la bitácora; nunca frena el flujo si falla el disco. */
+  private fact(id: string, text: string) {
+    const o = this.owner(id)
+    if (o) this.journal.fact(o, text).catch(() => {})
+  }
+
+  private nameOf(id: string): string {
+    if (id === BOSS_ID) return 'el jefe'
+    return this.board.staff.find((m) => m.id === id)?.name ?? id
+  }
+
+  private restRetries = new Map<string, ReturnType<typeof setInterval>>()
+
+  private tryRest(id: string) {
+    if (this.resting.has(id)) return
+    if (!this.opts.manager.atPrompt(id)) {
+      // Igual que los avisos: la TUI puede tardar en mostrar su prompt; reintenta.
+      if (!this.restRetries.has(id)) {
+        const timer = setInterval(() => {
+          if (!this.restPending.has(id) || !this.opts.manager.get(id)) {
+            clearInterval(timer)
+            this.restRetries.delete(id)
+          } else this.tryRest(id)
+        }, 500)
+        timer.unref?.()
+        this.restRetries.set(id, timer)
+      }
+      return
+    }
+    clearInterval(this.restRetries.get(id))
+    this.restRetries.delete(id)
+    this.restPending.delete(id)
+    const pct = this.opts.manager.get(id)?.context
+    void this.rest(id, `contexto al ${pct ?? '?'}%`).catch((err) => this.emit('notice', `No se pudo reiniciar a ${this.nameOf(id)}: ${(err as Error).message}`))
+  }
+
+  /**
+   * Burnout: el agente escribe su traspaso, se cierra su CLI y se relanza con
+   * contexto limpio en la misma oficina; al volver lee su bitácora. En el mapa
+   * se va a jugar videojuegos mientras tanto. Lo que dura es lo que tarda.
+   */
+  async rest(id: string, reason = 'lo mandó el usuario') {
+    const l = this.launches.get(id)
+    if (!l) throw new RuleError(`${this.nameOf(id)} no está en la oficina.`)
+    if (this.resting.has(id)) throw new RuleError(`${this.nameOf(id)} ya está descansando.`)
+    this.resting.set(id, reason)
+    this.emit('notice', `${l.owner.name} se va a jugar videojuegos (${reason}).`)
+    this.changed()
+    try {
+      const wrote = new Promise<void>((ok) => this.handoffWaiters.set(id, ok))
+      const timeout = new Promise<void>((ok) => setTimeout(ok, this.opts.handoffTimeoutMs ?? 180_000).unref?.())
+      this.notify(
+        id,
+        `Te toca descansar (${reason}). Antes, escribe tu traspaso con escribir_traspaso: qué hiciste, decisiones, pendientes, trampas del código y tu siguiente paso. Al volver lo leerás con el contexto limpio.`,
+      )
+      await Promise.race([wrote, timeout])
+      this.handoffWaiters.delete(id)
+      this.fact(id, `se fue a jugar videojuegos para limpiar contexto (${reason})`)
+      // Se cierra y se relanza igual: mismo proveedor, modelo, manual, oficina y token.
+      this.queues.delete(id)
+      await this.opts.manager.fire(id, this.root)
+      await this.launch(id, l, [
+        `Volviste de descansar con el contexto limpio. Lee tu bitácora (${this.journal.path(id)}) y sigue donde ibas${id === BOSS_ID ? ' (leer_proyecto)' : ' (leer_tarea)'}.`,
+      ])
+      this.fact(id, 'volvió de descansar')
+    } finally {
+      this.resting.delete(id)
+      this.changed()
+    }
   }
 
   private office(id: string): Office {
@@ -233,6 +401,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   // ── Herramientas MCP ─────────────────────────────────────────────────────
 
   async call(caller: Caller, tool: string, args: Record<string, unknown>): Promise<string> {
+    if (tool === 'escribir_traspaso') {
+      const id = caller.kind === 'boss' ? BOSS_ID : caller.id
+      try {
+        return await this.writeHandoff(id, String(args.traspaso ?? ''))
+      } finally {
+        this.changed()
+      }
+    }
     const boss = BOSS_TOOLS.has(tool)
     const employee = EMPLOYEE_TOOLS.has(tool)
     if (!boss && !employee) throw new RuleError(`Herramienta desconocida: ${tool}`)
@@ -243,6 +419,18 @@ export class Studio extends EventEmitter<StudioEvents> {
     } finally {
       this.changed()
     }
+  }
+
+  private async writeHandoff(id: string, text: string): Promise<string> {
+    const o = this.owner(id)
+    if (!o) throw new RuleError('No tienes bitácora.')
+    try {
+      await this.journal.handoff(o, text)
+    } catch (err) {
+      throw new RuleError((err as Error).message)
+    }
+    this.handoffWaiters.get(id)?.()
+    return `Traspaso guardado en ${this.journal.path(id)}.${this.resting.has(id) ? ' Ahora descansas; al volver lo leerás.' : ''}`
   }
 
   private async bossTool(tool: string, a: Record<string, any>): Promise<string> {
@@ -296,13 +484,13 @@ export class Studio extends EventEmitter<StudioEvents> {
         )
         this.emit('notice', `El jefe propone una plantilla de ${slots.length} puestos. Ábrela en Plantilla.`)
         const warned = slots.filter((x) => x.warning)
-        return `Propuesta enviada al usuario (${slots.map((s) => `${s.id} ${s.role}/${s.provider}`).join(', ')}). Espera su aprobación; se te avisará.${warned.length ? ` Avisos del expediente: ${warned.map((x) => x.warning).join(' ')}` : ''}`
+        return `Propuesta enviada al usuario (${slots.map((s) => `${s.id} ${s.name}, ${s.role}/${s.provider}`).join(', ')}). Espera su aprobación; se te avisará.${warned.length ? ` Avisos del expediente: ${warned.map((x) => x.warning).join(' ')}` : ''}`
       }
 
       case 'levantar_empleado': {
         const slot = b.takeSlot(String(a.puesto))
-        const { id, warnings } = await this.hireSlot(slot)
-        return `Contratado ${id} (${slot.role}, ${slot.provider}). Entra por Recepción y va a su escritorio.${warnings.length ? ` Avisos: ${warnings.join(' ')}` : ''}`
+        const { id, name, warnings } = await this.hireSlot(slot)
+        return `Contratado ${name} (id ${id}; ${slot.role}, ${slot.provider}). Entra por Recepción y va a su escritorio.${warnings.length ? ` Avisos: ${warnings.join(' ')}` : ''}`
       }
 
       case 'asignar_tarea': {
@@ -315,6 +503,7 @@ export class Studio extends EventEmitter<StudioEvents> {
           if (!a.empleado || !a.titulo) throw new RuleError('Para crear una tarea indica empleado y titulo.')
           t = b.assign({ assignee: String(a.empleado), title: String(a.titulo), description: String(a.descripcion ?? ''), deps: a.depende_de })
         }
+        this.fact(t.assignee, `${t.id} asignada: ${t.title}${t.deps.length ? ` (depende de ${t.deps.join(', ')})` : ''}`)
         if (t.status === 'ready') this.notify(t.assignee, `Tienes una tarea nueva (${t.id}: ${t.title}). Usa leer_tarea.`)
         else if (t.status === 'waiting') {
           this.notify(t.assignee, `Se te asignó ${t.id} (${t.title}); espera a ${b.openDeps(t).map((d) => `${d.id} de ${d.assignee}`).join(', ')}. Se te avisará al liberarse.`)
@@ -350,7 +539,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         if (decision !== 'aprobar' && decision !== 'regresar') throw new RuleError('decision debe ser aprobar, regresar o qa.')
         if (decision === 'regresar' && !a.notas) throw new RuleError('Para regresar una entrega di qué falta en notas.')
         const t = b.review(String(a.tarea), decision === 'aprobar' ? 'approve' : 'return', a.notas ? String(a.notas) : '')
-        if (t.status !== 'approved') this.record(t, 'returned')
+        if (t.status !== 'approved') this.record(t, 'returned', String(a.notas ?? ''))
         if (t.status === 'approved') {
           this.emit('notice', `${t.id} (${t.title}) espera tu aprobación para integrarse. Ábrela en Entregas.`)
           return `${t.id} aprobada; queda en la bandeja del usuario para integrarse.`
@@ -361,6 +550,7 @@ export class Studio extends EventEmitter<StudioEvents> {
 
       case 'mandar_a_qa': {
         const review = b.toQa(String(a.tarea), String(a.empleado_qa), String(a.instrucciones ?? ''))
+        this.fact(review.assignee, `${review.id} asignada: ${review.title}`)
         this.notify(review.assignee, `Tienes una revisión de QA (${review.id}). Usa leer_tarea.`)
         return `${review.id} creada para ${review.assignee}.`
       }
@@ -384,7 +574,7 @@ export class Studio extends EventEmitter<StudioEvents> {
 
       case 'preguntar_al_jefe': {
         b.say(id, BOSS_ID, String(a.pregunta))
-        this.notify(BOSS_ID, `${id} pregunta: ${a.pregunta} (responde con hablar_con)`)
+        this.notify(BOSS_ID, `${this.nameOf(id)} (${id}) pregunta: ${a.pregunta} (responde con hablar_con)`)
         return 'Pregunta enviada al jefe; su respuesta llegará a tu terminal.'
       }
 
@@ -423,17 +613,18 @@ export class Studio extends EventEmitter<StudioEvents> {
           verdict,
           ...diff,
         })
-        if (task.kind === 'work') this.record(task, 'delivered')
+        if (task.kind === 'work') this.record(task, 'delivered', String(a.reporte))
         if (task.kind === 'qa' && reviewed) {
+          this.fact(id, `${task.id}: revisé ${reviewed.id}, ${verdict === 'fail' ? 'no pasa' : 'pasa'} — ${String(a.reporte).slice(0, 300)}`)
           if (verdict === 'fail') {
-            this.record(reviewed, 'qa_fail')
+            this.record(reviewed, 'qa_fail', String(a.reporte))
             this.notify(reviewed.assignee, `QA rechazó ${reviewed.id}: ${a.reporte}. Usa leer_tarea, corrige y vuelve a entregar.`)
             this.notify(BOSS_ID, `QA rechazó ${reviewed.id}; regresó a ${reviewed.assignee}.`)
           } else {
             this.notify(BOSS_ID, `QA aprobó ${reviewed.id}. Revísala con revisar_entrega.`)
           }
         } else {
-          this.notify(BOSS_ID, `${id} entregó ${task.id} (${task.title}). Revísala con revisar_entrega o mándala a QA.`)
+          this.notify(BOSS_ID, `${this.nameOf(id)} (${id}) entregó ${task.id} (${task.title}). Revísala con revisar_entrega o mándala a QA.`)
         }
         return 'Entrega recibida. Espera instrucciones.'
       }
@@ -444,9 +635,11 @@ export class Studio extends EventEmitter<StudioEvents> {
   // ── Historial ────────────────────────────────────────────────────────────
 
   /** Anota en el expediente de quien hizo la tarea cómo le fue. */
-  private record(t: Task, outcome: Outcome) {
+  private record(t: Task, outcome: Outcome, detail = '') {
     const m = this.board.staff.find((x) => x.id === t.assignee)
     if (!m || t.kind !== 'work') return
+    const what: Record<Outcome, string> = { delivered: 'entregó', qa_fail: 'QA rechazó', returned: 'regresó', merged: 'integrada' }
+    this.fact(m.id, `${t.id} (${t.title}): ${what[outcome]}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
     this.library.record({
       provider: m.provider,
       model: m.model ?? '',
@@ -498,7 +691,7 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   userReturn(taskId: string, notes: string) {
     const t = this.board.userReturn(taskId, notes)
-    this.record(t, 'returned')
+    this.record(t, 'returned', notes)
     this.notify(t.assignee, `El usuario regresó ${t.id}: ${notes}. Usa leer_tarea y vuelve a entregar.`)
     this.notify(BOSS_ID, `El usuario regresó ${t.id} a ${t.assignee}: ${notes}`)
     this.changed()
@@ -520,18 +713,35 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   snapshot(): StudioSnapshot {
     const hints: StudioSnapshot['hints'] = {}
-    for (const m of this.board.staff) {
-      const h = this.board.hint(m.id)
-      if (h) hints[m.id] = h
+    const context: StudioSnapshot['context'] = {}
+    for (const id of [BOSS_ID, ...this.board.staff.map((m) => m.id)]) {
+      const h = this.resting.has(id) ? ({ state: 'gaming' } as const) : id === BOSS_ID ? undefined : this.board.hint(id)
+      if (h) hints[id] = h
+      const c = this.opts.manager.get(id)?.context
+      if (c !== undefined) context[id] = c
     }
-    return { ...this.board.snapshot(), repo: this.root, bossOnline: this.bossOnline, hints }
+    return { ...this.board.snapshot(), repo: this.root, bossOnline: this.bossOnline || this.resting.has(BOSS_ID), hints, context, burnoutAt: this.burnoutAt }
+  }
+
+  /** Lo que reporta la barra de estado de una CLI (Claude Code): % de contexto. */
+  status(caller: Caller, body: unknown) {
+    const id = caller.kind === 'boss' ? BOSS_ID : caller.id
+    const pct = (body as { context_window?: { used_percentage?: number } })?.context_window?.used_percentage
+    if (typeof pct === 'number' && this.opts.manager.get(id)) this.opts.manager.setContext(id, Math.round(pct))
+  }
+
+  /** Bitácora de un agente, para la UI. */
+  readJournal(id: string): Promise<string> {
+    return this.journal.read(id)
   }
 
   /** El usuario despide a alguien: su CLI se cierra; su rama y su tablero quedan. */
   async fire(id: string) {
+    this.fact(id, 'despedido; su bitácora queda para capacitar a quien ocupe el puesto')
+    this.launches.delete(id)
     if (this.opts.manager.get(id)) await this.opts.manager.fire(id, this.root)
     this.board.offline(id)
-    if (id !== BOSS_ID) this.notify(BOSS_ID, `El usuario despidió a ${id}. Reasigna sus tareas abiertas si hace falta.`)
+    if (id !== BOSS_ID) this.notify(BOSS_ID, `El usuario despidió a ${this.nameOf(id)} (${id}). Reasigna sus tareas abiertas si hace falta; quien ocupe su puesto recibirá su bitácora.`)
     this.changed()
   }
 
@@ -540,9 +750,12 @@ export class Studio extends EventEmitter<StudioEvents> {
     return {
       objetivo: b.goal,
       repo: this.root,
-      plantilla: b.slots.map((s) => ({ id: s.id, puesto: s.role, proveedor: s.provider, modelo: s.model, estado: s.status, empleado: s.employeeId })),
+      plantilla: b.slots.map((s) => ({ id: s.id, nombre: s.name, puesto: s.role, proveedor: s.provider, modelo: s.model, estado: s.status, empleado: s.employeeId })),
       empleados: b.staff.map((m) => ({
         id: m.id,
+        nombre: m.name,
+        descansando: this.resting.has(m.id) || undefined,
+        contexto_usado: this.opts.manager.get(m.id)?.context,
         puesto: m.role,
         proveedor: m.provider,
         en_oficina: m.online,
@@ -595,6 +808,7 @@ export class Studio extends EventEmitter<StudioEvents> {
   shutdown() {
     this.unsubscribe()
     for (const id of [...this.retries.keys()]) this.stopRetry(id)
+    for (const t of this.restRetries.values()) clearInterval(t)
     for (const w of this.waiters.values()) w('')
     this.waiters.clear()
   }

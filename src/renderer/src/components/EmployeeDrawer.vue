@@ -7,13 +7,14 @@ import TerminalView from './TerminalView.vue'
 import type { FileChange } from '../../../shared/ipc'
 import { TASK_STATUS } from './taskLabels'
 
-type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea'
+type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
 const TABS: [Tab, string][] = [
   ['terminal', 'Terminal'],
   ['archivos', 'Archivos'],
   ['capturas', 'Capturas'],
   ['actividad', 'Actividad'],
   ['tarea', 'Tarea'],
+  ['bitacora', 'Bitácora'],
 ]
 
 const studio = useStudio()
@@ -35,9 +36,19 @@ const tasks = computed(() => studio.tasksOf(e.value.id))
 // Igual que en el mapa: en espera, el tablero dice si espera a otro o lleva su entrega.
 const visual = computed(() => {
   const h = studio.board?.hints[e.value.id]
+  if (h?.state === 'gaming') return 'gaming'
   return h && (e.value.state === 'idle' || e.value.state === 'starting') ? h.state : e.value.state
 })
 const taskById = (id: string) => studio.board?.tasks.find((t) => t.id === id)
+
+const journal = ref('')
+const context = computed(() => studio.board?.context[e.value.id])
+const burnoutAt = computed(() => studio.board?.burnoutAt ?? 80)
+const gaming = computed(() => studio.board?.hints[e.value.id]?.state === 'gaming')
+
+async function loadJournal() {
+  journal.value = await window.orquest.journal(e.value.id)
+}
 
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
@@ -56,6 +67,10 @@ watch(
       loadChanges()
       timer = setInterval(loadChanges, 3000)
     }
+    if (t === 'bitacora') {
+      loadJournal()
+      timer = setInterval(loadJournal, 3000)
+    }
   },
   { immediate: true },
 )
@@ -70,11 +85,16 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
     <header>
       <span class="avatar" :style="{ background: color }" />
       <div class="who">
-        <strong>{{ e.role }}</strong>
-        <small>{{ e.provider }}{{ e.model ? ' · ' + e.model : '' }}{{ e.effort ? ' · ' + e.effort : '' }}</small>
+        <strong>{{ studio.nameOf(e.id) }}</strong>
+        <small>{{ e.role }} · {{ e.provider }}{{ e.model ? ' · ' + e.model : '' }}{{ e.effort ? ' · ' + e.effort : '' }}</small>
       </div>
       <span class="pill" :class="visual">{{ LOOKS[visual].label }}</span>
+      <div class="ctx" :title="context === undefined ? 'contexto: sin dato' : `contexto usado: ${context}%`">
+        <span class="bar"><span :style="{ width: (context ?? 0) + '%' }" :class="{ hot: (context ?? 0) >= burnoutAt }" /></span>
+        <small>{{ context === undefined ? '—' : context + '%' }}</small>
+      </div>
       <div class="actions">
+        <button :disabled="gaming || e.state === 'exited'" title="Escribe su traspaso y se reinicia con el contexto limpio" @click="studio.rest(e.id)">🎮 Descanso</button>
         <button
           :title="studio.drawerMode === 'float' ? 'Pantalla dividida' : 'Flotante'"
           @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'"
@@ -116,6 +136,8 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
         </li>
       </ol>
 
+      <pre v-if="tab === 'bitacora'" class="pad journal">{{ journal || 'Aún no hay bitácora.' }}</pre>
+
       <dl v-if="tab === 'tarea'" class="pad task">
         <dt>Puesto</dt>
         <dd>{{ e.role }}</dd>
@@ -123,6 +145,8 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
         <dd><code>{{ e.office.path }}</code></dd>
         <dt>Rama</dt>
         <dd><code>{{ e.office.branch }}</code></dd>
+        <dt>Bitácora</dt>
+        <dd class="muted">Su memoria entre reinicios, y la capacitación de quien ocupe su puesto.</dd>
         <dt>Tareas</dt>
         <dd v-if="!tasks.length" class="muted">Sin tareas. Se las asigna el jefe.</dd>
         <dd v-for="t in tasks" :key="t.id" class="task-item">
@@ -181,5 +205,12 @@ nav .on { background: var(--bg); border-color: var(--accent); }
 .idle { background: var(--idle); }
 .exited { background: var(--exited); color: #fff; }
 .waiting { background: #9fa8da; }
+.gaming { background: #26a69a; }
+.ctx { display: flex; align-items: center; gap: 4px; }
+.ctx small { color: var(--muted); font-size: 10px; width: 28px; }
+.bar { display: block; width: 60px; height: 6px; background: var(--line); }
+.bar span { display: block; height: 100%; background: var(--working); }
+.bar span.hot { background: var(--blocked); }
+.journal { white-space: pre-wrap; font-size: 12px; }
 .delivering { background: var(--accent); }
 </style>

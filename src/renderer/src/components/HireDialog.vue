@@ -20,7 +20,7 @@ const busy = ref(false)
 watch(
   () => studio.proposal.map((s) => s.id).join(),
   () => {
-    rows.value = studio.proposal.map((s) => ({ id: s.id, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, reason: s.reason }))
+    rows.value = studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, reason: s.reason }))
   },
   { immediate: true },
 )
@@ -41,7 +41,7 @@ const staffed = computed(() => studio.board?.slots.filter((s) => s.status !== 'p
 const first = (): ProviderId => studio.usable[0]?.id ?? 'claude'
 
 function add() {
-  rows.value.push({ role: 'desarrollo', provider: first(), model: '' })
+  rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '' })
 }
 
 async function approve() {
@@ -67,11 +67,12 @@ async function askBoss() {
       <p class="note">El jefe propone. Ajusta lo que quieras y aprueba; él levanta a cada empleado.</p>
       <table>
         <thead>
-          <tr><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esfuerzo</th><th /></tr>
+          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esfuerzo</th><th /></tr>
         </thead>
         <tbody>
           <template v-for="(r, i) in rows" :key="r.id ?? i">
             <tr>
+              <td><input v-model="r.name" class="name" placeholder="se asigna solo" /></td>
               <td><select v-model="r.role"><option v-for="d in DEPARTMENTS" :key="d">{{ d }}</option></select></td>
               <td>
                 <select v-model="r.provider">
@@ -89,8 +90,8 @@ async function askBoss() {
               </td>
               <td><button class="x" title="Quitar puesto" @click="rows.splice(i, 1)">✕</button></td>
             </tr>
-            <tr v-if="r.reason" class="reason"><td colspan="5">“{{ r.reason }}”</td></tr>
-            <tr v-if="checkText(checks[i])" class="check" :class="checks[i]?.ok ? 'warn' : 'block'"><td colspan="5">{{ checks[i]?.ok ? '⚠' : '⛔' }} {{ checkText(checks[i]) }}</td></tr>
+            <tr v-if="r.reason" class="reason"><td colspan="6">“{{ r.reason }}”</td></tr>
+            <tr v-if="checkText(checks[i])" class="check" :class="checks[i]?.ok ? 'warn' : 'block'"><td colspan="6">{{ checks[i]?.ok ? '⚠' : '⛔' }} {{ checkText(checks[i]) }}</td></tr>
           </template>
         </tbody>
       </table>
@@ -113,7 +114,7 @@ async function askBoss() {
       <h3>Aprobados</h3>
       <ul>
         <li v-for="s in staffed" :key="s.id">
-          {{ s.role }} · {{ s.provider }}{{ s.model ? ' · ' + s.model : '' }}
+          <b>{{ s.name }}</b> · {{ s.role }} · {{ s.provider }}{{ s.model ? ' · ' + s.model : '' }}
           <small>{{ s.status === 'hired' ? 'contratado' : 'por levantar' }}</small>
         </li>
       </ul>
@@ -131,6 +132,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; color: var(--muted); font-weight: normal; font-size: 11px; padding: 4px; }
 td { padding: 4px; vertical-align: top; }
 td select, td input { width: 100%; }
+td .name { width: 100px; }
 .check td { font-size: 11px; padding-top: 0; }
 .check.warn td { color: var(--accent); }
 .check.block td { color: var(--blocked); }

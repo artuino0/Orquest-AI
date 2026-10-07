@@ -20,13 +20,17 @@ let scene: OfficeScene | undefined
 function push() {
   const hints = studio.board?.hints ?? {}
   let delivering = 0
+  let gaming = 0
   scene?.sync(
     studio.employees.map((e) => {
       const h = hints[e.id]
+      const base = { id: e.id, name: studio.nameOf(e.id), role: e.role, provider: e.provider }
+      // Jugando gana siempre: su CLI se está reiniciando.
+      if (h?.state === 'gaming') return { ...base, state: 'gaming' as const, slot: gaming++ }
       const quiet = e.state === 'idle' || e.state === 'starting'
-      if (quiet && h?.state === 'waiting') return { id: e.id, role: e.role, provider: e.provider, state: 'waiting' as const, waitingFor: h.blockedBy }
-      if (quiet && h?.state === 'delivering') return { id: e.id, role: e.role, provider: e.provider, state: 'delivering' as const, slot: delivering++ }
-      return { id: e.id, role: e.role, provider: e.provider, state: e.state }
+      if (quiet && h?.state === 'waiting') return { ...base, state: 'waiting' as const, waitingFor: h.blockedBy }
+      if (quiet && h?.state === 'delivering') return { ...base, state: 'delivering' as const, slot: delivering++ }
+      return { ...base, state: e.state }
     }),
     studio.selected,
   )
@@ -71,6 +75,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
           <span v-if="studio.counts.working" class="c working">{{ studio.counts.working }} trabajando</span>
           <span v-if="studio.counts.blocked" class="c blocked">{{ studio.counts.blocked }} te necesitan</span>
           <span v-if="studio.counts.idle" class="c idle">{{ studio.counts.idle }} en espera</span>
+          <span v-if="studio.gamingCount" class="c gaming">{{ studio.gamingCount }} jugando</span>
         </span>
         <nav>
           <button :class="{ on: studio.overlay === 'boss', primary: !studio.bossOnline }" @click="toggle('boss')">
@@ -123,6 +128,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
 .c.working { background: var(--working); }
 .c.blocked { background: var(--blocked); color: #fff; animation: blink 1s steps(2) infinite; }
 .c.idle { background: var(--idle); }
+.c.gaming { background: #26a69a; }
 nav { margin-left: auto; display: flex; gap: 6px; }
 nav button, .ghost { box-shadow: 3px 3px 0 #000; }
 nav .on { border-color: var(--accent); }

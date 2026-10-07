@@ -78,3 +78,16 @@ describe('prompt listo', () => {
     expect(r.promptVisible()).toBe(true)
   })
 })
+
+describe('prompt de Claude Code con barra de estado', () => {
+  it('reconoce la caja de entrada aunque no se vea "? for shortcuts"', async () => {
+    const r = new ScreenReader(PROVIDERS.claude.screen, { cols: 80, rows: 12 })
+    const line = '─'.repeat(78)
+    // Como se ve con statusLine configurada (capturado de la CLI real).
+    expect(await r.write(`${line}\r\n❯ Try "write a test for <filepath>"\r\n${line}\r\n  ⏸ manual mode on`)).toBe('idle')
+    expect(r.promptVisible()).toBe(true)
+    // Trabajando, la caja sigue ahí pero manda el spinner.
+    expect(await r.write('\x1b[2J\x1b[H✻ Pensando… (esc to interrupt)\r\n' + `${line}\r\n❯ \r\n${line}`)).toBe('working')
+    expect(r.promptVisible()).toBe(false)
+  })
+})

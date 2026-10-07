@@ -31,7 +31,7 @@ const byDept = computed(() => {
             <small v-if="t.kind === 'qa'">QA</small>
             <small v-if="t.returns">regresó {{ t.returns }}×</small>
           </td>
-          <td class="muted">{{ t.assignee }}</td>
+          <td class="muted">{{ studio.nameOf(t.assignee) }}</td>
           <td><span class="pill" :class="t.status">{{ TASK_STATUS[t.status] }}</span></td>
           <td class="muted">{{ t.deps.length ? '← ' + t.deps.join(', ') : '' }}</td>
         </tr>

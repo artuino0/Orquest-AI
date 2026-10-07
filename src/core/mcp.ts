@@ -15,7 +15,7 @@ const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 
 const ROLES = 'desarrollo, backend, frontend, dba, infra o qa'
 
 interface ToolDef {
-  who: Caller['kind']
+  who: Caller['kind'] | 'both'
   description: string
   input: z.ZodRawShape
 }
@@ -108,6 +108,12 @@ export const TOOLS: Record<string, ToolDef> = {
       respuesta: z.string().optional(),
     },
   },
+  escribir_traspaso: {
+    who: 'both',
+    description:
+      'Guarda tu traspaso en tu bitácora: qué hiciste, decisiones, pendientes, trampas del código y siguiente paso. Lo lees al volver de descansar o lo lee quien ocupe tu puesto. Reemplaza el anterior; máximo 6000 caracteres.',
+    input: { traspaso: z.string().describe('Markdown breve') },
+  },
   entregar: {
     who: 'employee',
     description: 'Cierra tu tarea. La app hace commit de tu oficina. QA debe dar veredicto.',
@@ -122,7 +128,7 @@ export const TOOLS: Record<string, ToolDef> = {
 function buildServer(studio: Studio, caller: Caller): McpServer {
   const server = new McpServer({ name: 'orquest', version: '0.2.0' })
   for (const [name, def] of Object.entries(TOOLS)) {
-    if (def.who !== caller.kind) continue
+    if (def.who !== 'both' && def.who !== caller.kind) continue
     server.registerTool(name, { description: def.description, inputSchema: def.input }, async (args: Record<string, unknown>) => {
       try {
         const text = await studio.call(caller, name, args ?? {})
@@ -145,6 +151,7 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
 
 export interface McpHandle {
   url(token: string): string
+  statusUrl(token: string): string
   close(): Promise<void>
 }
 
@@ -154,6 +161,18 @@ export interface McpHandle {
  */
 export async function startMcpServer(resolve: (token: string) => { studio: Studio; caller: Caller } | undefined): Promise<McpHandle> {
   const http: Server = createServer(async (req, res) => {
+    // Barra de estado de la CLI: reporta % de contexto (y uso de la cuenta).
+    const st = /^\/estado\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
+    if (st && req.method === 'POST') {
+      const found = resolve(st[1])
+      if (!found) return void res.writeHead(401).end()
+      try {
+        found.studio.status(found.caller, await readBody(req))
+      } catch {
+        // Un reporte mal formado no importa: llegará otro.
+      }
+      return void res.writeHead(204).end()
+    }
     const m = /^\/mcp\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
     const found = m && resolve(m[1])
     if (!found) {
@@ -183,6 +202,7 @@ export async function startMcpServer(resolve: (token: string) => { studio: Studi
   const { port } = http.address() as AddressInfo
   return {
     url: (token) => `http://127.0.0.1:${port}/mcp/${token}`,
+    statusUrl: (token) => `http://127.0.0.1:${port}/estado/${token}`,
     close: () => new Promise((ok) => http.close(() => ok())),
   }
 }

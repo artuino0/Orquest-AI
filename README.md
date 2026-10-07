@@ -6,6 +6,15 @@ Plan completo: [docs/plan.md](docs/plan.md).
 
 ## Estado: fases 1, 2 y 3
 
+### Nombres, bitácora y burnout
+
+- **Nombres:** cada contratado recibe uno que no se repite en el proyecto (Ana, Beto…); el usuario lo cambia al aprobar la plantilla. El jefe y las herramientas aceptan el nombre o el id.
+- **Bitácora** (`src/core/journal.ts`): `<repo>/.orquest/bitacoras/<id>.md`, fuera de git. "Traspaso" lo escribe el agente con `escribir_traspaso` (decisiones, pendientes, trampas, siguiente paso; máx. 6000 caracteres, es su versión). "Hechos" los escribe Orquest (asignaciones, entregas, QA, regresos, integraciones, descansos; últimos 60). Es su memoria entre reinicios.
+- **Burnout:** Claude Code reporta el % de contexto usado por su barra de estado (configurada por Orquest con `--settings`); en Codex y otros se lee de la pantalla. Al pasar el umbral (80% por defecto), y nunca a media tarea, el agente escribe su traspaso, su CLI se cierra y se relanza igual (proveedor, modelo, manual, oficina) con contexto limpio y vuelve leyendo su bitácora. En el mapa se va a las maquinitas de la Cafetería. Tarda lo que tarda: con Claude real, unos 10 s. Una sesión nueva ya arranca con ~15% de contexto, así que solo vuelve a descansar si subió 10 puntos desde que regresó. El jefe también descansa. También se puede mandar a descansar desde su panel.
+- **Capacitación:** al despedir a alguien, su bitácora queda; quien ocupe el mismo puesto la recibe al entrar.
+
+Prompt para rediseñar la interfaz en Pencil: [docs/prompt-rediseno-pencil.md](docs/prompt-rediseno-pencil.md).
+
 ### Fase 3: expedientes y manuales de puesto
 
 El jefe sabe qué se necesita; el usuario sabe quién sirve para qué. Esa experiencia vive en la biblioteca del estudio (`src/core/library.ts`), guardada en SQLite y compartida entre proyectos.

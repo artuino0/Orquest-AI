@@ -13,6 +13,7 @@
  * Las tareas de QA terminan en done: no tienen código que integrar.
  */
 import type { Check } from './library.js'
+import { nameKey, pickName } from './names.js'
 import type { Effort, ProviderId } from './providers.js'
 
 /** Regla de expedientes: ¿puede este proveedor/modelo ocupar este puesto? */
@@ -59,6 +60,8 @@ export type SlotStatus = 'proposed' | 'approved' | 'hired'
 
 export interface Slot {
   id: string
+  /** Nombre del empleado que ocupará el puesto. */
+  name: string
   role: string
   provider: ProviderId
   model?: string
@@ -73,6 +76,7 @@ export interface Slot {
 
 export interface StaffMember {
   id: string
+  name: string
   role: string
   provider: ProviderId
   model?: string
@@ -118,7 +122,7 @@ export class Board {
    * El jefe propone; reemplaza lo propuesto que el usuario aún no aprueba.
    * Lo ya aprobado o contratado se queda.
    */
-  propose(slots: Omit<Slot, 'id' | 'status'>[], available: (p: ProviderId) => boolean, rule?: SlotRule): Slot[] {
+  propose(slots: Omit<Slot, 'id' | 'status' | 'name'>[], available: (p: ProviderId) => boolean, rule?: SlotRule): Slot[] {
     if (!slots.length) throw new RuleError('La propuesta no tiene puestos.')
     for (const s of slots) {
       if (!available(s.provider)) {
@@ -127,7 +131,12 @@ export class Board {
     }
     const warnings = this.checkAll(slots, rule)
     this.slots = this.slots.filter((s) => s.status !== 'proposed')
-    const added = slots.map((s, i) => ({ ...s, warning: warnings[i], id: `S${++this.seq.slot}`, status: 'proposed' as const }))
+    const taken = this.takenNames()
+    const added = slots.map((s, i) => {
+      const name = pickName(taken)
+      taken.push(name)
+      return { ...s, name, warning: warnings[i], id: `S${++this.seq.slot}`, status: 'proposed' as const }
+    })
     this.slots.push(...added)
     return added
   }
@@ -139,11 +148,24 @@ export class Board {
   approve(final: (Partial<Slot> & Pick<Slot, 'role' | 'provider'>)[], rule?: SlotRule): Slot[] {
     const warnings = this.checkAll(final, rule)
     const proposed = new Map(this.slots.filter((s) => s.status === 'proposed').map((s) => [s.id, s]))
+    // Nombres: los que puso el usuario, o los propuestos, o uno libre. Sin repetir.
+    const taken = this.takenNames(false)
+    const names = final.map((f) => f.name?.trim() || (f.id ? proposed.get(f.id)?.name : undefined) || '')
+    for (const n of names) {
+      if (n && taken.some((t) => nameKey(t) === nameKey(n))) throw new RuleError(`Ya hay alguien llamado ${n} en el proyecto.`)
+      if (n) taken.push(n)
+    }
     this.slots = this.slots.filter((s) => s.status !== 'proposed')
-    const approved = final.map((f) => {
+    const approved = final.map((f, i) => {
       const base = f.id ? proposed.get(f.id) : undefined
+      let name = names[i]
+      if (!name) {
+        name = pickName(taken)
+        taken.push(name)
+      }
       return {
         id: base?.id ?? `S${++this.seq.slot}`,
+        name,
         role: f.role,
         provider: f.provider,
         model: f.model || undefined,
@@ -155,6 +177,11 @@ export class Board {
     })
     this.slots.push(...approved)
     return approved
+  }
+
+  /** Nombres ocupados: plantilla y quienes ya pasaron por el proyecto. */
+  private takenNames(includeProposed = true): string[] {
+    return [...this.slots.filter((s) => includeProposed || s.status !== 'proposed').map((s) => s.name), ...this.staff.map((m) => m.name)]
   }
 
   /** Aplica la regla a todos; si alguno está prohibido, nada cambia. */
@@ -169,7 +196,10 @@ export class Board {
   /** Puesto aprobado y libre para levantar. */
   takeSlot(ref: string): Slot {
     const free = this.slots.filter((s) => s.status === 'approved')
-    const slot = free.find((s) => s.id === ref) ?? free.find((s) => s.role.toLowerCase() === ref.toLowerCase())
+    const slot =
+      free.find((s) => s.id === ref) ??
+      free.find((s) => nameKey(s.name) === nameKey(ref)) ??
+      free.find((s) => s.role.toLowerCase() === ref.toLowerCase())
     if (!slot) {
       const pending = this.slots.some((s) => s.status === 'proposed')
       throw new RuleError(
@@ -181,10 +211,10 @@ export class Board {
     return slot
   }
 
-  hired(slot: Slot, member: Omit<StaffMember, 'online' | 'slotId' | 'model'>) {
+  hired(slot: Slot, member: Omit<StaffMember, 'online' | 'slotId' | 'model' | 'name'>) {
     slot.status = 'hired'
     slot.employeeId = member.id
-    this.staff.push({ ...member, model: slot.model, slotId: slot.id, online: true })
+    this.staff.push({ ...member, name: slot.name, model: slot.model, slotId: slot.id, online: true })
   }
 
   offline(employeeId: string) {
@@ -192,10 +222,17 @@ export class Board {
     if (m) m.online = false
   }
 
-  member(id: string): StaffMember {
-    const m = this.staff.find((s) => s.id === id)
-    if (!m) throw new RuleError(`No existe el empleado ${id}. Usa leer_proyecto para ver la plantilla.`)
+  /** Por id o por nombre; si hay dos con el mismo nombre, gana quien sigue en la oficina. */
+  member(ref: string): StaffMember {
+    const byName = this.staff.filter((s) => nameKey(s.name) === nameKey(ref))
+    const m = this.staff.find((s) => s.id === ref) ?? byName.find((s) => s.online) ?? byName[0]
+    if (!m) throw new RuleError(`No existe el empleado ${ref}. Usa leer_proyecto para ver la plantilla.`)
     return m
+  }
+
+  /** Quien ocupó antes este puesto y ya no está: su bitácora capacita al nuevo. */
+  predecessors(role: string, exceptId?: string): StaffMember[] {
+    return this.staff.filter((s) => s.role === role && !s.online && s.id !== exceptId)
   }
 
   // ── Tareas ───────────────────────────────────────────────────────────────
@@ -445,7 +482,8 @@ export class Board {
     b.goal = c.goal
     b.slots = c.slots
     // Al reabrir, nadie sigue en su escritorio: las CLIs se cerraron.
-    b.staff = c.staff.map((m) => ({ ...m, online: false }))
+    b.staff = c.staff.map((m) => ({ ...m, name: m.name ?? m.id, online: false }))
+    b.slots = b.slots.map((x) => ({ ...x, name: x.name ?? x.id }))
     b.tasks = c.tasks
     b.messages = c.messages
     b.seq = c.seq

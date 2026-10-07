@@ -45,7 +45,7 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
     <article v-for="t in studio.inbox" :key="t.id">
       <h3>{{ t.id }} · {{ t.title }}</h3>
-      <p class="muted">{{ t.assignee }}<span v-if="t.returns"> · regresó {{ t.returns }}×</span></p>
+      <p class="muted">{{ studio.nameOf(t.assignee) }}<span v-if="t.returns"> · regresó {{ t.returns }}×</span></p>
       <p class="report">{{ t.delivery?.report }}</p>
       <p v-if="t.qa" class="qa" :class="t.qa.verdict">QA {{ t.qa.verdict === 'pass' ? 'pasa' : 'no pasa' }}: {{ t.qa.report }}</p>
       <pre v-if="t.delivery?.diffStat" class="stat">{{ t.delivery.diffStat }}</pre>
