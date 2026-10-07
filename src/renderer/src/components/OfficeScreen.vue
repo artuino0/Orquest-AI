@@ -6,14 +6,27 @@ import EmployeeDrawer from './EmployeeDrawer.vue'
 import HireDialog from './HireDialog.vue'
 import BoardView from './BoardView.vue'
 import InboxPanel from './InboxPanel.vue'
+import BossPanel from './BossPanel.vue'
 
 const studio = useStudio()
 const mapEl = ref<HTMLDivElement>()
 let scene: OfficeScene | undefined
 
+/**
+ * Lo que se ve de cada empleado: su terminal manda mientras trabaja o pide
+ * algo; si está en espera, el tablero dice si espera a otro o lleva su entrega.
+ */
 function push() {
+  const hints = studio.board?.hints ?? {}
+  let delivering = 0
   scene?.sync(
-    studio.employees.map((e) => ({ id: e.id, role: e.role, provider: e.provider, state: e.state })),
+    studio.employees.map((e) => {
+      const h = hints[e.id]
+      const quiet = e.state === 'idle' || e.state === 'starting'
+      if (quiet && h?.state === 'waiting') return { id: e.id, role: e.role, provider: e.provider, state: 'waiting' as const, waitingFor: h.blockedBy }
+      if (quiet && h?.state === 'delivering') return { id: e.id, role: e.role, provider: e.provider, state: 'delivering' as const, slot: delivering++ }
+      return { id: e.id, role: e.role, provider: e.provider, state: e.state }
+    }),
     studio.selected,
   )
 }
@@ -35,14 +48,14 @@ onMounted(() => {
   push()
 })
 watch(() => [studio.selected, studio.drawerMode, winW.value], insets)
-watch(() => [studio.employees.map((e) => e.id + e.state).join(), studio.selected], push)
+watch(() => [studio.employees.map((e) => e.id + e.state).join(), studio.selected, JSON.stringify(studio.board?.hints)], push)
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   scene?.destroy()
 })
 
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
-const toggle = (o: 'hire' | 'board' | 'inbox') => (studio.overlay = studio.overlay === o ? null : o)
+const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss') => (studio.overlay = studio.overlay === o ? null : o)
 </script>
 
 <template>
@@ -59,21 +72,33 @@ const toggle = (o: 'hire' | 'board' | 'inbox') => (studio.overlay = studio.overl
           <span v-if="studio.counts.idle" class="c idle">{{ studio.counts.idle }} en espera</span>
         </span>
         <nav>
+          <button :class="{ on: studio.overlay === 'boss', primary: !studio.bossOnline }" @click="toggle('boss')">
+            {{ studio.bossOnline ? 'Jefe' : 'Contratar jefe' }}
+          </button>
+          <button :class="{ on: studio.overlay === 'hire' }" @click="toggle('hire')">
+            Plantilla<span v-if="studio.proposal.length" class="badge">{{ studio.proposal.length }}</span>
+          </button>
           <button :class="{ on: studio.overlay === 'board' }" @click="toggle('board')">Tablero</button>
-          <button :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">Entregas</button>
-          <button class="primary" :class="{ on: studio.overlay === 'hire' }" @click="toggle('hire')">Contratar</button>
+          <button :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
+            Entregas<span v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</span>
+          </button>
         </nav>
       </header>
 
-      <p v-if="!studio.employees.length && !studio.overlay" class="hint">
-        La oficina está vacía. Pulsa <b>Contratar</b> para armar tu plantilla.
+      <p v-if="!studio.bossOnline && !studio.overlay" class="hint">
+        La oficina está vacía. Contrata al <b>jefe</b>: él propone la plantilla.
       </p>
+
+      <div class="toasts">
+        <p v-for="n in studio.notices" :key="n.id">{{ n.text }}</p>
+      </div>
 
       <p class="zoom-hint">rueda: zoom · arrastrar: mover · doble clic: centrar</p>
 
       <HireDialog v-if="studio.overlay === 'hire'" />
       <BoardView v-if="studio.overlay === 'board'" />
       <InboxPanel v-if="studio.overlay === 'inbox'" />
+      <BossPanel v-if="studio.overlay === 'boss'" />
     </div>
 
     <EmployeeDrawer v-if="studio.selectedEmployee" :key="studio.selectedEmployee.id" />
@@ -100,6 +125,9 @@ nav button, .ghost { box-shadow: 3px 3px 0 #000; }
 nav .on { border-color: var(--accent); }
 .primary { background: var(--accent); color: #1b1a24; border-color: #000; font-weight: bold; }
 .zoom-hint { position: absolute; right: 12px; bottom: 8px; margin: 0; font-size: 10px; color: var(--muted); pointer-events: none; }
+.badge { margin-left: 6px; background: var(--blocked); color: #fff; padding: 0 5px; font-size: 11px; }
+.toasts { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: grid; gap: 6px; pointer-events: none; width: min(520px, calc(100% - 32px)); }
+.toasts p { margin: 0; background: var(--panel); border: 2px solid var(--accent); box-shadow: 3px 3px 0 #000; padding: 8px 12px; font-size: 12px; }
 .hint { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 2px solid var(--line); padding: 8px 14px; box-shadow: 3px 3px 0 #000; margin: 0; font-size: 13px; }
 @keyframes blink { 50% { opacity: 0.5; } }
 </style>

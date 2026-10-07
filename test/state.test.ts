@@ -6,6 +6,11 @@ describe('stripAnsi', () => {
   it('quita colores y OSC', () => {
     expect(stripAnsi('\x1b[31mhola\x1b[0m \x1b]0;titulo\x07mundo')).toBe('hola mundo')
   })
+  it('el avance del cursor cuenta como espacios', () => {
+    expect(stripAnsi('esc\x1b[1Cto\x1b[Cinterrupt\x1b[3Cx')).toBe('esc to interrupt   x')
+    // Como lo dibuja Claude Code: columna absoluta.
+    expect(stripAnsi('\r\n\x1b[2G\x1b[1mChoose\x1b[9Gthe\x1b[13Gtext\x1b[22m\r\n')).toBe('\r\n Choose the text\r\n')
+  })
 })
 
 describe('parseOscState', () => {
@@ -18,17 +23,25 @@ describe('parseOscState', () => {
 describe('ScreenReader', () => {
   const claude = PROVIDERS.claude.screen
 
-  it('detecta trabajando, bloqueado e idle con patrones de Claude', () => {
+  it('detecta trabajando, bloqueado e idle con patrones de Claude', async () => {
     const r = new ScreenReader(claude)
-    expect(r.feed('✻ Pensando… (esc to interrupt)\n')).toBe('working')
-    expect(r.feed('\n'.repeat(20) + 'Do you want to proceed?\n❯ 1. Yes\n')).toBe('blocked')
-    expect(r.feed('\n'.repeat(20) + '> \n? for shortcuts\n')).toBe('idle')
+    expect(await r.write('✻ Pensando… (esc to interrupt)\r\n')).toBe('working')
+    expect(await r.write('\r\n'.repeat(40) + 'Do you want to proceed?\r\n❯ 1. Yes\r\n')).toBe('blocked')
+    expect(await r.write('\r\n'.repeat(40) + '> \r\n? for shortcuts\r\n')).toBe('idle')
   })
 
-  it('el hook gana sobre la pantalla mientras está fresco', () => {
+  it('lee lo que hay en pantalla, no restos de lo que se redibujó', async () => {
+    const r = new ScreenReader(claude, { cols: 60, rows: 6 })
+    expect(await r.write('Do you trust this folder?\r\n❯ No, exit\r\n')).toBe('blocked')
+    // Borra la pantalla y dibuja el prompt en su lugar, como hace la TUI.
+    expect(await r.write('\x1b[2J\x1b[H> \r\n\x1b[2G?\x1b[4Gfor\x1b[8Gshortcuts')).toBe('idle')
+    expect(r.screen()).toContain(' ? for shortcuts')
+  })
+
+  it('el hook gana sobre la pantalla mientras está fresco', async () => {
     let t = 0
-    const r = new ScreenReader(claude, 4000, 1000, () => t)
-    expect(r.feed('\x1b]7777;orquest:state=blocked\x07esc to interrupt')).toBe('blocked')
+    const r = new ScreenReader(claude, { hookTtlMs: 1000, now: () => t })
+    expect(await r.write('\x1b]7777;orquest:state=blocked\x07esc to interrupt')).toBe('blocked')
     t = 2000
     expect(r.current()).toBe('working')
   })
@@ -53,5 +66,15 @@ describe('adaptadores', () => {
       const args = p.buildArgs({ model: 'x', effort: 'high', systemPrompt: 'y' }).join(' ')
       expect(args).not.toMatch(/skip-permissions|bypass|yolo/i)
     }
+  })
+})
+
+describe('prompt listo', () => {
+  it('las pantallas de primer arranque de Claude cuentan como bloqueado', async () => {
+    const r = new ScreenReader(PROVIDERS.claude.screen)
+    expect(await r.write('Security notes: ... Press Enter to continue…')).toBe('blocked')
+    expect(r.promptVisible()).toBe(false)
+    expect(await r.write('\r\n'.repeat(40) + '> \r\n? for shortcuts\r\n')).toBe('idle')
+    expect(r.promptVisible()).toBe(true)
   })
 })

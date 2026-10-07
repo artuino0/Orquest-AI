@@ -23,6 +23,11 @@ export interface LaunchOptions {
   systemPrompt?: string
 }
 
+/** Proveedores que reciben el manual por argumento; al resto se le manda como primer mensaje. */
+export function takesSystemPrompt(p: ProviderAdapter): boolean {
+  return p.unsupported({ systemPrompt: 'x' }).length === 0
+}
+
 export interface ScreenPatterns {
   /** La CLI está pensando o ejecutando herramientas. */
   working: RegExp[]
@@ -48,6 +53,11 @@ export interface ProviderAdapter {
   /** Advertencias sobre opciones que este proveedor no sabe recibir. */
   unsupported(opts: LaunchOptions): string[]
   screen: ScreenPatterns
+  /**
+   * Argumentos para conectar la CLI al servidor MCP de Orquest. El token va en
+   * la URL. undefined = no sabemos conectarla; el jefe le habla por terminal.
+   */
+  mcpArgs?(url: string): string[]
   /** true si los argumentos se comprobaron contra la CLI real. */
   verified: boolean
 }
@@ -98,9 +108,17 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       return args
     },
     unsupported: () => [],
+    mcpArgs: (url) => [
+      '--mcp-config',
+      JSON.stringify({ mcpServers: { orquest: { type: 'http', url } } }),
+      // Las herramientas de Orquest se validan en la app; no piden permiso.
+      '--allowedTools',
+      'mcp__orquest',
+    ],
     screen: {
       working: [ESC_TO_INTERRUPT, SPINNER],
-      blocked: PERMISSION,
+      // Primer arranque: tema, notas de seguridad y confiar en la carpeta. Las resuelve el usuario.
+      blocked: [...PERMISSION, /press enter to continue/i, /trust (this|the files in this) folder/i, /choose the text style/i, /select login method/i],
       idle: [/\? for shortcuts/i],
     },
     verified: true,
@@ -119,6 +137,7 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     unsupported: (o) =>
       o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : [],
+    mcpArgs: (url) => ['-c', `mcp_servers.orquest.url=${JSON.stringify(url)}`],
     screen: {
       working: [ESC_TO_INTERRUPT, /Working \(/],
       blocked: [...PERMISSION, /allow command\?/i],

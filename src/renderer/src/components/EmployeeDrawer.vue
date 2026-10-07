@@ -5,6 +5,7 @@ import { LOOKS } from '../world/behavior'
 import { PROVIDER_COLOR } from '../world/sprites'
 import TerminalView from './TerminalView.vue'
 import type { FileChange } from '../../../shared/ipc'
+import { TASK_STATUS } from './taskLabels'
 
 type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea'
 const TABS: [Tab, string][] = [
@@ -22,7 +23,21 @@ const changes = ref<FileChange[]>([])
 const openFile = ref<string | null>(null)
 const diff = ref('')
 const color = computed(() => '#' + (PROVIDER_COLOR[e.value.provider] ?? 0x9e9e9e).toString(16).padStart(6, '0'))
-const activity = computed(() => [...(studio.activity[e.value.id] ?? [])].reverse())
+const activity = computed(() => {
+  const mine = (studio.activity[e.value.id] ?? []).map((a) => ({ ...a }))
+  // Lo que dijo y le dijeron por Orquest también es actividad.
+  const said = (studio.board?.messages ?? [])
+    .filter((m) => m.from === e.value.id || m.to === e.value.id)
+    .map((m) => ({ at: m.at, text: m.from === e.value.id ? `→ ${m.to}: ${m.text}` : `← ${m.text}`, state: undefined }))
+  return [...mine, ...said].sort((a, b) => b.at - a.at)
+})
+const tasks = computed(() => studio.tasksOf(e.value.id))
+// Igual que en el mapa: en espera, el tablero dice si espera a otro o lleva su entrega.
+const visual = computed(() => {
+  const h = studio.board?.hints[e.value.id]
+  return h && (e.value.state === 'idle' || e.value.state === 'starting') ? h.state : e.value.state
+})
+const taskById = (id: string) => studio.board?.tasks.find((t) => t.id === id)
 
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
@@ -58,7 +73,7 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
         <strong>{{ e.role }}</strong>
         <small>{{ e.provider }}{{ e.model ? ' · ' + e.model : '' }}{{ e.effort ? ' · ' + e.effort : '' }}</small>
       </div>
-      <span class="pill" :class="e.state">{{ LOOKS[e.state].label }}</span>
+      <span class="pill" :class="visual">{{ LOOKS[visual].label }}</span>
       <div class="actions">
         <button
           :title="studio.drawerMode === 'float' ? 'Pantalla dividida' : 'Flotante'"
@@ -108,8 +123,17 @@ const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') 
         <dd><code>{{ e.office.path }}</code></dd>
         <dt>Rama</dt>
         <dd><code>{{ e.office.branch }}</code></dd>
-        <dt>Tarea</dt>
-        <dd class="muted">El jefe asigna tareas y dependencias en la fase 2.</dd>
+        <dt>Tareas</dt>
+        <dd v-if="!tasks.length" class="muted">Sin tareas. Se las asigna el jefe.</dd>
+        <dd v-for="t in tasks" :key="t.id" class="task-item">
+          <strong>{{ t.id }} · {{ t.title }}</strong> <span class="muted">({{ TASK_STATUS[t.status] }})</span>
+          <p v-if="t.description">{{ t.description }}</p>
+          <p v-if="t.deps.length" class="muted">
+            Depende de:
+            <span v-for="d in t.deps" :key="d">{{ d }} ({{ TASK_STATUS[taskById(d)?.status ?? 'waiting'] }}) </span>
+          </p>
+          <p v-if="t.qa" :class="t.qa.verdict === 'pass' ? 'ok' : 'warn'">QA: {{ t.qa.report }}</p>
+        </dd>
         <dt v-if="e.warnings.length">Avisos</dt>
         <dd v-for="w in e.warnings" :key="w" class="warn">⚠ {{ w }}</dd>
       </dl>
@@ -147,10 +171,15 @@ nav .on { background: var(--bg); border-color: var(--accent); }
 .task dt { color: var(--muted); }
 .task dd { margin: 0; overflow-wrap: anywhere; }
 .warn { color: var(--accent); }
+.ok { color: var(--idle); }
+.task-item p { margin: 4px 0 0; font-size: 12px; }
+.task-item { padding-bottom: 6px; }
 .pill { font-size: 11px; padding: 2px 6px; color: #111; }
 .starting { background: var(--starting); }
 .working { background: var(--working); }
 .blocked { background: var(--blocked); color: #fff; }
 .idle { background: var(--idle); }
 .exited { background: var(--exited); color: #fff; }
+.waiting { background: #9fa8da; }
+.delivering { background: var(--accent); }
 </style>

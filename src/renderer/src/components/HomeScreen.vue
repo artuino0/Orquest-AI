@@ -27,6 +27,7 @@ const name = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
         <button class="primary" :disabled="!studio.usable.length" @click="studio.pickProject()">
           Abrir repositorio…
         </button>
+        <p v-if="studio.error" class="blocker">{{ studio.error }}</p>
       </section>
 
       <section class="card">
