@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as pty from 'node-pty'
 import { RuleError } from '../core/board.js'
+import { installCli } from '../core/cli.js'
 import { detectAll } from '../core/detect.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
@@ -15,6 +16,8 @@ import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
 let store: StudioStore
 let mcp: McpHandle
+/** Carpeta con el comando `orquest`, al frente del PATH de cada agente. */
+let cliDir: string
 /** Expedientes, manuales e historial: uno por estudio, compartido por todos sus proyectos. */
 let library: Library
 /** Un estudio por repo abierto en esta sesión; la UI trabaja con el actual. */
@@ -66,7 +69,16 @@ handle('project:open', async (repo: string) => {
   const root = await repoRoot(repo)
   let s = studios.get(root)
   if (!s) {
-    s = await new Studio({ repo: root, manager, store, library, detect: detectAll, mcpUrl: (t) => mcp.url(t), statusUrl: (t) => mcp.statusUrl(t) }).init()
+    s = await new Studio({
+      repo: root,
+      manager,
+      store,
+      library,
+      detect: detectAll,
+      mcpUrl: (t) => mcp.url(t),
+      statusUrl: (t) => mcp.statusUrl(t),
+      cli: { url: (t) => mcp.cliUrl(t), dir: cliDir },
+    }).init()
     let pending: ReturnType<typeof setTimeout> | undefined
     const target = s
     s.on('changed', () => {
@@ -133,6 +145,8 @@ app.whenReady().then(async () => {
     }
     return undefined
   })
+  // El comando corre con este mismo Electron en modo Node: no depende de que haya Node instalado.
+  cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(app.getAppPath(), 'src/cli/orquest.mjs') })
   createWindow()
 })
 app.on('window-all-closed', async () => {

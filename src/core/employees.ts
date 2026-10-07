@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
+import { delimiter } from 'node:path'
 import { getProvider, type Effort, type ProviderId } from './providers.js'
 import { ScreenReader, type EmployeeState } from './state.js'
 import { createOffice, removeOffice, type Office } from './worktree.js'
@@ -37,6 +38,10 @@ export interface HireRequest {
   office?: Office
   /** Id fijo; por defecto se genera de puesto y proveedor. */
   id?: string
+  /** Variables propias de esta terminal (p. ej. cómo llama a Orquest). */
+  env?: Record<string, string>
+  /** Carpetas que van al frente de su PATH. */
+  path?: string[]
 }
 
 export interface Employee {
@@ -103,13 +108,20 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     const office = req.office ?? (await createOffice(req.repo, id))
     const launch = { model: req.model, effort: req.effort, systemPrompt: req.systemPrompt }
 
+    const env: Record<string, string> = { ...(process.env as Record<string, string>), ...this.opts.env, ...req.env, ORQUEST_EMPLOYEE_ID: id }
+    if (req.path?.length) {
+      // En Windows la variable suele llamarse Path; se respeta la que ya exista.
+      const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+      env[key] = [...req.path, env[key]].filter(Boolean).join(delimiter)
+    }
+
     let pty: Pty
     try {
       pty = this.spawn(req.binary ?? adapter.binaries[0], [...adapter.buildArgs(launch), ...(req.extraArgs ?? [])], {
         cwd: office.path,
         cols: this.opts.cols ?? 120,
         rows: this.opts.rows ?? 32,
-        env: { ...(process.env as Record<string, string>), ...this.opts.env, ORQUEST_EMPLOYEE_ID: id },
+        env,
       })
     } catch (err) {
       if (ownOffice) await removeOffice(req.repo, office, true).catch(() => {})

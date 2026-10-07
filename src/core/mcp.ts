@@ -1,7 +1,8 @@
 /**
  * Servidor MCP local de Orquest. Cada agente se conecta a /mcp/<token>; el
  * token dice quién es (jefe o qué empleado) y solo ve sus herramientas. Toda
- * llamada pasa por Studio.call, que valida contra el tablero.
+ * llamada pasa por Studio.call, que valida contra el tablero. Las CLIs que no
+ * hablan MCP usan las mismas herramientas por /cli/<token> (comando `orquest`).
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -9,6 +10,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
 import { RuleError } from './board.js'
+import { cliArgs, cliFields } from './cli.js'
 import type { Caller, Studio } from './studio.js'
 
 const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 'kimi', 'grok'] as const
@@ -149,9 +151,39 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : undefined
 }
 
+const visible = (def: ToolDef, caller: Caller) => def.who === 'both' || def.who === caller.kind
+
+/** Quién es esta terminal y qué herramientas tiene: lo que imprime `orquest ayuda`. */
+function cliWhoAmI(caller: Caller) {
+  return {
+    quien: caller.kind === 'boss' ? 'jefe' : 'empleado',
+    id: caller.kind === 'boss' ? 'jefe' : caller.id,
+    herramientas: Object.entries(TOOLS)
+      .filter(([, def]) => visible(def, caller))
+      .map(([nombre, def]) => ({ nombre, descripcion: def.description, campos: cliFields(def.input) })),
+  }
+}
+
+/** Una llamada del comando `orquest`: mismas reglas que MCP, respuesta en JSON plano. */
+async function cliCall(studio: Studio, caller: Caller, body: unknown): Promise<{ ok: true; texto: string } | { ok: false; motivo: string }> {
+  try {
+    const { herramienta, args } = (body ?? {}) as { herramienta?: unknown; args?: Record<string, unknown> }
+    const def = TOOLS[String(herramienta)]
+    if (!def || !visible(def, caller)) {
+      const mine = Object.keys(TOOLS).filter((n) => visible(TOOLS[n], caller))
+      throw new RuleError(`${herramienta ? `${herramienta} no es una herramienta tuya` : 'Falta la herramienta'}. Las tuyas: ${mine.join(', ')}.`)
+    }
+    return { ok: true, texto: await studio.call(caller, String(herramienta), cliArgs(def.input, args ?? {})) }
+  } catch (err) {
+    return { ok: false, motivo: err instanceof RuleError ? err.message : `Error interno: ${(err as Error).message}` }
+  }
+}
+
 export interface McpHandle {
   url(token: string): string
   statusUrl(token: string): string
+  /** URL que usa el comando `orquest` de una terminal. */
+  cliUrl(token: string): string
   close(): Promise<void>
 }
 
@@ -172,6 +204,22 @@ export async function startMcpServer(resolve: (token: string) => { studio: Studi
         // Un reporte mal formado no importa: llegará otro.
       }
       return void res.writeHead(204).end()
+    }
+    // Comando `orquest`: GET dice quién eres y qué puedes hacer; POST llama una herramienta.
+    const cli = /^\/cli\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
+    if (cli) {
+      const found = resolve(cli[1])
+      const reply = (code: number, data: unknown) => void res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify(data))
+      if (!found) return reply(401, { error: 'token inválido' })
+      if (req.method === 'GET') return reply(200, cliWhoAmI(found.caller))
+      if (req.method !== 'POST') return void res.writeHead(405, { allow: 'GET, POST' }).end()
+      let body: unknown
+      try {
+        body = await readBody(req)
+      } catch {
+        return reply(400, { error: 'cuerpo inválido' })
+      }
+      return reply(200, await cliCall(found.studio, found.caller, body))
     }
     const m = /^\/mcp\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
     const found = m && resolve(m[1])
@@ -203,6 +251,7 @@ export async function startMcpServer(resolve: (token: string) => { studio: Studi
   return {
     url: (token) => `http://127.0.0.1:${port}/mcp/${token}`,
     statusUrl: (token) => `http://127.0.0.1:${port}/estado/${token}`,
+    cliUrl: (token) => `http://127.0.0.1:${port}/cli/${token}`,
     close: () => new Promise((ok) => http.close(() => ok())),
   }
 }

@@ -11,7 +11,7 @@ import type { EmployeeManager, HireRequest } from './employees.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
-import { bossPrompt, employeePrompt, oneLine } from './prompts.js'
+import { bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
@@ -51,6 +51,11 @@ export interface StudioOptions {
   burnoutAt?: number
   /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
   handoffTimeoutMs?: number
+  /**
+   * Comando `orquest`: su URL por token y la carpeta donde está instalado. Con
+   * esto una CLI sin MCP usa las herramientas desde su terminal.
+   */
+  cli?: { url: (token: string) => string; dir: string }
 }
 
 /** Cómo se lanzó un agente: con esto se reinicia igual tras descansar. */
@@ -214,13 +219,20 @@ export class Studio extends EventEmitter<StudioEvents> {
   /** Lanza (o relanza) la CLI de un agente con sus mensajes de arranque. */
   private async launch(id: string, l: Launch, extra: string[] = []) {
     this.contextFloor.delete(id)
-    const emp = await this.opts.manager.hire(l.req)
+    const cli = this.opts.cli
+    // Toda terminal recibe el comando, también las que hablan MCP: su token la identifica igual.
+    const emp = await this.opts.manager.hire(cli ? { ...l.req, env: { ...l.req.env, ORQUEST_URL: cli.url(l.token) }, path: [cli.dir] } : l.req)
     this.offices.set(id, emp.office)
     // De aquí en adelante, relanzar reusa la misma oficina.
     l.req = { ...l.req, office: emp.office }
     this.launches.set(id, l)
     for (const m of [...l.intro(emp.office), ...extra]) this.notify(id, m)
     return emp
+  }
+
+  /** Por dónde usa las herramientas una CLI: MCP si sabe, si no el comando `orquest`. */
+  private channel(provider: ProviderId): Channel | undefined {
+    return getProvider(provider).mcpArgs ? 'mcp' : this.opts.cli ? 'cli' : undefined
   }
 
   private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions']) {
@@ -237,11 +249,12 @@ export class Studio extends EventEmitter<StudioEvents> {
   async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }) {
     if (this.bossOnline) throw new RuleError('El jefe ya está en su oficina.')
     const adapter = getProvider(req.provider)
-    if (!adapter.mcpArgs) throw new RuleError(`${adapter.name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
+    const channel = this.channel(req.provider)
+    if (!channel) throw new RuleError(`${adapter.name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
     this.board.goal = req.goal
     const token = this.newToken({ kind: 'boss' })
     const office = { path: this.root, branch: await currentBranch(this.root) }
-    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID))
+    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID), channel)
     const viaArg = takesSystemPrompt(adapter)
     const owner: JournalOwner = { id: BOSS_ID, name: 'Jefe', role: 'jefe', provider: req.provider, model: req.model }
     await this.journal.open(owner)
@@ -284,7 +297,9 @@ export class Studio extends EventEmitter<StudioEvents> {
     const token = this.newToken({ kind: 'employee', id })
     this.known.add(id)
     const warnings: string[] = []
-    if (!adapter.mcpArgs) warnings.push(`${adapter.name} no se conecta a las herramientas de Orquest ni aplica permisos por puesto; el jefe le habla por terminal.`)
+    const channel = this.channel(slot.provider)
+    if (!channel) warnings.push(`${adapter.name} no se conecta a las herramientas de Orquest ni aplica permisos por puesto; el jefe le habla por terminal.`)
+    else if (channel === 'cli') warnings.push(`${adapter.name} usa las herramientas de Orquest con el comando orquest; no aplica permisos por puesto.`)
     warnings.push(...(adapter.permissionGaps?.(manual.permissions) ?? []))
     if (check.warning) warnings.push(check.warning)
     const owner: JournalOwner = { id, name: slot.name, role: slot.role, provider: slot.provider, model: slot.model }
@@ -305,7 +320,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         binary: this.opts.binaries?.[slot.provider],
         extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
       },
-      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath })],
+      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel)],
     }, before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [])
     this.board.hired(slot, { id, role: slot.role, provider: slot.provider })
     this.fact(id, `contratado como ${slot.role} (${slot.provider}${slot.model ? ` ${slot.model}` : ''})${before.length ? `; antes en el puesto: ${before.map((b) => b.split(':')[0]).join(', ')}` : ''}`)
@@ -450,7 +465,7 @@ export class Studio extends EventEmitter<StudioEvents> {
               nombre: c.name,
               disponible: c.installed && c.session !== false,
               version: c.version,
-              conecta_con_orquest: !!getProvider(c.id).mcpArgs,
+              conecta_con_orquest: !!this.channel(c.id),
               puestos_permitidos: d.allowedRoles ?? 'todos',
               si_no_se_permite: d.enforce === 'block' ? 'el juego lo rechaza' : 'se permite con aviso',
               notas_del_usuario: d.notes || undefined,
