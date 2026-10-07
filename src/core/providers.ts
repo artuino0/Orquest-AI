@@ -50,6 +50,28 @@ export interface ScreenPatterns {
   blocked: RegExp[]
   /** La CLI terminó su turno y espera instrucción. */
   idle: RegExp[]
+  /** % de contexto usado, si la CLI lo muestra en pantalla. */
+  context?: (screen: string) => number | undefined
+}
+
+/** Toma el primer patrón que coincida y lo pasa a % usado. */
+function contextFrom(rules: [RegExp, (n: number) => number][]) {
+  return (screen: string) => {
+    for (const [re, toUsed] of rules) {
+      const m = re.exec(screen)
+      if (m) return Math.max(0, Math.min(100, toUsed(Number(m[1]))))
+    }
+    return undefined
+  }
+}
+
+export interface ConnectOptions {
+  /** URL MCP de Orquest con el token del agente. */
+  url: string
+  /** Permisos del puesto. */
+  permissions?: Permissions
+  /** URL donde la CLI reporta su estado (contexto, uso de la cuenta), si sabe hacerlo. */
+  statusUrl?: string
 }
 
 export interface ProviderAdapter {
@@ -72,7 +94,7 @@ export interface ProviderAdapter {
    * Argumentos para conectar la CLI al servidor MCP de Orquest. El token va en
    * la URL. undefined = no sabemos conectarla; el jefe le habla por terminal.
    */
-  mcpArgs?(url: string, permissions?: Permissions): string[]
+  mcpArgs?(o: ConnectOptions): string[]
   /** Partes de los permisos del puesto que esta CLI no sabe aplicar. */
   permissionGaps?(permissions: Permissions): string[]
   /** true si los argumentos se comprobaron contra la CLI real. */
@@ -125,19 +147,37 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       return args
     },
     unsupported: () => [],
-    mcpArgs: (url, permissions) => [
+    mcpArgs: ({ url, permissions, statusUrl }) => [
       '--mcp-config',
       JSON.stringify({ mcpServers: { orquest: { type: 'http', url } } }),
-      // Las herramientas de Orquest se validan en la app; no piden permiso.
-      // Lo demás, según el manual del puesto.
       '--settings',
-      JSON.stringify({ permissions: permissions ? claudePermissions(permissions) : { allow: ['mcp__orquest'] } }),
+      JSON.stringify({
+        // Las herramientas de Orquest se validan en la app; no piden permiso.
+        // Lo demás, según el manual del puesto.
+        permissions: permissions ? claudePermissions(permissions) : { allow: ['mcp__orquest'] },
+        // La barra de estado recibe el % de contexto usado y el uso de la
+        // cuenta; se lo reenvía a Orquest y no pinta nada.
+        ...(statusUrl && {
+          statusLine: {
+            type: 'command',
+            command: `curl -s -m 2 -X POST -H 'content-type: application/json' --data-binary @- '${statusUrl}' >/dev/null 2>&1; printf ''`,
+          },
+        }),
+      }),
     ],
     screen: {
       working: [ESC_TO_INTERRUPT, SPINNER],
       // Primer arranque: tema, notas de seguridad y confiar en la carpeta. Las resuelve el usuario.
       blocked: [...PERMISSION, /press enter to continue/i, /trust (this|the files in this) folder/i, /choose the text style/i, /select login method/i],
-      idle: [/\? for shortcuts/i],
+      // La pista "? for shortcuts" desaparece cuando hay barra de estado; la
+      // caja de entrada entre dos líneas siempre está.
+      idle: [/\? for shortcuts/i, /─{10,}\n\s*❯[^\n]*\n─{10,}/],
+      // Respaldo si la barra de estado no reporta.
+      context: contextFrom([
+        [/(\d+)% context used/i, (n) => n],
+        [/Context low \((\d+)% remaining\)/i, (n) => 100 - n],
+        [/(\d+)% until auto-compact/i, (n) => 100 - n],
+      ]),
     },
     verified: true,
   },
@@ -155,7 +195,7 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     unsupported: (o) =>
       o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : [],
-    mcpArgs: (url, permissions) => [
+    mcpArgs: ({ url, permissions }) => [
       '-c',
       `mcp_servers.orquest.url=${JSON.stringify(url)}`,
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
@@ -166,6 +206,7 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       working: [ESC_TO_INTERRUPT, /Working \(/],
       blocked: [...PERMISSION, /allow command\?/i],
       idle: [/send ⏎|⏎ send/i],
+      context: contextFrom([[/(\d+)% context left/i, (n) => 100 - n]]),
     },
     verified: false,
   },

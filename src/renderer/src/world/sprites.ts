@@ -103,6 +103,7 @@ export const BUBBLE_ICON: Record<Exclude<Bubble, null>, { color: number; rows: s
   clock: { color: 0x5c6bc0, rows: ['..XXX..', '.X.X.X.', 'X..X..X', 'X..XX.X', 'X.....X', '.X...X.', '..XXX..'] },
   check: { color: 0x43a047, rows: ['.......', '......X', '.....X.', 'X...X..', '.X.X...', '..X....', '.......'] },
   dots: { color: 0x757575, rows: ['.......', '.......', '.......', 'X.X.X..', '.......', '.......', '.......'] },
+  game: { color: 0x26a69a, rows: ['.......', '.XXXXX.', 'X.X.X.X', 'XXX.XXX', 'X.X.X.X', '.XX.XX.', '.......'] },
   zzz: { color: 0x7e57c2, rows: ['XXXX...', '..X....', '.X.....', 'XXXX...', '....XXX', '.....X.', '....XXX'] },
 }
 

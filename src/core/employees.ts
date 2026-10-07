@@ -50,6 +50,8 @@ export interface Employee {
   pid: number
   warnings: string[]
   exitCode?: number
+  /** % de contexto usado, si se conoce. */
+  context?: number
 }
 
 export interface ManagerEvents {
@@ -57,6 +59,7 @@ export interface ManagerEvents {
   data: [id: string, data: string]
   state: [id: string, state: EmployeeState]
   exit: [id: string, exitCode: number]
+  context: [id: string, pct: number]
 }
 
 interface Live {
@@ -129,6 +132,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       cols: this.opts.cols ?? 120,
       rows: this.opts.rows ?? 32,
       onChange: (s) => this.setState(entry, s),
+      onContext: (pct) => this.setContext(id, pct),
     })
     this.live.set(id, entry)
 
@@ -137,6 +141,8 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       clearTimeout(entry.quietTimer)
       entry.reader.dispose()
       employee.exitCode = exitCode
+      // Si ya se despidió o se relanzó con el mismo id, esta CLI vieja no avisa nada.
+      if (this.live.get(id) !== entry) return
       this.setState(entry, 'exited')
       this.emit('exit', id, exitCode)
     })
@@ -177,6 +183,14 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
   /** Salida acumulada, para pintar la terminal al abrir el drawer. */
   scrollback(id: string): string {
     return this.live.get(id)?.buffer ?? ''
+  }
+
+  /** % de contexto usado: de la pantalla o de lo que reporta la CLI. */
+  setContext(id: string, pct: number) {
+    const e = this.live.get(id)
+    if (!e || e.employee.context === pct) return
+    e.employee.context = pct
+    this.emit('context', id, pct)
   }
 
   /**

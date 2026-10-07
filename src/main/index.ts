@@ -66,7 +66,7 @@ handle('project:open', async (repo: string) => {
   const root = await repoRoot(repo)
   let s = studios.get(root)
   if (!s) {
-    s = await new Studio({ repo: root, manager, store, library, detect: detectAll, mcpUrl: (t) => mcp.url(t) }).init()
+    s = await new Studio({ repo: root, manager, store, library, detect: detectAll, mcpUrl: (t) => mcp.url(t), statusUrl: (t) => mcp.statusUrl(t) }).init()
     let pending: ReturnType<typeof setTimeout> | undefined
     const target = s
     s.on('changed', () => {
@@ -105,6 +105,11 @@ handle('library:check', (slots: { provider: ProviderId; model?: string; role: st
 )
 
 handle('employee:fire', (id: string) => studio().fire(id))
+// El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
+handle('employee:rest', (id: string) => {
+  void studio().rest(id).catch((err) => send('notice', (err as Error).message))
+})
+handle('employee:journal', (id: string) => studio().readJournal(id))
 handle('employee:list', () => manager.list())
 handle('employee:scrollback', (id: string) => manager.scrollback(id))
 handle('employee:changes', (id: string) => {

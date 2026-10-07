@@ -17,10 +17,11 @@ export type VisualState =
   | 'waiting'
   | 'delivering'
   | 'resting'
+  | 'gaming'
 
 export type Pose = 'walk' | 'type' | 'sit' | 'stand'
-export type Bubble = 'alert' | 'clock' | 'check' | 'dots' | 'zzz' | null
-export type Place = 'desk' | 'beside' | 'boss' | 'cafeteria' | 'exit'
+export type Bubble = 'alert' | 'clock' | 'check' | 'dots' | 'zzz' | 'game' | null
+export type Place = 'desk' | 'beside' | 'boss' | 'cafeteria' | 'arcade' | 'exit'
 
 export interface Look {
   place: Place
@@ -39,6 +40,8 @@ export const LOOKS: Record<VisualState, Look> = {
   waiting: { place: 'beside', pose: 'stand', bubble: 'clock', monitor: 'off', label: 'esperando a otro' },
   delivering: { place: 'boss', pose: 'stand', bubble: 'check', monitor: 'off', label: 'listo para revisar' },
   resting: { place: 'cafeteria', pose: 'sit', bubble: 'zzz', monitor: 'off', label: 'descansando' },
+  // Burnout: limpia su contexto. De espaldas, moviendo las manos en la maquinita.
+  gaming: { place: 'arcade', pose: 'type', bubble: 'game', monitor: 'off', label: 'jugando videojuegos (limpia contexto)' },
   exited: { place: 'exit', pose: 'stand', bubble: null, monitor: 'off', label: 'se fue' },
 }
 
@@ -73,6 +76,11 @@ export function placePoint(place: Place, ctx: PlaceContext): Point {
       const r = getRoom('cafeteria')
       const i = ctx.slot ?? 0
       return { x: r.x + 2 + (i % 4) * 2, y: r.y + 2 + Math.floor(i / 4) * 2 }
+    }
+    case 'arcade': {
+      // Frente a las maquinitas de la Cafetería.
+      const r = getRoom('cafeteria')
+      return { x: r.x + 8 + ((ctx.slot ?? 0) % 3), y: r.y + 5 }
     }
     case 'exit':
       return entrance()

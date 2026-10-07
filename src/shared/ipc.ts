@@ -53,6 +53,9 @@ export interface OrquestApi {
 
   // Empleados vivos.
   fire(id: string): Promise<void>
+  /** Manda a descansar: traspaso, reinicio con contexto limpio y de vuelta. */
+  rest(id: string): Promise<void>
+  journal(id: string): Promise<string>
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>
   changes(id: string): Promise<FileChange[]>

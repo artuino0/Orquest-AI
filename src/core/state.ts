@@ -87,6 +87,8 @@ export class ScreenReader {
   private hookTtlMs: number
   private now: () => number
   private onChange?: (s: EmployeeState) => void
+  private onContext?: (pct: number) => void
+  private lastContext: number | undefined
 
   constructor(
     private patterns: ScreenPatterns,
@@ -97,11 +99,14 @@ export class ScreenReader {
       hookTtlMs?: number
       now?: () => number
       onChange?: (s: EmployeeState) => void
+      /** % de contexto usado leído de la pantalla. */
+      onContext?: (pct: number) => void
     } = {},
   ) {
     this.hookTtlMs = opts.hookTtlMs ?? 30_000
     this.now = opts.now ?? Date.now
     this.onChange = opts.onChange
+    this.onContext = opts.onContext
     this.term = new Terminal({ cols: opts.cols ?? 120, rows: opts.rows ?? 32, allowProposedApi: true, scrollback: 0 })
     this.term.parser.registerOscHandler(7777, (data) => {
       const m = /^orquest:state=(working|blocked|idle)$/.exec(data)
@@ -119,6 +124,11 @@ export class ScreenReader {
       if (s && s !== this.last) {
         this.last = s
         this.onChange?.(s)
+      }
+      const c = this.context()
+      if (c !== undefined && c !== this.lastContext) {
+        this.lastContext = c
+        this.onContext?.(c)
       }
     })
   }
@@ -170,6 +180,11 @@ export class ScreenReader {
     if (this.patterns.working.some((r) => r.test(recent))) return 'working'
     if (this.patterns.idle.some((r) => r.test(recent))) return 'idle'
     return undefined
+  }
+
+  /** % de contexto usado que muestra la CLI, si lo muestra. */
+  context(): number | undefined {
+    return this.patterns.context?.(this.recent())
   }
 
   dispose() {

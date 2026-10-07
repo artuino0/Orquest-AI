@@ -17,6 +17,7 @@ export interface Insets {
 
 export interface SceneEmployee {
   id: string
+  name?: string
   role: string
   provider: string
   state: VisualState
@@ -35,6 +36,7 @@ interface ActorView {
   bubble: Graphics
   ring: Graphics
   monitor: Graphics
+  label: Text
 }
 
 const CHAR_W = 10
@@ -269,6 +271,15 @@ export class OfficeScene {
         const [cx, cy] = at(10, 1)
         g.rect(cx, cy, TILE, TILE + 6).fill(0x455a64)
         g.rect(cx + 4, cy + 4, 8, 4).fill(0xef5350)
+        // Maquinitas: aquí se limpia el contexto.
+        for (let i = 0; i < 3; i++) {
+          const [ax, ay] = at(8 + i, 3)
+          g.rect(ax + 1, ay + 2, 14, 26).fill([0x5e35b1, 0x00897b, 0xc62828][i])
+          g.rect(ax + 3, ay + 5, 10, 8).fill(0x1b1a24)
+          g.rect(ax + 4, ay + 6, 8, 6).fill([0x80deea, 0xfff59d, 0xa5d6a7][i])
+          g.rect(ax + 4, ay + 16, 3, 3).fill(0xffeb3b)
+          g.rect(ax + 9, ay + 16, 3, 3).fill(0xef5350)
+        }
         plant(1, 6)
         break
       }
@@ -316,6 +327,7 @@ export class OfficeScene {
       const desk = this.desks.get(e.id)!
       let view = this.views.get(e.id)
       if (!view) view = this.addActor(e, desk)
+      if (e.name && view.label.text !== e.name) view.label.text = e.name
       const dependencyDesk = e.waitingFor ? this.desks.get(e.waitingFor) : undefined
       view.actor.setState(e.state, { desk, dependencyDesk, slot: e.slot })
     }
@@ -329,7 +341,11 @@ export class OfficeScene {
     const ring = new Graphics()
     const body = new Graphics()
     const bubble = new Graphics()
-    root.addChild(ring, body, bubble)
+    const label = new Text({ text: e.name ?? '', style: { fontFamily: 'monospace', fontSize: 6, fill: 0xece9f7, fontWeight: 'bold', stroke: { color: 0x1b1a24, width: 2 } } })
+    label.resolution = 4
+    label.anchor.set(0.5, 0)
+    label.position.set(CHAR_W / 2, CHAR_H + 2)
+    root.addChild(ring, body, bubble, label)
     root.eventMode = 'static'
     root.cursor = 'pointer'
     root.hitArea = { contains: (x: number, y: number) => x >= -2 && x <= CHAR_W + 2 && y >= -14 && y <= CHAR_H + 2 }
@@ -338,7 +354,7 @@ export class OfficeScene {
     const monitor = new Graphics()
     if (e.role !== 'jefe') this.drawDesk(desk)
     this.monitors.addChild(monitor)
-    const view: ActorView = { actor, provider: e.provider, palette: paletteFor(e.id, e.provider), root, body, bubble, ring, monitor }
+    const view: ActorView = { actor, provider: e.provider, palette: paletteFor(e.id, e.provider), root, body, bubble, ring, monitor, label }
     this.views.set(e.id, view)
     return view
   }

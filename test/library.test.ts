@@ -58,9 +58,9 @@ describe('manuales', () => {
       allow: ['mcp__orquest', 'Bash(npm test:*)'],
       deny: ['Edit', 'Write', 'NotebookEdit', 'Bash(git push:*)', 'Bash(git reset --hard:*)'],
     })
-    const args = PROVIDERS.claude.mcpArgs!('http://x', p)
+    const args = PROVIDERS.claude.mcpArgs!({ url: 'http://x', permissions: p })
     expect(JSON.parse(args[args.indexOf('--settings') + 1]).permissions.deny).toContain('Bash(git reset --hard:*)')
-    expect(PROVIDERS.codex.mcpArgs!('http://x', p)).toEqual(expect.arrayContaining(['-s', 'read-only']))
+    expect(PROVIDERS.codex.mcpArgs!({ url: 'http://x', permissions: p })).toEqual(expect.arrayContaining(['-s', 'read-only']))
     expect(PROVIDERS.codex.permissionGaps!(p)[0]).toContain('no aplica listas de comandos')
   })
 })
