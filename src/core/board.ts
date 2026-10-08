@@ -83,6 +83,12 @@ export interface StaffMember {
   slotId?: string
   /** false si su CLI ya no corre (se fue o se cerró la app). */
   online: boolean
+  effort?: Effort
+  /** Su conversación en la CLI y su oficina: con eso vuelve a su escritorio al reabrir la app. */
+  sessionId?: string
+  office?: { path: string; branch: string; base?: string }
+  /** true si lo despidieron: ese ya no vuelve. */
+  gone?: boolean
 }
 
 export interface Message {
@@ -92,8 +98,17 @@ export interface Message {
   text: string
 }
 
+/** Con quién y cómo se contrató al jefe, para retomarlo al reabrir. */
+export interface BossRecord {
+  provider: ProviderId
+  model?: string
+  effort?: Effort
+  sessionId?: string
+}
+
 export interface BoardSnapshot {
   goal: string
+  boss?: BossRecord
   slots: Slot[]
   staff: StaffMember[]
   tasks: Task[]
@@ -122,6 +137,8 @@ const OPEN: TaskStatus[] = ['waiting', 'ready', 'in_progress', 'delivered', 'in_
 
 export class Board {
   goal = ''
+  /** Con quién se contrató al jefe; undefined si nunca hubo o lo despidieron. */
+  boss?: BossRecord
   slots: Slot[] = []
   staff: StaffMember[] = []
   tasks: Task[] = []
@@ -229,6 +246,20 @@ export class Board {
     slot.status = 'hired'
     slot.employeeId = member.id
     this.staff.push({ ...member, name: slot.name, model: slot.model, slotId: slot.id, online: true })
+  }
+
+  /** Volvió a su escritorio al reabrir la app. */
+  returned(employeeId: string, sessionId?: string) {
+    const m = this.staff.find((s) => s.id === employeeId)
+    if (!m) return
+    m.online = true
+    m.sessionId = sessionId ?? m.sessionId
+  }
+
+  /** Despedido: no vuelve aunque se reabra la app. */
+  dismiss(employeeId: string) {
+    const m = this.staff.find((s) => s.id === employeeId)
+    if (m) Object.assign(m, { online: false, gone: true })
   }
 
   offline(employeeId: string) {
@@ -482,6 +513,7 @@ export class Board {
   snapshot(): BoardSnapshot {
     return structuredClone({
       goal: this.goal,
+      boss: this.boss,
       slots: this.slots,
       staff: this.staff,
       tasks: this.tasks,
@@ -494,6 +526,7 @@ export class Board {
     const b = new Board(now)
     const c = structuredClone(s)
     b.goal = c.goal
+    b.boss = c.boss
     b.slots = c.slots
     // Al reabrir, nadie sigue en su escritorio: las CLIs se cerraron.
     b.staff = c.staff.map((m) => ({ ...m, name: m.name ?? m.id, online: false }))

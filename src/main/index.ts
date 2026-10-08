@@ -101,6 +101,8 @@ handle('project:open', async (repo: string) => {
     studios.set(root, s)
   }
   current = s
+  // Quien seguía contratado vuelve a su escritorio retomando su conversación.
+  await s.resume()
   return s.snapshot()
 })
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
