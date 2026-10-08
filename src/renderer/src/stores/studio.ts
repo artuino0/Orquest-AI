@@ -118,6 +118,11 @@ export const useStudio = defineStore('studio', () => {
     try {
       clis.value = await window.orquest.detectClis()
       checkedAt.value = Date.now()
+      // Los modelos llegan después: algunas CLIs se los piden a su servidor.
+      void window.orquest.cliModels().then(
+        (models) => (clis.value = clis.value.map((c) => ({ ...c, models: models[c.id] ?? c.models }))),
+        () => {},
+      )
     } finally {
       detecting.value = false
     }

@@ -16,7 +16,28 @@ export type ProviderId =
 
 import type { Permissions } from './library.js'
 
-export type Effort = 'low' | 'medium' | 'high'
+/** Niveles de esfuerzo que existen; cada CLI recibe solo algunos (ver `efforts`). */
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+export type Effort = (typeof EFFORTS)[number]
+
+/**
+ * De dónde salen los modelos que ofrece una CLI. No se inventan: son los alias
+ * que ella misma documenta, lo que contesta su comando de listado o el modelo
+ * por defecto de su archivo de configuración. Sin fuente, el modelo se escribe.
+ */
+export interface ModelSource {
+  /** Alias fijos que la CLI resuelve al modelo vigente. */
+  list?: string[]
+  /** Comando que los lista. */
+  command?: { args: string[]; read(stdout: string): string[] }
+  /** Archivo (relativo a $HOME) con el modelo configurado por defecto. */
+  file?: { path: string; read(text: string): string[] }
+}
+
+/** Primera palabra de cada renglón, si parece un id de modelo (trae guion o diagonal). */
+export const modelIds = (stdout: string): string[] => [
+  ...new Set(stdout.split('\n').map((l) => l.trim().split(/\s+/)[0]).filter((w) => /^[\w.:@/-]+$/.test(w) && /[-/]/.test(w))),
+]
 
 const EDIT_TOOLS = ['Edit', 'Write', 'NotebookEdit']
 
@@ -101,6 +122,10 @@ export interface ProviderAdapter {
   login: string
   /** Cómo se instala: comando si es uno solo y la página oficial. */
   install: { command?: string; url: string }
+  /** Qué modelos ofrece (ver ModelSource). */
+  models: ModelSource
+  /** Esfuerzos que recibe por argumento, de menor a mayor. Vacío = no recibe. */
+  efforts: Effort[]
   /** Argumentos para lanzar la CLI interactiva en su PTY. */
   buildArgs(opts: LaunchOptions): string[]
   /** Advertencias sobre opciones que este proveedor no sabe recibir. */
@@ -143,6 +168,8 @@ function generic(
     // Sin comando de login conocido: la propia CLI lo pide al abrirla.
     login: `abre ${binaries[0]} en una terminal y sigue su inicio de sesión`,
     install,
+    models: {},
+    efforts: [],
     buildArgs: (o) => (o.model ? ['--model', o.model] : []),
     unsupported: (o) => [
       ...(o.effort ? [`${name} no recibe esfuerzo por argumento; se ignora`] : []),
@@ -151,6 +178,19 @@ function generic(
     screen: { working: [SPINNER, ESC_TO_INTERRUPT], blocked: PERMISSION, idle: [/^\s*>\s*$/m] },
     verified: false,
     ...extra,
+  }
+}
+
+/** Para las CLIs genéricas que sí reciben esfuerzo: con qué bandera (según su `--help`). */
+function withEffort(name: string, flag: string): Partial<ProviderAdapter> {
+  const efforts: Effort[] = ['low', 'medium', 'high']
+  return {
+    efforts,
+    buildArgs: (o) => [...(o.model ? ['--model', o.model] : []), ...(o.effort && efforts.includes(o.effort) ? [flag, o.effort] : [])],
+    unsupported: (o) => [
+      ...(o.effort && !efforts.includes(o.effort) ? [`${name} no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
+      ...(o.systemPrompt ? [`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
+    ],
   }
 }
 
@@ -175,6 +215,9 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     login: 'claude auth login',
     install: { command: 'npm install -g @anthropic-ai/claude-code', url: 'https://docs.claude.com/en/docs/claude-code/setup' },
+    // Alias que la propia CLI resuelve al modelo más nuevo de cada familia (ver `claude --help`).
+    models: { list: ['fable', 'opus', 'sonnet', 'haiku'] },
+    efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('--model', o.model)
@@ -235,14 +278,21 @@ ${stderr}`
     },
     login: 'codex login',
     install: { command: 'npm install -g @openai/codex', url: 'https://developers.openai.com/codex/cli' },
+    // No tiene comando de listado: se ofrece el que tengas configurado por defecto.
+    models: { file: { path: '.codex/config.toml', read: (t) => [/^model\s*=\s*"([^"]+)"/m.exec(t)?.[1]].filter((m): m is string => !!m) } },
+    efforts: ['low', 'medium', 'high'],
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('-m', o.model)
-      if (o.effort) args.push('-c', `model_reasoning_effort=${o.effort}`)
+      if (o.effort && this.efforts.includes(o.effort)) args.push('-c', `model_reasoning_effort=${o.effort}`)
       return args
     },
-    unsupported: (o) =>
-      o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : [],
+    unsupported(o) {
+      return [
+        ...(o.effort && !this.efforts.includes(o.effort) ? [`Codex no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
+        ...(o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : []),
+      ]
+    },
     mcpArgs: ({ url, permissions }) => [
       '-c',
       `mcp_servers.orquest.url=${JSON.stringify(url)}`,
@@ -259,7 +309,10 @@ ${stderr}`
     verified: false,
   },
   // agy no tiene comando para preguntar por la sesión; guarda su acceso de Google junto al de Gemini.
-  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/oauth_creds.json']),
+  // `agy models` lista "id<tab>nombre"; el esfuerzo va en el propio id (…-high, …-low).
+  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/oauth_creds.json'], {
+    models: { command: { args: ['models'], read: modelIds } },
+  }),
   opencode: generic('opencode', 'OpenCode', ['opencode'], { command: 'npm install -g opencode-ai', url: 'https://opencode.ai' }, ['.local/share/opencode/auth.json'], {
     sessionCheck: {
       args: ['auth', 'list'],
@@ -270,11 +323,15 @@ ${stderr}`
       },
     },
     login: 'opencode auth login',
+    models: { command: { args: ['models'], read: modelIds } },
   }),
   // El binario corto de Command Code es `cmd`, que en Windows es el intérprete del sistema: no se busca por ese nombre.
-  commandcode: generic('commandcode', 'Command Code', ['commandcode', 'command-code', 'cmd-code'], { url: 'https://commandcode.ai' }, ['.commandcode/auth.json']),
+  commandcode: generic('commandcode', 'Command Code', ['commandcode', 'command-code', 'cmd-code'], { url: 'https://commandcode.ai' }, ['.commandcode/auth.json'], {
+    models: { command: { args: ['--list-models'], read: modelIds } },
+    ...withEffort('Command Code', '--effort'),
+  }),
   kimi: generic('kimi', 'Kimi', ['kimi', 'kimi-code'], { url: 'https://github.com/MoonshotAI/kimi-cli' }, ['.kimi/credentials']),
-  grok: generic('grok', 'Grok', ['grok'], { url: 'https://x.ai' }),
+  grok: generic('grok', 'Grok', ['grok'], { url: 'https://x.ai' }, [], withEffort('Grok', '--reasoning-effort')),
 }
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[]

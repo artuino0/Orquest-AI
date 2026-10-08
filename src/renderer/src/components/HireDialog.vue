@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
-import { LOOK, lookOf } from '../status'
+import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
 
@@ -49,7 +49,7 @@ function rule(c: Check | undefined, r: Row) {
 
 const cliName = (id: ProviderId) => studio.clis.find((c) => c.id === id)?.name ?? id
 const first = (): ProviderId => studio.usable[0]?.id ?? 'claude'
-const EFFORT: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto' }
+const cliOf = (id: ProviderId) => studio.clis.find((c) => c.id === id)
 
 function add() {
   rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '' })
@@ -102,11 +102,15 @@ const subtitle = computed(() => {
                 </select>
               </span>
             </td>
-            <td><input v-model="r.model" class="plain" placeholder="por defecto" /></td>
             <td>
-              <select v-model="r.effort" class="plain">
+              <input v-model="r.model" class="plain" placeholder="por defecto" :list="`models-${r.provider}`" />
+              <datalist :id="`models-${r.provider}`"><option v-for="m in cliOf(r.provider)?.models ?? []" :key="m" :value="m" /></datalist>
+            </td>
+            <td>
+              <select v-model="r.effort" class="plain" :disabled="!cliOf(r.provider)?.efforts?.length" :title="cliOf(r.provider)?.efforts?.length ? '' : 'Esta CLI no recibe esfuerzo'">
                 <option :value="undefined">—</option>
-                <option value="low">bajo</option><option value="medium">medio</option><option value="high">alto</option>
+                <option v-for="f in cliOf(r.provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
+                <option v-if="r.effort && !cliOf(r.provider)?.efforts?.includes(r.effort)" :value="r.effort">{{ EFFORT_LABEL[r.effort].toLowerCase() }} (no lo recibe)</option>
               </select>
             </td>
             <td class="dim why">{{ r.reason || '—' }}</td>
@@ -148,7 +152,7 @@ const subtitle = computed(() => {
             <td>{{ m.role }}</td>
             <td><span class="pv"><i :style="{ background: `var(--pv-${m.provider})` }" />{{ cliName(m.provider) }}</span></td>
             <td class="dim">{{ m.model ?? '—' }}</td>
-            <td>{{ m.effort ? EFFORT[m.effort] : '—' }}</td>
+            <td>{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
             <td><span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.look.label }}</span></td>
             <td><span class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%</span></td>
           </tr>

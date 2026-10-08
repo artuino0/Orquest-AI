@@ -28,3 +28,6 @@ export function lookOf(e: Pick<Employee, 'id' | 'state'>, hints: StudioSnapshot[
   if (quiet && h?.state === 'delivering') return 'delivering'
   return e.state
 }
+
+/** Cómo se le dice a cada nivel de esfuerzo. Cuáles hay depende de cada CLI (CliStatus.efforts). */
+export const EFFORT_LABEL: Record<string, string> = { low: 'Bajo', medium: 'Medio', high: 'Alto', xhigh: 'Muy alto', max: 'Máximo' }
