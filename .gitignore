@@ -5,3 +5,6 @@ dist/
 .DS_Store
 # Referencias de packs ajenos: sirven para comparar estilo, no son del proyecto.
 /assets/*.png
+
+# Video del comercial: cuadros y resultado de promo/grabar.mjs
+promo/salida/

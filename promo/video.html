@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Orquest AI · video</title>
+<!--
+  El comercial como página: 1280×720, en tiempo real. La oficina es la de la app
+  (oficina.html?fuente=app), manejada desde aquí con los mismos mensajes que le
+  manda el panel. Necesita la vista previa corriendo: npx vite src/renderer
+  (puerto 5173). Se graba con promo/grabar.mjs; con ?ver=1 corre sola con audio.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #15121b; --surface: #221d2c; --surface-2: #2f2839; --border: #08070b; --line: #4a4159; --text: #f4eadb; --dim: #a89db6; --accent: #f2b544; --blue: #4c9bf5; --green: #5fcb6b; --red: #f0524f;
+    --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace; --pixel: 'Pixelify Sans', 'JetBrains Mono', monospace; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--bg); color: var(--text); font: 15px/1.45 var(--mono); }
+  img.px { image-rendering: pixelated; }
+
+  /* La oficina: tres copias (vacía, solo el jefe, todos) para cortar de una a otra sin esperar a que caminen. */
+  #cam { position: absolute; inset: 0; transform-origin: 0 0; transition: transform 1.2s cubic-bezier(.3,.1,.2,1); }
+  #cam iframe { position: absolute; inset: 0; width: 1280px; height: 720px; border: 0; background: var(--bg); }
+  #cam.cut { transition: none; }
+
+  /* Toma 1: terminales y recibos */
+  #dolor { position: absolute; inset: 0; background: #050408; z-index: 20; transition: opacity .25s, transform .35s cubic-bezier(.6,0,.9,.4); }
+  #dolor.fuera { opacity: 0; transform: scale(.05); }
+  .term { position: absolute; width: 470px; height: 270px; background: #08070b; border: 3px solid var(--line); box-shadow: 6px 6px 0 #000c; opacity: 0; transform: scale(.9) translateY(14px); transition: opacity .12s, transform .16s cubic-bezier(.2,1.6,.4,1); overflow: hidden; }
+  .term.on { opacity: 1; transform: none; }
+  .term header { padding: 3px 10px; background: var(--surface-2); border-bottom: 3px solid var(--border); font-size: 12px; color: var(--dim); }
+  .term pre { margin: 0; padding: 8px 10px; font: 11px/1.5 var(--mono); color: #7fd18a; white-space: pre; }
+  .term pre.corre { animation: corre 5s linear infinite; }
+  @keyframes corre { to { transform: translateY(-50%); } }
+  .recibo { position: absolute; width: 250px; padding: 12px 14px; background: #f4eadb; color: #1a1206; border: 3px solid var(--border); box-shadow: 6px 6px 0 #000c; font-size: 13px; opacity: 0; transform: translateY(-60px) rotate(var(--r)); transition: opacity .1s, transform .22s cubic-bezier(.3,1.5,.5,1); }
+  .recibo.on { opacity: 1; transform: rotate(var(--r)); }
+  .recibo b { display: block; font: 700 22px var(--pixel); }
+  .recibo .uso { margin-top: 8px; height: 10px; background: #c9bda9; border: 2px solid #1a1206; }
+  .recibo .uso i { display: block; height: 100%; width: 0; background: var(--red); transition: width .5s; }
+  .recibo.usado .uso i { width: var(--u); }
+  .recibo small { display: block; margin-top: 4px; font-size: 11px; opacity: 0; transition: opacity .3s; }
+  .recibo.usado small { opacity: 1; }
+
+  /* Nombre */
+  #titulo { position: absolute; inset: 0; z-index: 15; display: grid; place-items: center; align-content: center; gap: 14px; pointer-events: none; opacity: 0; transition: opacity .3s; }
+  #titulo.on { opacity: 1; }
+  #titulo.fondo { background: #0b0910e8; }
+  #titulo h1 { margin: 0; padding: 6px 26px 10px; font: 700 76px var(--pixel); letter-spacing: 3px; color: var(--accent); background: var(--border); border: 4px solid var(--accent); box-shadow: 8px 8px 0 #000a; }
+  #titulo p { margin: 0; padding: 4px 14px; font: 700 20px var(--mono); background: var(--border); opacity: 0; transition: opacity .4s; }
+  #titulo.liga p { opacity: 1; }
+
+  /* Lo que se dice, como burbujas de chat */
+  #voz { position: absolute; left: 0; right: 0; bottom: 34px; z-index: 30; display: flex; justify-content: center; pointer-events: none; }
+  .dice { display: flex; align-items: center; gap: 12px; max-width: 900px; padding: 10px 18px 10px 12px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; font-size: 21px; opacity: 0; transform: translateY(12px); transition: opacity .12s, transform .14s; }
+  .dice.on { opacity: 1; transform: none; }
+  .dice.ella { background: var(--accent); color: #1a1206; }
+  .dice .cara { flex: none; width: 46px; height: 46px; overflow: hidden; background: var(--surface-2); border: 3px solid var(--border); }
+  .dice .cara img { width: 52px; margin: 2px 0 0 -3px; }
+  .dice b { display: block; font: 700 12px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; opacity: .7; }
+
+  /* Fichas del equipo */
+  #fichas { position: absolute; left: 0; right: 0; top: 30px; z-index: 25; display: flex; justify-content: center; gap: 14px; pointer-events: none; }
+  .ficha { width: 196px; padding: 12px 12px 10px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; text-align: center; opacity: 0; transform: translateY(26px) scale(.9); transition: opacity .1s, transform .2s cubic-bezier(.2,1.7,.4,1); }
+  .ficha.on { opacity: 1; transform: none; }
+  .ficha.fuera { opacity: 0; transform: translateY(-20px); transition: opacity .2s, transform .2s; }
+  .ficha .retrato { height: 96px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
+  .ficha .retrato img { height: 84px; }
+  .ficha h3 { margin: 8px 0 2px; font: 700 26px var(--pixel); color: var(--accent); }
+  .ficha .prov { display: inline-block; padding: 0 8px; font-size: 12px; font-weight: 700; color: #08070b; }
+  .ficha dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; text-align: left; font-size: 12px; }
+  .ficha dt { color: var(--dim); } .ficha dd { margin: 0; text-align: right; }
+  .ficha .puesto { margin-top: 8px; padding: 2px 0; font: 700 13px var(--mono); letter-spacing: 1px; text-transform: uppercase; background: var(--border); color: var(--green); }
+  #contratar { position: absolute; left: 50%; top: 340px; z-index: 25; transform: translateX(-50%) translateY(10px); padding: 8px 22px; font: 700 18px var(--mono); background: var(--accent); color: #1a1206; border: 3px solid var(--border); box-shadow: 4px 4px 0 #000a; opacity: 0; transition: opacity .15s, transform .15s; }
+  #contratar.on { opacity: 1; transform: translateX(-50%); }
+  #contratar.clic { transform: translateX(-50%) translate(4px, 4px); box-shadow: none; filter: brightness(1.25); }
+  #cursor { position: absolute; z-index: 40; left: 900px; top: 640px; width: 0; height: 0; border-left: 14px solid var(--text); border-bottom: 14px solid transparent; filter: drop-shadow(2px 2px 0 #000); opacity: 0; transition: left .5s cubic-bezier(.3,0,.2,1), top .5s cubic-bezier(.3,0,.2,1), opacity .15s; }
+  #cursor.on { opacity: 1; }
+
+  /* Tarjetas del tablero */
+  #tablero { position: absolute; right: 26px; top: 96px; z-index: 25; width: 330px; display: grid; gap: 8px; pointer-events: none; }
+  .tarea { padding: 8px 12px; background: var(--surface); border: 3px solid var(--border); border-left: 8px solid var(--c); box-shadow: 4px 4px 0 #000a; font-size: 14px; opacity: 0; transform: translateX(40px); transition: opacity .12s, transform .18s cubic-bezier(.2,1.5,.4,1); }
+  .tarea.on { opacity: 1; transform: none; }
+  .tarea.fuera { opacity: 0; transform: translateX(40px); }
+  .tarea b { color: var(--accent); } .tarea small { display: block; color: var(--dim); font-size: 12px; }
+
+  /* Entregas */
+  #entregas { position: absolute; right: 26px; top: 70px; z-index: 25; width: 520px; background: var(--surface); border: 3px solid var(--border); box-shadow: 6px 6px 0 #000a; opacity: 0; transform: translateX(60px); transition: opacity .15s, transform .22s; pointer-events: none; }
+  #entregas.on { opacity: 1; transform: none; }
+  #entregas h2 { margin: 0; padding: 8px 14px; font: 700 20px var(--pixel); background: var(--surface-2); border-bottom: 3px solid var(--border); }
+  .fila { position: relative; display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 10px 14px; border-bottom: 3px solid var(--border); }
+  .fila .retrato { width: 46px; height: 60px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
+  .fila .retrato img { height: 50px; }
+  .fila h3 { margin: 0; font: 700 18px var(--pixel); } .fila h3 small { font: 12px var(--mono); color: var(--dim); }
+  .fila pre { margin: 4px 0 0; font: 11px/1.45 var(--mono); }
+  .fila .mas { color: var(--green); } .fila .menos { color: var(--red); }
+  .fila .qa { margin-top: 4px; font-size: 12px; color: var(--green); }
+  .fila.error .qa { color: var(--red); font-weight: 700; }
+  .fila.error { background: #3a1517; }
+  .sello { position: absolute; right: 14px; top: 16px; padding: 2px 12px; font: 700 20px var(--pixel); letter-spacing: 1px; border: 4px solid currentColor; transform: rotate(-7deg) scale(2.4); opacity: 0; transition: opacity .08s, transform .16s cubic-bezier(.3,1.6,.5,1); background: var(--surface); }
+  .sello.on { opacity: 1; transform: rotate(-7deg); }
+  .sello.ok { color: var(--green); } .sello.no { color: var(--red); }
+
+  #negro { position: absolute; inset: 0; z-index: 90; background: #000; transition: opacity .3s; }
+  #negro.fuera { opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="cam" class="cut">
+    <iframe id="oTodos" data-src="oficina"></iframe>
+    <iframe id="oJefe" data-src="oficina"></iframe>
+    <iframe id="oVacia" data-src="oficina"></iframe>
+  </div>
+
+  <div id="dolor"></div>
+  <div id="titulo"><h1>ORQUEST AI</h1><p>github.com/artuino0/Orquest-AI</p></div>
+  <div id="fichas"></div>
+  <div id="contratar">Contratar equipo</div>
+  <div id="tablero"></div>
+  <div id="entregas"><h2>Entregas · login</h2></div>
+  <div id="voz"></div>
+  <div id="cursor"></div>
+  <div id="negro"></div>
+</div>
+
+<script>
+const ORIGEN = 'http://localhost:5173'
+const $ = (id) => document.getElementById(id)
+const sprite = (n) => `${ORIGEN}/sprites/char${n}.png`
+
+// ── Quién es quién ─────────────────────────────────────────────────────────
+const EQUIPO = [
+  { id: 'cinthya', name: 'Cinthya', char: 2, role: 'backend', puesto: 'Backend', corto: 'API', prov: 'Claude Code', provider: 'claude', color: '#e8823a', model: 'opus', effort: 'alto' },
+  { id: 'juan', name: 'Juan', char: 4, role: 'frontend', puesto: 'Frontend', corto: 'Web', prov: 'Codex', provider: 'codex', color: '#3f7fe8', model: 'gpt-6.1-sol', effort: 'medio' },
+  { id: 'pablo', name: 'Pablo', char: 5, role: 'frontend', puesto: 'Frontend', corto: 'Web', prov: 'Antigravity', provider: 'antigravity', color: '#3fb86a', model: 'gemini-3.8-flash', effort: 'medio' },
+  { id: 'mario', name: 'Mario', char: 1, role: 'qa', puesto: 'QA', corto: 'QA', prov: 'OpenCode', provider: 'opencode', color: '#f1f1f1', model: 'big-pickle', effort: 'alto' },
+]
+const JEFE = { id: 'jefe', name: 'Jhonny', char: 3 }
+const ELLA_CHAR = 6
+
+// ── Los 13 clips de voz: cuándo entra cada uno y cuánto dura ───────────────
+const VOZ = [
+  [0.00, 7.40, '01-ella', 'ella', '¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial… y a ninguna le sacas provecho.'],
+  [7.70, 1.68, '02-ella', 'ella', 'Esto es Orquest AI.'],
+  [10.00, 0.76, '03-ella', 'ella', 'Hola, Jhonny.'],
+  [11.00, 1.49, '04-jhonny', 'jhonny', 'Hola. ¿Qué necesitas?'],
+  [12.80, 1.45, '05-ella', 'ella', 'Hagamos una tienda en línea.'],
+  [14.90, 4.21, '06-jhonny', 'jhonny', 'Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.'],
+  [23.20, 1.05, '07-jhonny', 'jhonny', '¿Por dónde empezamos?'],
+  [24.50, 1.25, '08-ella', 'ella', 'Comienza con el login.'],
+  [26.10, 1.49, '09-jhonny', 'jhonny', 'Va. Ya lo repartí.'],
+  [33.40, 3.04, '10-jhonny', 'jhonny', 'Ya entregaron. Mario encontró un error en lo de Pablo.'],
+  [36.80, 5.08, '11-ella', 'ella', 'Cinthya, aprobado. Juan, aprobado. Pablo… te lo regreso.'],
+  [42.30, 1.57, '12-jhonny', 'jhonny', 'Ya va de vuelta a su escritorio.'],
+  [46.60, 2.14, '13-ella', 'ella', 'Orquest AI. Como un juego.'],
+]
+const FIN = 50.5
+window.VOZ = VOZ; window.FIN = FIN
+
+// ── La oficina ─────────────────────────────────────────────────────────────
+const persona = (p, status, isBoss = false) => ({ id: p.id, name: p.name, role: isBoss ? 'Jefe' : p.role, provider: p.provider ?? 'claude', model: p.model ?? 'opus', isBoss, status })
+const sprites = Object.fromEntries([JEFE, ...EQUIPO].map((p) => [p.id, `CHAR${p.char}`]))
+const estados = {
+  oVacia: { people: [], activities: {} },
+  oJefe: { people: [persona(JEFE, 'working', true)], activities: {} },
+  // Nacen ya contratados y sentados: cuando la toma corta aquí, nadie viene caminando.
+  oTodos: { people: [persona(JEFE, 'working', true), ...EQUIPO.map((p) => persona(p, 'working'))], activities: {} },
+}
+const mandar = (cual, msg) => $(cual).contentWindow.postMessage({ orquest: 'oficina', ...msg }, '*')
+const oficina = (cual, cambios, activities) => {
+  const e = estados[cual]
+  e.people = e.people.map((p) => (cambios[p.id] ? { ...p, status: cambios[p.id] } : p))
+  if (activities) e.activities = activities
+  mandar(cual, { type: 'estado', ...e, sprites })
+}
+const evento = (cual, agent, type, text, extra = {}) => mandar(cual, { type: 'evento', evento: { at: Date.now(), agent, type, text, ...extra } })
+
+let listas = 0
+addEventListener('message', (e) => {
+  if (e.data?.orquest !== 'oficina' || e.data.type !== 'listo') return
+  const f = [...document.querySelectorAll('#cam iframe')].find((f) => f.contentWindow === e.source)
+  if (!f) return
+  mandar(f.id, { type: 'estado', ...estados[f.id], sprites })
+  listas++
+})
+for (const f of document.querySelectorAll('#cam iframe')) f.src = `${ORIGEN}/oficina.html?fuente=app&quieto=1`
+const mostrar = (cual) => { for (const f of document.querySelectorAll('#cam iframe')) f.style.zIndex = f.id === cual ? 2 : 1 }
+/** Cámara: centra (x, y) de la oficina con ese acercamiento. */
+const camara = (x, y, z, corte = false) => {
+  const cam = $('cam')
+  cam.classList.toggle('cut', corte)
+  cam.style.transform = `translate(${640 - x * z}px, ${360 - y * z}px) scale(${z})`
+  if (corte) void cam.offsetWidth
+}
+const GENERAL = [640, 360, 1], CUARTO_JEFE = [262, 330, 2.9], CUBICULOS = [520, 345, 2.5], MEDIA = [560, 350, 1.6]
+
+// ── Piezas ─────────────────────────────────────────────────────────────────
+function decir(quien, texto, dura) {
+  const voz = $('voz')
+  const jh = quien === 'jhonny'
+  voz.innerHTML = `<div class="dice ${jh ? 'jhonny' : 'ella'}"><div class="cara"><img class="px" src="${sprite(jh ? JEFE.char : ELLA_CHAR)}"></div><div><b>${jh ? 'Jhonny · jefe' : 'Tú'}</b>${texto}</div></div>`
+  const d = voz.firstChild
+  requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add('on')))
+  setTimeout(() => d.classList.remove('on'), dura * 1000 + 250)
+}
+
+const LOGS = ['$ claude\n> Editando src/auth/login.ts…\n  ✓ 14 líneas\n> npm test\n  PASS auth.test.ts\n> ¿Permitir Bash(git push)?', '$ codex\n• Reading package.json\n• Thinking…\n• Apply patch? [y/n]\n• Running tsc --noEmit\n  error TS2345', '$ agy\nGemini · planning…\n  1. scaffold\n  2. routes\n  3. tests\nWaiting for approval…', '$ opencode\n> build ./web\n  vite v6 building…\n  ✓ 212 modules\n> /compact\n  context 87%']
+function armarDolor() {
+  const pos = [[70, 50], [420, 150], [130, 330], [640, 300]]
+  $('dolor').innerHTML = LOGS.map((l, i) => `<div class="term" style="left:${pos[i][0]}px;top:${pos[i][1]}px"><header>${l.split('\n')[0].slice(2)} — terminal ${i + 1}</header><pre class="corre">${(l + '\n').repeat(8)}</pre></div>`).join('')
+    + [[820, 60, -5, 9], [900, 230, 4, 6], [800, 400, -3, 12]].map(([x, y, r, u], i) => `<div class="recibo" style="left:${x}px;top:${y}px;--r:${r}deg;--u:${u}%"><b>$20 / mes</b>Suscripción de IA #${i + 1}<div class="uso"><i></i></div><small>uso este mes: ${u}%</small></div>`).join('')
+}
+function armarFichas() {
+  $('fichas').innerHTML = EQUIPO.map((p) => `<div class="ficha" id="f-${p.id}"><div class="retrato"><img class="px" src="${sprite(p.char)}"></div><h3>${p.name}</h3><span class="prov" style="background:${p.color}">${p.prov}</span><dl><dt>modelo</dt><dd>${p.model}</dd><dt>esfuerzo</dt><dd>${p.effort}</dd></dl><div class="puesto">→ ${p.puesto}</div></div>`).join('')
+}
+const TAREAS = [['T1', 'API de acceso y sesión', 'Cinthya · backend', '#e8823a'], ['T2', 'Pantalla de login', 'Juan · frontend', '#3f7fe8'], ['T3', 'Validación del formulario', 'Pablo · frontend', '#3fb86a'], ['T4', 'Probar el login', 'Mario · QA · espera a T1–T3', '#b58cf2']]
+function armarTablero() {
+  $('tablero').innerHTML = TAREAS.map(([n, t, q, c]) => `<div class="tarea" style="--c:${c}"><b>${n}</b> ${t}<small>${q}</small></div>`).join('')
+}
+const ENTREGAS = [
+  ['cinthya', 'T1 · API de acceso', '<span class="mas">+ export async function login(user, pass)</span>\n<span class="mas">+   return sign(session, SECRET)</span>', 'QA: 6 de 6 pruebas pasan'],
+  ['juan', 'T2 · Pantalla de login', '<span class="menos">- &lt;form&gt;</span>\n<span class="mas">+ &lt;form @submit.prevent="entrar"&gt;</span>', 'QA: se ve bien en móvil y escritorio'],
+  ['pablo', 'T3 · Validación', '<span class="mas">+ if (pass.length &gt; 0) aceptar()</span>\n<span class="menos">- if (pass.length &gt;= 8) aceptar()</span>', 'QA: acepta contraseñas de 1 carácter'],
+]
+function armarEntregas() {
+  $('entregas').insertAdjacentHTML('beforeend', ENTREGAS.map(([id, t, diff, qa]) => { const p = EQUIPO.find((p) => p.id === id); return `<div class="fila" id="e-${id}"><div class="retrato"><img class="px" src="${sprite(p.char)}"></div><div><h3>${p.name} <small>${t}</small></h3><pre>${diff}</pre><div class="qa">${qa}</div></div><div class="sello"></div></div>` }).join(''))
+}
+const sello = (id, ok) => { const s = document.querySelector(`#e-${id} .sello`); s.textContent = ok ? 'APROBADO' : 'DEVUELTO'; s.classList.add(ok ? 'ok' : 'no', 'on') }
+const on = (sel, c = 'on') => document.querySelectorAll(sel).forEach((n) => n.classList.add(c))
+const off = (sel, c = 'on') => document.querySelectorAll(sel).forEach((n) => n.classList.remove(c))
+const cursor = (x, y) => { const c = $('cursor'); c.classList.add('on'); c.style.left = x + 'px'; c.style.top = y + 'px' }
+
+// ── Línea de tiempo (segundos desde el arranque) ───────────────────────────
+const T = []
+const en = (t, fn) => T.push([t, fn])
+for (const [t, dura, , quien, texto] of VOZ) en(t, () => decir(quien, texto, dura))
+
+// 1 · El dolor (0–7.4)
+;[0.25, 0.75, 1.25, 1.75].forEach((t, i) => en(t, () => document.querySelectorAll('.term')[i].classList.add('on')))
+;[2.4, 3.1, 3.9].forEach((t, i) => en(t, () => document.querySelectorAll('.recibo')[i].classList.add('on')))
+en(5.2, () => on('.recibo', 'usado'))
+// 2 · Esto es Orquest AI (7.4–9.8)
+en(7.35, () => { mostrar('oVacia'); camara(...GENERAL, true); $('dolor').classList.add('fuera') })
+en(7.7, () => on('#titulo'))
+en(9.6, () => off('#titulo'))
+// 3 · El saludo (9.9–14.6): corte al jefe ya sentado
+en(9.85, () => { mostrar('oJefe'); camara(...CUARTO_JEFE, true) })
+en(14.3, () => camara(262, 262, 2.9)) // baja al jefe para que las fichas no lo tapen
+// 4 · El equipo (14.9–19.1): una ficha por nombre, al tiempo de la voz
+;[1.55, 2.4, 3.0, 3.6].forEach((d, i) => en(14.9 + d, () => on(`#f-${EQUIPO[i].id}`)))
+en(19.2, () => { on('#contratar'); cursor(690, 366) })
+en(19.9, () => on('#contratar', 'clic'))
+// 4b · Ya contratados (20.2–23.0): corte a los cuatro en su cubículo
+en(20.2, () => {
+  on('.ficha', 'fuera'); off('#contratar'); $('cursor').classList.remove('on')
+  mostrar('oTodos'); camara(...CUBICULOS, true)
+  oficina('oTodos', {}, Object.fromEntries(EQUIPO.map((p) => [p.id, { emoji: '👋', text: 'Hola', task: p.corto }])))
+})
+// 5 · La orden y el plan (23.2–27.6)
+en(23.0, () => { camara(...MEDIA); oficina('oTodos', {}, {}) })
+en(26.1, () => oficina('oTodos', {}, { jefe: { emoji: '📋', text: 'Repartiendo', task: 'login' } }))
+;[26.2, 26.5, 26.8, 27.1].forEach((t, i) => en(t, () => document.querySelectorAll('.tarea')[i].classList.add('on')))
+// 6 · La jornada (27.7–33.3): sentados, cada quien con su globo
+en(27.7, () => {
+  camara(...CUBICULOS)
+  oficina('oTodos', { jefe: 'idle', mario: 'idle' }, { cinthya: { emoji: '⌨️', text: 'API', task: 'T1' }, juan: { emoji: '🎨', text: 'Vista', task: 'T2' }, pablo: { emoji: '🧩', text: 'Validación', task: 'T3' } })
+})
+en(28.4, () => on('.tarea', 'fuera'))
+en(30.2, () => oficina('oTodos', {}, { cinthya: { emoji: '🧪', text: 'Pruebas', task: 'T1' }, juan: { emoji: '📱', text: 'En móvil', task: 'T2' }, pablo: { emoji: '🧪', text: 'Pruebas', task: 'T3' } }))
+en(31.6, () => oficina('oTodos', { mario: 'working' }, { cinthya: { emoji: '✅', text: 'Listo', task: 'T1' }, juan: { emoji: '✅', text: 'Listo', task: 'T2' }, pablo: { emoji: '✅', text: 'Listo', task: 'T3' }, mario: { emoji: '🔍', text: 'Probando', task: 'T4' } }))
+// 7 · Dos pasan, uno regresa (33.4–43.9)
+en(33.2, () => { camara(430, 350, 1.55); on('#entregas') })
+en(35.3, () => on('#e-pablo', 'error'))
+en(37.5, () => sello('cinthya', true))
+en(39.0, () => sello('juan', true))
+en(41.3, () => sello('pablo', false))
+en(42.2, () => {
+  off('#entregas'); camara(...CUBICULOS)
+  oficina('oTodos', { cinthya: 'idle', juan: 'idle', mario: 'idle', pablo: 'working' }, { pablo: { emoji: '🔧', text: 'Corrigiendo', task: 'T3' } })
+  evento('oTodos', 'cinthya', 'revision', 'Aprobada', { verdict: 'aprobada' })
+  evento('oTodos', 'juan', 'revision', 'Aprobada', { verdict: 'aprobada' })
+  evento('oTodos', 'pablo', 'revision', 'Devuelta: acepta contraseñas de 1 carácter', { verdict: 'rechazada' })
+})
+// 8 · Cierre (44–50.5)
+en(44.0, () => { $('cam').style.transitionDuration = '3s'; camara(...GENERAL) })
+en(46.5, () => on('#titulo', 'fondo'))
+en(46.6, () => on('#titulo'))
+en(47.6, () => on('#titulo', 'liga'))
+
+// ── Arranque ───────────────────────────────────────────────────────────────
+armarDolor(); armarFichas(); armarTablero(); armarEntregas()
+camara(...GENERAL, true)
+/** true cuando las tres oficinas ya recibieron su estado. */
+window.listo = () => listas >= 3
+window.empezar = (conAudio = false) => {
+  $('negro').classList.add('fuera')
+  for (const [t, fn] of T) setTimeout(fn, t * 1000)
+  if (conAudio) for (const [t, , archivo] of VOZ) setTimeout(() => new Audio(`audio/${archivo}.mp3`).play(), t * 1000)
+  return performance.now()
+}
+// ?ver=1: corre sola con audio al primer clic (el navegador no deja sonar sin un gesto).
+if (new URLSearchParams(location.search).has('ver')) addEventListener('click', () => window.empezar(true), { once: true })
+</script>
+</body>
+</html>
