@@ -11,6 +11,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod'
 import { RuleError } from './board.js'
 import { cliArgs, cliFields } from './cli.js'
+import { EFFORTS } from './providers.js'
 import type { Caller, Studio } from './studio.js'
 
 const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 'kimi', 'grok'] as const
@@ -43,7 +44,7 @@ export const TOOLS: Record<string, ToolDef> = {
             puesto: z.string().describe(ROLES),
             proveedor: z.enum(PROVIDERS),
             modelo: z.string().optional(),
-            esfuerzo: z.enum(['low', 'medium', 'high']).optional(),
+            esfuerzo: z.enum(EFFORTS).optional(),
             motivo: z.string().describe('Por qué este proveedor para este puesto'),
           }),
         )

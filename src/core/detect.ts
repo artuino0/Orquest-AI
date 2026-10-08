@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process'
-import { access, readdir, stat } from 'node:fs/promises'
+import { access, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { PROVIDERS, type ProviderAdapter, type ProviderId } from './providers.js'
+import { PROVIDERS, type Effort, type ProviderAdapter, type ProviderId } from './providers.js'
 
 export interface CliStatus {
   id: ProviderId
@@ -15,6 +15,10 @@ export interface CliStatus {
   session: boolean | null
   /** Con qué cuenta o plan está la sesión, si la CLI lo dice. */
   account?: string
+  /** Modelos que la propia CLI ofrece (alias, su listado o el de su configuración). Vacío = se escribe a mano. */
+  models?: string[]
+  /** Esfuerzos que recibe por argumento. Vacío = no recibe. */
+  efforts?: Effort[]
   /** Qué hacer para iniciar sesión. */
   login?: string
   /** Cómo instalarla. */
@@ -83,8 +87,26 @@ function versionOf(out: string): string | undefined {
   return /\d+\.\d+(\.\d+)?([-.+][\w.]+)?/.exec(line)?.[0] ?? line
 }
 
+/** Qué modelos ofrece una CLI instalada, según su fuente (ver ModelSource). */
+async function modelsOf(p: ProviderAdapter, binary: string, home: string): Promise<string[]> {
+  const found = [...(p.models.list ?? [])]
+  if (p.models.file) {
+    try {
+      found.push(...p.models.file.read(await readFile(join(home, p.models.file.path), 'utf8')))
+    } catch {
+      // Sin archivo no hay modelo configurado.
+    }
+  }
+  if (p.models.command) {
+    // Algunas lo piden a su servidor: se les da más tiempo que a --version.
+    const out = await runCli(binary, p.models.command.args, 20000)
+    if (out.code === 0) found.push(...p.models.command.read(out.stdout))
+  }
+  return [...new Set(found)].slice(0, 300)
+}
+
 export async function detectProvider(p: ProviderAdapter, home = homedir()): Promise<CliStatus> {
-  const base = { id: p.id, name: p.name, login: p.login, install: p.install }
+  const base = { id: p.id, name: p.name, login: p.login, install: p.install, efforts: p.efforts }
   let binary: string | undefined
   for (const b of p.binaries) {
     binary = await findBinary(b)
@@ -117,6 +139,16 @@ export async function detectProvider(p: ProviderAdapter, home = homedir()): Prom
     }
   }
   return { ...base, installed: true, binary, version, session, ...(account && { account }) }
+}
+
+/**
+ * Qué modelos ofrece cada CLI lista. Va aparte de detectAll porque algunas se
+ * lo preguntan a su servidor y tardan: Inicio no espera por esto.
+ */
+export async function detectModels(clis: CliStatus[], home = homedir()): Promise<Partial<Record<ProviderId, string[]>>> {
+  const ready = clis.filter((c) => c.installed && c.binary && c.session !== false)
+  const lists = await Promise.all(ready.map((c) => modelsOf(PROVIDERS[c.id], c.binary!, home)))
+  return Object.fromEntries(ready.map((c, i) => [c.id, lists[i]]))
 }
 
 /** Revisa todas las CLIs conocidas. Sin al menos una usable, no se puede contratar. */

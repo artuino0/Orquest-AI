@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
-import { LOOK, lookOf } from '../status'
+import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
 import type { FileChange } from '../../../shared/ipc'
@@ -25,7 +25,6 @@ const openFile = ref<string | null>(null)
 const diff = ref('')
 const avatar = computed(() => charUrl(studio.characterOf(e.value.id)))
 const cli = computed(() => studio.clis.find((c) => c.id === e.value.provider)?.name ?? e.value.provider)
-const EFFORT: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto' }
 const look = computed(() => LOOK[lookOf(e.value, studio.board?.hints)])
 const activity = computed(() => {
   const mine = (studio.activity[e.value.id] ?? []).map((a) => ({ ...a }))
@@ -102,7 +101,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       <img class="avatar" :src="avatar" alt="" />
       <div class="who">
         <h2><span class="title-pixel">{{ studio.nameOf(e.id) }}</span> <span class="chip" :style="{ color: `var(--st-${look.color})` }">■ {{ look.label }}</span></h2>
-        <p class="dim">{{ e.role }} · {{ cli }}<template v-if="e.model"> · {{ e.model }}</template><template v-if="e.effort"> · esfuerzo {{ EFFORT[e.effort] }}</template></p>
+        <p class="dim">{{ e.role }} · {{ cli }}<template v-if="e.model"> · {{ e.model }}</template><template v-if="e.effort"> · esfuerzo {{ EFFORT_LABEL[e.effort].toLowerCase() }}</template></p>
         <p class="ctx">
           <span class="cap">Contexto</span>
           <span class="meter" :class="{ hot }"><i><b :style="{ width: `${context ?? 0}%` }" /></i>{{ context === undefined ? 'sin dato' : `${Math.round(context)}%` }}</span>

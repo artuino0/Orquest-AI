@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, Send, Target, Terminal, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
-import type { ProviderId } from '../../../shared/ipc'
+import type { Effort, ProviderId } from '../../../shared/ipc'
+import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
 import { CHARACTERS, charUrl } from '../characters'
 
@@ -20,11 +21,28 @@ watch(leaders, (l) => {
   if (l.length && !l.some((c) => c.id === provider.value)) provider.value = l[0].id
 })
 const model = ref('')
-const effort = ref<'low' | 'medium' | 'high'>('high')
+// Modelos y esfuerzos son los de la CLI elegida: lo que ella misma lista y recibe.
+const chosen = computed(() => studio.clis.find((c) => c.id === provider.value))
+const models = computed(() => chosen.value?.models ?? [])
+const efforts = computed(() => chosen.value?.efforts ?? [])
+// OpenCode y Command Code son arneses: sus modelos vienen como "casa/modelo". Se puede acotar por casa.
+const houses = computed(() => [...new Set(models.value.filter((m) => m.includes('/')).map((m) => m.split('/')[0]))].sort())
+const house = ref('')
+const offered = computed(() => (house.value ? models.value.filter((m) => m.startsWith(`${house.value}/`)) : models.value))
+const effort = ref<Effort | undefined>()
+watch(
+  () => [provider.value, efforts.value.join()],
+  () => {
+    model.value = ''
+    house.value = ''
+    // Por defecto "alto" si lo hay; si no, el más alto que reciba.
+    effort.value = efforts.value.includes('high') ? 'high' : efforts.value.at(-1)
+  },
+  { immediate: true },
+)
 const goal = ref(studio.board?.goal ?? '')
 const message = ref('')
 const busy = ref(false)
-const EFFORTS = [['low', 'Bajo'], ['medium', 'Medio'], ['high', 'Alto']] as const
 
 async function hire() {
   busy.value = true
@@ -97,13 +115,25 @@ const pending = computed(() => {
     <div class="row">
       <label class="field grow">
         <span>Modelo</span>
-        <div class="select"><input v-model="model" placeholder="el de la CLI por defecto" /><ChevronDown /></div>
+        <div class="select">
+          <input v-model="model" list="boss-models" :placeholder="models.length ? `el de la CLI por defecto · ${models.length} para elegir` : 'el de la CLI por defecto (escribe otro si quieres)'" />
+          <ChevronDown />
+          <datalist id="boss-models"><option v-for="m in offered" :key="m" :value="m" /></datalist>
+        </div>
+      </label>
+      <label v-if="houses.length > 1" class="field">
+        <span>Casa del modelo</span>
+        <select v-model="house" class="house" @change="model = ''">
+          <option value="">todas ({{ houses.length }})</option>
+          <option v-for="h in houses" :key="h" :value="h">{{ h }}</option>
+        </select>
       </label>
       <div class="field">
         <span>Esfuerzo</span>
-        <div class="segments">
-          <button v-for="[id, label] in EFFORTS" :key="id" type="button" :class="{ on: effort === id }" @click="effort = id">{{ label }}</button>
+        <div v-if="efforts.length" class="segments">
+          <button v-for="id in efforts" :key="id" type="button" :class="{ on: effort === id }" @click="effort = id">{{ EFFORT_LABEL[id] }}</button>
         </div>
+        <p v-else class="none">{{ chosen?.name ?? 'Esta CLI' }} no recibe esfuerzo<template v-if="models.length">: va en el modelo</template>.</p>
       </div>
     </div>
     <div class="field">
@@ -153,7 +183,7 @@ const pending = computed(() => {
           <img :src="charUrl(studio.bossCharacter)" alt="" />
           <div>
             <h3 class="title-pixel">{{ studio.nameOf('jefe') }}</h3>
-            <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · esfuerzo {{ boss.effort }}</template></p>
+            <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · esfuerzo {{ EFFORT_LABEL[boss.effort].toLowerCase() }}</template></p>
             <span v-if="boss" class="chip" :style="{ color: `var(--st-${STATE[boss.state][1]})` }">■ {{ STATE[boss.state][0] }}</span>
             <span class="meter" :class="{ hot: context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${context}%` }" /></i>{{ context }}%</span>
           </div>
@@ -196,6 +226,8 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .cast button { width: 60px; height: 62px; display: grid; place-items: center; padding: 0; background: var(--bg); border: 2px solid var(--border); }
 .cast button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--surface-2); }
 .cast img { height: 46px; image-rendering: pixelated; }
+.house { font: 12px/1.6 var(--font); color: var(--text-primary); background: var(--bg); border: 2px solid var(--border); padding: 10px 12px; outline: none; max-width: 170px; }
+.none { margin: 0; padding: 9px 0; font-size: 11px; color: var(--text-secondary); max-width: 220px; }
 .foot { flex: 1; font-size: 11px; color: var(--text-secondary); }
 .err { margin: 0; font-size: 12px; color: var(--st-block); }
 

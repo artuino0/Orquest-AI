@@ -62,6 +62,8 @@ export function installMock(caso: string) {
       await wait(350)
       return CLIS[caso] ?? CLIS.normal
     },
+    // Los modelos también son los de verdad, si el servidor de vista previa los da.
+    cliModels: async () => (caso in CLIS ? {} : fetch('/__orquest/modelos').then((r) => (r.ok ? r.json() : {}), () => ({}))),
     pickRepo: async () => null,
     projectSummaries: async (repos) => repos.map((r) => SUMMARIES[r] ?? null),
     openExternal: async (url) => void window.open(url, '_blank'),

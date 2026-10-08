@@ -3,7 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as pty from 'node-pty'
 import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
-import { detectAll } from '../core/detect.js'
+import { detectAll, detectModels } from '../core/detect.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
@@ -61,6 +61,7 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
 }
 
 handle('clis:detect', () => detectAll())
+handle('clis:models', async () => detectModels(await detectAll()))
 handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Elige el repositorio del proyecto' })
   return r.canceled ? null : r.filePaths[0]

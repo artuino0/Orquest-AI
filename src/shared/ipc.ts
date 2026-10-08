@@ -32,6 +32,8 @@ export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
 
 export interface OrquestApi {
   detectClis(): Promise<CliStatus[]>
+  /** Modelos que ofrece cada CLI lista, según ella misma. Tarda más que detectClis: se pide aparte. */
+  cliModels(): Promise<Partial<Record<ProviderId, string[]>>>
   pickRepo(): Promise<string | null>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>

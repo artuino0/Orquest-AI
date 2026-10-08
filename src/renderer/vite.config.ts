@@ -6,12 +6,21 @@
 import { fileURLToPath } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, type Plugin } from 'vite'
-import { detectAll } from '../core/detect.js'
+import { detectAll, detectModels } from '../core/detect.js'
 
 /** Para que la vista previa muestre las CLIs de verdad de esta máquina: la misma detección que usa la app. */
 const detectar: Plugin = {
   name: 'orquest-detectar',
   configureServer(server) {
+    server.middlewares.use('/__orquest/modelos', (_req, res) => {
+      detectAll().then(detectModels).then(
+        (m) => res.setHeader('content-type', 'application/json').end(JSON.stringify(m)),
+        (err) => {
+          res.statusCode = 500
+          res.end(String(err))
+        },
+      )
+    })
     server.middlewares.use('/__orquest/clis', (_req, res) => {
       detectAll().then(
         (clis) => res.setHeader('content-type', 'application/json').end(JSON.stringify(clis)),
