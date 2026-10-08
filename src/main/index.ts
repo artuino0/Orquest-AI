@@ -33,10 +33,18 @@ function createWindow() {
     height: 800,
     backgroundColor: '#1b1a24',
     title: 'Orquest AI',
+    // Sin marco ni menú del sistema: el encabezado lo dibuja la app (components/TitleBar.vue).
+    frame: false,
+    minWidth: 960,
+    minHeight: 600,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: false },
   })
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
+  const state = () => send('window:state', { maximized: !!win?.isMaximized() })
+  win.on('maximize', state)
+  win.on('unmaximize', state)
+  win.webContents.on('did-finish-load', state)
   win.on('close', (e) => {
     if (closing === 'ya') return
     e.preventDefault()
@@ -128,6 +136,11 @@ handle('project:open', async (repo: string) => {
 })
 handle('project:resume', () => studio().resume())
 handle('project:skip-resume', () => studio().skipResume())
+handle('window:control', (action: 'minimize' | 'maximize' | 'close') => {
+  if (action === 'minimize') win?.minimize()
+  else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
+  else win?.close() // pasa por el corte de los agentes, como cerrar de cualquier otra forma
+})
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))

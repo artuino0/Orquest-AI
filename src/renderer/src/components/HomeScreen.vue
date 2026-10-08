@@ -153,7 +153,7 @@ import ThemeToggle from './ThemeToggle.vue'
 </template>
 
 <style scoped>
-.home { min-height: 100vh; padding: 56px; display: flex; gap: 56px; align-items: flex-start; background: var(--bg); }
+.home { min-height: 100%; padding: 56px; display: flex; gap: 56px; align-items: flex-start; background: var(--bg); }
 .left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
 .team { display: flex; gap: 6px; align-items: flex-end; height: 48px; }
 .team img { image-rendering: pixelated; }
@@ -202,5 +202,5 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .agents footer small { font-size: 10px; color: var(--text-secondary); }
 .spin { animation: spin 0.8s steps(8) infinite; }
 @keyframes spin { to { rotate: 360deg; } }
-.theme-corner { position: fixed; top: 14px; right: 14px; z-index: 2; }
+.theme-corner { position: fixed; top: 46px; right: 14px; z-index: 2; }
 </style>

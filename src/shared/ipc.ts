@@ -63,6 +63,9 @@ export interface OrquestApi {
 
   onBoard(cb: (s: StudioSnapshot) => void): () => void
   onNotice(cb: (text: string) => void): () => void
+  /** Botones del encabezado propio: la ventana no tiene marco del sistema. */
+  windowControl(action: 'minimize' | 'maximize' | 'close'): Promise<void>
+  onWindowState(cb: (s: { maximized: boolean }) => void): () => void
   /** La app se está cerrando y espera el corte de cada agente. */
   onClosing(cb: (p: { asked: string[]; done: string[] }) => void): () => void
   /** Cierra ya, sin esperar los cortes que falten. */

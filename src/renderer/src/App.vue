@@ -4,6 +4,7 @@ import { useStudio } from './stores/studio'
 import './theme'
 import HomeScreen from './components/HomeScreen.vue'
 import OfficeScreen from './components/OfficeScreen.vue'
+import TitleBar from './components/TitleBar.vue'
 
 const studio = useStudio()
 onMounted(() => studio.detect())
@@ -15,8 +16,13 @@ const closeNow = () => window.orquest.closeNow()
 </script>
 
 <template>
-  <HomeScreen v-if="studio.screen === 'home'" />
-  <OfficeScreen v-else />
+  <div class="shell">
+    <TitleBar />
+    <div class="view">
+      <HomeScreen v-if="studio.screen === 'home'" />
+      <OfficeScreen v-else />
+    </div>
+  </div>
   <div v-if="closing" class="closing">
     <section class="panel">
       <h1 class="title-pixel">Cerrando Orquest</h1>
@@ -34,6 +40,8 @@ const closeNow = () => window.orquest.closeNow()
 </template>
 
 <style scoped>
+.shell { height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+.view { flex: 1; min-height: 0; overflow: auto; }
 .closing { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--veil); }
 .closing .panel { width: 420px; max-width: calc(100% - 32px); padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; }
 .closing p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
