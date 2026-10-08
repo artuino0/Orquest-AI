@@ -2,6 +2,7 @@
 //   npx vite src/renderer   →   /preview.html                    con las CLIs de esta máquina
 //                               /preview.html?caso=normal        con las del diseño
 //                               /preview.html?caso=sin-agentes
+//                               /preview.html?proyecto=1         oficina con un proyecto de mentira (ver mockstudio.ts)
 import { installMock, RECENTS } from './mock'
 
 const caso = new URLSearchParams(location.search).get('caso') ?? 'real'
@@ -16,3 +17,10 @@ await import('@fontsource/pixelify-sans/700.css')
 await import('./style.css')
 const { default: App } = await import('./App.vue')
 createApp(App).use(createPinia()).mount('#app')
+
+// ?proyecto=1 entra directo a la oficina del proyecto de mentira.
+if (new URLSearchParams(location.search).get('proyecto')) {
+  const { useStudio } = await import('./stores/studio')
+  const { MOCK_REPO } = await import('./mockstudio')
+  await useStudio().openProject(MOCK_REPO)
+}

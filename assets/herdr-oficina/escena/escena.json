@@ -53,156 +53,156 @@
   {
    "silla": [
     145,
-    132
+    138
    ],
    "sillaSprite": "SILLA6",
    "pc": [
     "COMPUTADORA2",
     161,
-    131
+    137
    ]
   },
   {
    "silla": [
     204,
-    132,
+    138,
     true
    ],
    "sillaSprite": "SILLA6",
    "pc": [
-    "COMPUTADORA2",
-    186,
-    131,
-    true
-   ]
-  },
-  {
-   "silla": [
-    267,
-    132
-   ],
-   "sillaSprite": "SILLA6",
-   "pc": [
-    "COMPUTADORA2",
-    283,
-    131
-   ]
-  },
-  {
-   "silla": [
-    326,
-    132,
-    true
-   ],
-   "sillaSprite": "SILLA6",
-   "pc": [
-    "COMPUTADORA2",
-    308,
-    131,
+    "COMPUTADORA1",
+    185,
+    137,
     true
    ]
   },
   {
    "silla": [
     145,
-    174
+    168
    ],
    "sillaSprite": "SILLA6",
    "pc": [
-    "COMPUTADORA2",
-    161,
-    173
+    "COMPUTADORA1",
+    160,
+    167
    ]
   },
   {
    "silla": [
     204,
-    174,
+    168,
     true
    ],
    "sillaSprite": "SILLA6",
    "pc": [
     "COMPUTADORA2",
     186,
-    173,
-    true
-   ]
-  },
-  {
-   "silla": [
-    267,
-    174
-   ],
-   "sillaSprite": "SILLA6",
-   "pc": [
-    "COMPUTADORA2",
-    283,
-    173
-   ]
-  },
-  {
-   "silla": [
-    326,
-    174,
-    true
-   ],
-   "sillaSprite": "SILLA6",
-   "pc": [
-    "COMPUTADORA2",
-    308,
-    173,
+    167,
     true
    ]
   },
   {
    "silla": [
     145,
-    216
+    198
    ],
    "sillaSprite": "SILLA6",
    "pc": [
     "COMPUTADORA2",
     161,
-    215
+    197
    ]
   },
   {
    "silla": [
     204,
-    216,
+    198,
     true
    ],
    "sillaSprite": "SILLA6",
    "pc": [
-    "COMPUTADORA2",
-    186,
-    215,
+    "COMPUTADORA1",
+    185,
+    197,
     true
    ]
   },
   {
    "silla": [
     267,
-    216
+    138
    ],
    "sillaSprite": "SILLA6",
    "pc": [
-    "COMPUTADORA2",
-    283,
-    215
+    "COMPUTADORA1",
+    282,
+    137
    ]
   },
   {
    "silla": [
     326,
-    216,
+    138,
     true
    ],
    "sillaSprite": "SILLA6",
    "pc": [
     "COMPUTADORA2",
     308,
-    215,
+    137,
+    true
+   ]
+  },
+  {
+   "silla": [
+    267,
+    168
+   ],
+   "sillaSprite": "SILLA6",
+   "pc": [
+    "COMPUTADORA2",
+    283,
+    167
+   ]
+  },
+  {
+   "silla": [
+    326,
+    168,
+    true
+   ],
+   "sillaSprite": "SILLA6",
+   "pc": [
+    "COMPUTADORA1",
+    307,
+    167,
+    true
+   ]
+  },
+  {
+   "silla": [
+    267,
+    198
+   ],
+   "sillaSprite": "SILLA6",
+   "pc": [
+    "COMPUTADORA1",
+    282,
+    197
+   ]
+  },
+  {
+   "silla": [
+    326,
+    198,
+    true
+   ],
+   "sillaSprite": "SILLA6",
+   "pc": [
+    "COMPUTADORA2",
+    308,
+    197,
     true
    ]
   }
@@ -213,20 +213,34 @@
  ],
  "juegos": [
   {
+   "x": 142,
+   "y": 124,
+   "emoji": "🖨️",
+   "atras": true,
+   "impresora": true
+  },
+  {
+   "x": 18,
+   "y": 182,
+   "emoji": "⛳",
+   "atras": true,
+   "jefe": true
+  },
+  {
    "x": 174,
-   "y": 294,
+   "y": 283,
    "emoji": "🕹️",
    "atras": true
   },
   {
    "x": 194,
-   "y": 294,
+   "y": 283,
    "emoji": "🕹️",
    "atras": true
   },
   {
    "x": 214,
-   "y": 294,
+   "y": 283,
    "emoji": "🕹️",
    "atras": true
   },
@@ -246,6 +260,10 @@
    "y": 314,
    "emoji": "⚽"
   }
+ ],
+ "salida": [
+  310,
+  350
  ],
  "tapas": [
   [
@@ -431,6 +449,13 @@
    233
   ],
   [
+   10,
+   140,
+   16,
+   36,
+   176
+  ],
+  [
    4,
    214,
    14,
@@ -438,46 +463,60 @@
    233
   ],
   [
-   137,
-   124,
-   86,
+   140,
+   130,
+   80,
    30,
-   150
+   156
   ],
   [
-   259,
-   124,
-   86,
+   140,
+   160,
+   80,
    30,
-   150
+   186
   ],
   [
-   137,
-   166,
-   86,
+   140,
+   190,
+   80,
    30,
-   192
+   216
   ],
   [
-   259,
-   166,
-   86,
-   30,
-   192
+   140,
+   221,
+   80,
+   10,
+   231
   ],
   [
-   137,
-   208,
-   86,
+   262,
+   130,
+   80,
    30,
-   234
+   156
   ],
   [
-   259,
-   208,
-   86,
+   262,
+   160,
+   80,
    30,
-   234
+   186
+  ],
+  [
+   262,
+   190,
+   80,
+   30,
+   216
+  ],
+  [
+   262,
+   221,
+   80,
+   10,
+   231
   ],
   [
    208,
@@ -501,11 +540,11 @@
    118
   ],
   [
-   344,
-   108,
-   9,
-   9,
-   117
+   133,
+   90,
+   18,
+   28,
+   118
   ],
   [
    332,
@@ -614,10 +653,10 @@
   ],
   [
    122,
-   258,
+   247,
    24,
    31,
-   289
+   278
   ],
   [
    132,
@@ -628,24 +667,24 @@
   ],
   [
    166,
-   256,
+   245,
    16,
    33,
-   289
+   278
   ],
   [
    186,
-   256,
+   245,
    16,
    33,
-   289
+   278
   ],
   [
    206,
-   256,
+   245,
    16,
    33,
-   289
+   278
   ],
   [
    232,
@@ -663,10 +702,10 @@
   ],
   [
    326,
-   256,
+   245,
    24,
    34,
-   290
+   279
   ],
   [
    168,
@@ -724,36 +763,58 @@
    "juego": false
   },
   {
+   "archivo": "golfito-anim.png",
+   "x": 10,
+   "y": 140,
+   "w": 16,
+   "h": 36,
+   "cuadros": 4,
+   "ms": 260,
+   "z": 176,
+   "juego": true
+  },
+  {
+   "archivo": "impresora-grande-anim.png",
+   "x": 133,
+   "y": 90,
+   "w": 18,
+   "h": 28,
+   "cuadros": 4,
+   "ms": 250,
+   "z": 118,
+   "juego": true
+  },
+  {
    "archivo": "maquinita-azul-anim.png",
    "x": 166,
-   "y": 256,
+   "y": 245,
    "w": 16,
    "h": 33,
    "cuadros": 3,
    "ms": 220,
-   "z": 289,
+   "z": 278,
    "juego": true
   },
   {
    "archivo": "maquinita-roja-anim.png",
    "x": 186,
-   "y": 256,
+   "y": 245,
    "w": 16,
    "h": 33,
    "cuadros": 3,
    "ms": 260,
-   "z": 289,
+   "z": 278,
    "juego": true
   },
   {
    "archivo": "maquinita-azul-anim.png",
    "x": 206,
-   "y": 256,
+   "y": 245,
    "w": 16,
    "h": 33,
    "cuadros": 3,
    "ms": 300,
-   "z": 289,
+   "z": 278,
    "juego": true
   },
   {
@@ -858,6 +919,11 @@
    "w": 15,
    "h": 14,
    "archivo": "computadora-atras.png"
+  },
+  "LAPTOP LADO": {
+   "w": 9,
+   "h": 10,
+   "archivo": "laptop-lado.png"
   },
   "COMPUTADORA FRENTE": {
    "w": 15,

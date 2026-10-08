@@ -27,6 +27,7 @@ const SPRITES_EXTRA = ['CHAR5', 'CHAR1', 'CHAR2', 'CHAR4'];
 const PUESTOS = {};
 let PUESTOS_LIBRES = [];
 let CAFETERA = [50, 122]; // dónde se para quien va por café
+let SALIDA = null; // por dónde deja la oficina quien se va
 let JUEGOS = []; // dónde se para quien va a jugar: { x, y, emoji, atras }
 const JUEGOS_ANIMADOS = []; // maquinitas, futbolito…: se animan solo con alguien enfrente
 const SILLA_PEGADA = 5; // px que se mete la silla al escritorio cuando el puesto no es de nadie
@@ -43,6 +44,7 @@ const CAFE_CADA_MS = 5000;
 const CAFE_PROBABILIDAD = 0.3;
 const CAFE_DURACION_MS = [6000, 9000];
 const JUEGO_DURACION_MS = [9000, 15000];
+const IMPRIMIR_MS = 2500; // lo que tarda en salir el reporte
 const DESCANSANDO_MAX = 3; // cuántos pueden andar fuera de su puesto a la vez
 
 // --- estado ---
@@ -87,7 +89,11 @@ function ajustarEscala() {
   const gap = flotante ? 0 : 12;
   const ancho = els.main.clientWidth - Number.parseFloat(estilo.paddingLeft) - Number.parseFloat(estilo.paddingRight) - lateral - gap;
   const alto = els.main.clientHeight - Number.parseFloat(estilo.paddingTop) - Number.parseFloat(estilo.paddingBottom);
-  const s = Math.max(1, Math.min(Math.floor(ancho / ESCENA.w), Math.floor(alto / ESCENA.h)));
+  // No llena la pantalla: usa el 80 % de lo que cabe, en pasos de medio punto
+  // (1, 1.5, 2…) para que el píxel siga parejo. ?escala=2 la fija a mano.
+  const cabe = Math.min(ancho / ESCENA.w, alto / ESCENA.h);
+  const fija = Number(new URLSearchParams(location.search).get('escala'));
+  const s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * 0.8 * 2) / 2);
   els.vista.style.setProperty('--s', s);
 }
 window.addEventListener('resize', ajustarEscala);
@@ -255,6 +261,11 @@ class Personaje {
     this.hoja.className = 'hoja';
     this.hoja.hidden = true;
     this.el.appendChild(this.hoja);
+    // El reporte impreso que lleva en la mano de camino al jefe.
+    this.carga = spriteImg('REPORTE');
+    this.carga.className += ' carga';
+    this.carga.hidden = true;
+    this.el.appendChild(this.carga);
     // Etiqueta, globos y burbujas van en una capa aparte, encima de todo
     // (escritorios y computadoras incluidos), que sigue al personaje.
     this.capa = document.createElement('div');
@@ -274,6 +285,8 @@ class Personaje {
     if (this.meta.isBoss) label.classList.add('jefe');
     this.capa.appendChild(label);
     els.agents.appendChild(this.el);
+    // Dentro de la app, un clic abre el panel de esa persona.
+    for (const t of [this.el, this.capa]) t.addEventListener('click', () => window.OFICINA.alElegir?.(agent));
 
     if (this.puesto) {
       const [sx, sy, sEspejo] = this.puesto.silla;
@@ -430,8 +443,9 @@ class Personaje {
     else this.dir = dy < 0 ? 'atras' : 'frente';
     const dur = distancia(a, b) / VELOCIDAD * 1000;
     return new Promise(resolve => {
-      const t0 = performance.now();
+      let t0 = null; // el reloj del tramo es el de los cuadros, no otro: así nunca arranca atrasado
       const paso = (t) => {
+        t0 ??= t;
         const f = Math.min(1, (t - t0) / dur);
         this.ponerEn(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f);
         if (f < 1) requestAnimationFrame(paso); else resolve();
@@ -469,8 +483,10 @@ class Personaje {
       const pegada = this.estado === 'gone' ? (espejo ? -SILLA_PEGADA : SILLA_PEGADA) : 0;
       this.puesto.sillaEl.style.left = px(sx + pegada);
     }
-    this.el.classList.toggle('gone', this.estado === 'gone');
-    this.capa.classList.toggle('gone', this.estado === 'gone');
+    // quien se va no desaparece hasta llegar a la salida
+    const fuera = this.estado === 'gone' && !this.saliendo;
+    this.el.classList.toggle('gone', fuera);
+    this.capa.classList.toggle('gone', fuera);
     this.pc?.classList.toggle('encendida', sentado && this.estado === 'working');
     if (this.brillo) {
       // La luz de la pantalla solo le da a quien está sentado frente a ella.
@@ -498,19 +514,42 @@ class Personaje {
   aplicarEstado(estado, animar = true) {
     const antes = this.estado;
     this.estado = estado;
+    // Se va caminando hasta la salida y ahí desaparece.
+    if (animar && estado === 'gone' && antes !== 'gone' && SALIDA && !this.saliendo) {
+      this.saliendo = true;
+      this.hacer(async () => {
+        liberar(this.agent);
+        if (this.estado === 'gone') await this.caminar(SALIDA);
+        this.saliendo = false;
+        this.refrescar();
+      });
+    }
     this.refrescar();
     // Al terminar, el agente va a avisarle al jefe
     if (animar && estado === 'done' && antes !== 'done' && !this.meta.isBoss) this.avisar();
   }
 
   avisar() {
-    if (this.avisoEnCola) return;
+    if (this.avisoEnCola || !hayJefe()) return;
     this.avisoEnCola = true;
     this.hacer(async () => {
       const boss = jefe();
       // espera sentado (con ✅) a que el jefe esté en su lugar
       await esperarHasta(() => boss.enSilla(), 60000);
       this.avisando = true;
+      // Primero pasa a la impresora por su reporte y se lo lleva.
+      const impresora = JUEGOS.find(j => j.impresora);
+      if (impresora) {
+        const lugar = reservarCerca(this.agent, [impresora.x, impresora.y], 6);
+        await this.caminar(lugar);
+        this.deEspaldas = true;
+        this.refrescar();
+        usarJuego(lugar, 1);
+        await esperar(IMPRIMIR_MS);
+        usarJuego(lugar, -1);
+        this.deEspaldas = false;
+        this.carga.hidden = false;
+      }
       await this.caminar(reservarCerca(this.agent, boss.asiento()));
       await esperarHasta(() => boss.enSilla(), 20000);
       // el evento "reporte" puede llegar un poco después que el estado "done"
@@ -518,6 +557,7 @@ class Personaje {
       const r = this.reportePendiente || { emoji: '✅', text: '¡Terminé!' };
       this.reportePendiente = null;
       await this.decir(r.emoji, r.text, 3000);
+      this.carga.hidden = true; // se lo deja al jefe
       this.avisando = false;
       this.avisoEnCola = false;
       liberar(this.agent);
@@ -584,7 +624,7 @@ function renderAgents(animar = true) {
   }
   // Agentes que ya no estan: se desvanecen (el jefe se queda para las visitas)
   for (const [agent, p] of personajes) {
-    if (!known.has(agent) && p.estado !== 'gone' && !p.meta.isBoss) p.aplicarEstado('gone', animar);
+    if (!known.has(agent) && p.estado !== 'gone' && (!p.meta.isBoss || window.OFICINA.jefeReal)) p.aplicarEstado('gone', animar);
   }
 }
 
@@ -948,6 +988,15 @@ function crearReloj() {
   setInterval(pintar, 1000);
 }
 
+// --- el jefe y su golfito: de vez en cuando, si nadie lo anda buscando ---
+setInterval(() => {
+  const boss = jefe();
+  const golf = JUEGOS.find(j => j.jefe && !j.ocupado);
+  if (!boss || !golf || boss.ocio || !boss.enSilla() || boss.pendientes > 0) return;
+  if ([...personajes.values()].some(p => p.avisando || p.avisoEnCola) || Math.random() > 0.15) return;
+  boss.irAJugar(golf);
+}, CAFE_CADA_MS);
+
 // --- descansos: café o un rato en los juegos ---
 setInterval(() => {
   const todos = [...personajes.values()];
@@ -955,7 +1004,7 @@ setInterval(() => {
   const sinTrabajo = todos.filter(p => !p.meta.isBoss && p.puesto && p.estado === 'idle' && p.enSilla() && p.pendientes === 0);
   if (!sinTrabajo.length || Math.random() > CAFE_PROBABILIDAD) return;
   const quien = sinTrabajo[Math.floor(Math.random() * sinTrabajo.length)];
-  const juegos = JUEGOS.filter(j => !j.ocupado);
+  const juegos = JUEGOS.filter(j => !j.ocupado && !j.jefe);
   const enCafe = todos.some(p => p.ocio === '☕'); // a la cafetera, uno a la vez
   if (juegos.length && (enCafe || Math.random() < 0.6)) quien.irAJugar(juegos[Math.floor(Math.random() * juegos.length)]);
   else if (!enCafe) quien.irPorCafe();
@@ -963,9 +1012,12 @@ setInterval(() => {
 
 // --- jefe ---
 function jefe() { return personaje(JEFE); }
+// Sin jefe en la oficina nadie visita ni va a reportarle.
+function hayJefe() { return personajes.has(JEFE) && personajes.get(JEFE).estado !== 'gone'; }
 
 // El jefe va (por el mapa) a donde está el agente, le dice algo y regresa.
 function visitar({ agent, emoji, text, durationMs = 3000 }) {
+  if (!hayJefe()) return;
   const boss = jefe();
   boss.hacer(async () => {
     const p = personajes.get(agent);
@@ -1220,16 +1272,19 @@ function connect() {
 // --- bootstrap: carga sprites, pide estado inicial + conecta SSE ---
 async function bootstrap() {
   try {
-    const info = await (await fetch('sprites/sprites.json')).json();
-    const escena = await (await fetch('escena/escena.json')).json();
+    // Dentro de la app los datos ya vienen cargados; suelta en el navegador se piden.
+    const datos = window.OFICINA.datos;
+    const info = datos?.sprites ?? await (await fetch('sprites/sprites.json')).json();
+    const escena = datos?.escena ?? await (await fetch('escena/escena.json')).json();
     sprites = { ...info.sprites, ...escena.sprites };
     fondoInfo = escena.fondo;
-    mapa = await (await fetch('escena/mapa.json')).json();
+    mapa = datos?.mapa ?? await (await fetch('escena/mapa.json')).json();
     ESCENA = { w: escena.ancho, h: escena.alto };
     PUESTOS[JEFE] = escena.jefe;
     PUESTOS_LIBRES = escena.puestos.slice();
     CAFETERA = escena.cafetera;
     JUEGOS = escena.juegos || [];
+    SALIDA = escena.salida || null;
     els.vista.style.setProperty('--w', ESCENA.w);
     els.vista.style.setProperty('--h', ESCENA.h);
     $('scene').src = `sprites/${fondoInfo.archivo}`;
@@ -1242,7 +1297,8 @@ async function bootstrap() {
   crearMascotas();
   crearReloj();
   iniciarDia();
-  jefe(); // el jefe siempre esta en la oficina, aunque Herdr no lo liste
+  // En la demo el jefe siempre está; en la app, solo si lo contrataron.
+  if (!window.OFICINA.jefeReal) jefe();
   try {
     const state = await window.OFICINA.fuente.estado();
     esDemo = Boolean(state.demo);

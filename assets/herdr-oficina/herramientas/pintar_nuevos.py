@@ -817,6 +817,117 @@ def golf(ball):
 save("golfito", golf(28))
 save("golfito-anim", strip([golf(28), golf(23), golf(17), golf(None)]))
 
+# --------------------------------------------------------------------- laptops
+#   laptop-frente: pantalla a la vista y, delante, la base con teclas y panel
+#   laptop-atras:  la tapa por fuera, con su filo de arriba; la base queda detrás
+#   laptop-lado:   mirando a la derecha: la base vista desde arriba y la tapa
+#                  parada de canto, con el brillo de la pantalla hacia la base
+def laptop_front(lines):
+    rows = [".ddddddddd.", ".dwwwwwwwd."]
+    for n in lines:
+        rows.append(".dw" + "c" * n + "w" * (6 - n) + "d.")
+        rows.append(".dwwwwwwwd.")
+    rows += [".ddddddddd.", "dsssssssssd", "dswswswswsd", "dssswwwsssd", "eeeeeeeeeee"]
+    return mat(rows)
+
+
+LAPTOP_BACK = [
+    ".ddddddddd.",
+    ".dwwwwwwwd.",
+    ".dsssssssd.",
+    ".dssswsssd.",
+    ".dsssssssd.",
+    ".dsssssssd.",
+    ".eeeeeeeee.",
+]
+LAPTOP_SIDE = [
+    "......ddd",
+    "......dwd",
+    "......dcd",
+    "......dcd",
+    "dddddddsd",
+    "dswswsdsd",
+    "dwswswdsd",
+    "dswswsdsd",
+    "dssssseed",
+    "eeeeeeeee",
+]
+save("laptop-frente", laptop_front((2, 5)))
+save("laptop-frente-anim", strip([laptop_front(l) for l in ((2, 5), (4, 1), (5, 3))]))
+save("laptop-atras", mat(LAPTOP_BACK))
+save("laptop-lado", mat(LAPTOP_SIDE))
+
+# ------------------------------------------------------------- impresora grande
+# Multifuncional de piso. De arriba abajo: alimentador de hojas, tapa del
+# escáner (su cara de arriba, en claro), panel con pantallita y luz, bandeja de
+# salida y tres cajones de papel.
+# `sheet`: 0 sin hoja, 1 asoma, 2 a medio salir, 3 ya descansa en la bandeja.
+# `on`: la luz y la pantallita encendidas (parpadean al imprimir).
+def printer(sheet=3, on=False):
+    led, screen = ("l", "kaaak") if on else ("g", "kcack")
+    tray = {
+        0: ["esekkkkkkkkkkkkese", "esekkkkkkkkkkkkese", "eseeeeeeeeeeeeeese"],
+        1: ["esekkwwwwwwwwkkese", "esekkkkkkkkkkkkese", "eseeeeeeeeeeeeeese"],
+        2: ["esekkwwwwwwwwkkese", "esekkwwwwwwwwkkese", "eseeeeeeeeeeeeeese"],
+        3: ["esekkkkkkkkkkkkese", "esekkwwwwwwwwkkese", "eseeewwwwwwwweeese"],
+    }[sheet]
+    drawer = ["esssssssssssssssse", "esssssddddddssssse", "e" + "d" * 16 + "e"]
+    return mat([
+        "..dddddddddddd....",
+        "..dwwwwwwwwwwd....",
+        "..dwsssssssswd....",
+        "..dwwwwwwwwwwd....",
+        "..dssssssssssd....",
+        "dddddddddddddddddd",
+        "dwwwwwwwwwwwwwwwwd",
+        "dwwwwwwwwwwwwwwwwd",
+        "dwwwwwwwwwwwwwwwwd",
+        "dssssssssssssssssd",
+        "esssssssssssssssse",
+        "es" + screen + "ssss" + led + "sdsdse",
+        "esssssssssssssssse",
+        "eseeeeeeeeeeeeeese",
+    ] + tray + ["esssssssssssssssse", "e" + "d" * 16 + "e"] + drawer * 2 + drawer[:2] + ["e" * 18])
+
+
+# De lado, mirando a la derecha: el ancho de la máquina corre hacia el fondo,
+# así que la tapa se ve más larga. El frente queda a la derecha: ahí asoman el
+# brillo de la pantallita, la hoja en la bandeja y los jaladores de los cajones.
+PRINTER_SIDE = [
+    ".ddddddddd....",
+    ".dwwwwwwwd....",
+    ".dwsssswwd....",
+    ".dwsssswwd....",
+    ".dwwwwwwwd....",
+    ".dsssssssd....",
+    "dddddddddddddd",
+    "dwwwwwwwwwwwwd",
+    "dwwwwwwwwwwwwd",
+    "dwwwwwwwwwwwwd",
+    "dwwwwwwwwwwwwd",
+    "dwwwwwwwwwwwwd",
+    "dssssssssssssd",
+    "esssssssssssse",
+    "esssssssssssce",
+    "esssssssssssce",
+    "esssssssssssse",
+    "essssssssseeee",
+    "esssssssssewww",
+    "essssssssseeee",
+    "esssssssssssse",
+    "esddddsssssdde",
+    "esssssssssssse",
+    "esddddsssssdde",
+    "esssssssssssse",
+    "esddddsssssdde",
+    "esssssssssssse",
+    "esssssssssssse",
+    "eeeeeeeeeeeeee",
+]
+save("impresora-grande", printer())
+save("impresora-grande-anim", strip([printer(0, True), printer(1, False), printer(2, True), printer(3, False)]))
+save("impresora-grande-lado", mat(PRINTER_SIDE))
+
 # ---------------------------------------------------------- personajes de lado
 # El pack no trae personajes de perfil. Mirando a la derecha: el pelo cubre la
 # mitad izquierda de la cara y queda un solo ojo, del lado hacia donde mira. El

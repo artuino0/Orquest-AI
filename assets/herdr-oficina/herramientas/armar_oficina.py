@@ -176,44 +176,58 @@ def poste(cx, base):
     tapas.append([x0, y0, 6, 14, base])
 
 
-# Módulo de cubículo con dos puestos que se dan la espalda, tal como viene
-# armado en la oficina original: se recorta de su capa de muebles.
-_mitad = img('muebles').crop((145, 131, 185, 163))
-# El puesto derecho del original trae la silla pegada al escritorio y quien se
-# sienta queda metido bajo la mesa y la computadora. Se usa el izquierdo, que
-# deja su hueco, y su espejo.
-# La silla no va pintada: la pone la página, pegada al escritorio si el puesto
-# no es de nadie y separada cuando alguien lo ocupa. Donde estaba se repone lo
-# que tapaba (bandera o panel).
-SILLA_EN = (5, 8)
-_silla, _panel, _bandera = img('silla6'), img('moduledivider1'), img('banderaindia')
-for j in range(_silla.height):
-    for i in range(_silla.width):
-        if not _silla.getpixel((i, j))[3]:
-            continue
-        x, y = SILLA_EN[0] + i, SILLA_EN[1] + j
-        detras = (0, 0, 0, 0)
-        for pieza, (ox, oy) in ((_panel, (0, 1)), (_bandera, (3, 6))):
-            if 0 <= x - ox < pieza.width and 0 <= y - oy < pieza.height and pieza.getpixel((x - ox, y - oy))[3]:
-                detras = pieza.getpixel((x - ox, y - oy))
-        _mitad.putpixel((x, y), detras)
+# Medio cubículo (un puesto), armado con las piezas sueltas en el lugar que
+# tienen en la oficina original: panel, mampara del centro y escritorio.
+# Lo que cada quien cuelga en su panel va aparte (ADORNOS). Sin silla ni computadora: esas las pone la página (la silla se
+# pega al escritorio si el puesto no es de nadie; la computadora cambia de tipo).
+# El puesto derecho es el espejo: el del original trae la silla tan pegada que
+# quien se sienta queda metido bajo la mesa.
+_mitad = Image.new('RGBA', (40, 32))
+for _pieza, _donde in (('moduledivider1', (0, 1)), ('desk-right', (19, 12)), ('divider-cubiculo-vertical', (36, 4))):
+    _mitad.alpha_composite(img(_pieza), _donde)
 MODULO = Image.new('RGBA', (80, 32))
 MODULO.alpha_composite(_mitad, (0, 0))
 MODULO.alpha_composite(ImageOps.mirror(_mitad), (40, 0))
 
 
+# Lo que cuelga en el panel de cada puesto, en orden: cada quien lo suyo.
+ADORNOS = ['cuadroazul', 'posticks', 'banderamexico', 'cuadronaranja', 'reporte', 'cuadroplaya',
+           'posticks', 'banderausa', 'cuadroazul', 'banderauk', 'cuadronaranja', 'banderaindia']
+
+
+def adorno(x, y, derecho):
+    """Cuelga el adorno que toca en la orilla del panel, donde no lo tapa quien se sienta."""
+    a = img(ADORNOS[len(puestos) % len(ADORNOS)])
+    ax = x + 80 - 2 - a.width if derecho else x + 2
+    for capa in (fondo, muebles):
+        capa.alpha_composite(a, (ax, y + 5))
+
+
 def modulo(x, y):
-    """Cubículo doble, cerrado con su panel a cada lado: se entra por abajo."""
-    lateral = img('divider-cubiculo-vertical')
+    """Cubículo doble. Van pegados uno bajo otro y abiertos a los lados: se entra por el pasillo, detrás de la silla."""
     for capa in (fondo, muebles):
         capa.alpha_composite(MODULO, (x, y))
-        capa.alpha_composite(lateral, (x - 3, y + 1))
-        capa.alpha_composite(lateral, (x + 79, y + 1))
-    bloquear(x - 3, y + 2, 86, 26)
-    # Tapa a quien pasa por el pasillo de arriba; quien está sentado va encima.
-    tapas.append([x - 3, y, 86, 30, y + 26])
-    puestos.append({'silla': [x + 5, y + 8], 'sillaSprite': 'SILLA6', 'pc': ['COMPUTADORA2', x + 21, y + 7]})
-    puestos.append({'silla': [x + 64, y + 8, True], 'sillaSprite': 'SILLA6', 'pc': ['COMPUTADORA2', x + 46, y + 7, True]})
+    bloquear(x, y + 2, 80, 28)
+    # Tapa a quien pasa por arriba; quien está sentado va encima.
+    tapas.append([x, y, 80, 30, y + 26])
+    # Dos modelos de computadora, alternados.
+    otra = (len(puestos) // 2) % 2 == 1
+    izq = ['COMPUTADORA1', x + 20, y + 7] if otra else ['COMPUTADORA2', x + 21, y + 7]
+    der = ['COMPUTADORA2', x + 46, y + 7, True] if otra else ['COMPUTADORA1', x + 45, y + 7, True]
+    adorno(x, y, False)
+    puestos.append({'silla': [x + 5, y + 8], 'sillaSprite': 'SILLA6', 'pc': izq})
+    adorno(x, y, True)
+    puestos.append({'silla': [x + 64, y + 8, True], 'sillaSprite': 'SILLA6', 'pc': der})
+
+
+def cierre(x, y):
+    """Panel bajo que cierra por abajo el último cubículo de una columna."""
+    panel = img('moduledivider1').crop((0, 0, 79, 9))
+    for capa in (fondo, muebles):
+        capa.alpha_composite(panel, (x, y))
+        capa.paste(BORDE, (x, y + 9, x + 79, y + 10))
+    bloquear(x, y, 80, 10)
+    tapas.append([x, y, 80, 10, y + 10])
 
 
 # ── Pisos ────────────────────────────────────────────────────────────────────
@@ -268,16 +282,18 @@ pon('tablelarge', 34, 170, fondo_px=10)
 # `pie`: dónde quedan sus pies sentado de frente; la mesa (base en `z`) le tapa las piernas.
 JEFE = {'silla': [44, 158], 'frente': True, 'pie': [49, 173], 'pc': ['COMPUTADORA ATRAS', 58, 165], 'z': 186}  # él nos da la cara: su monitor se ve por atrás
 pon('plant-decoration', 92, 214)
+pon('golfito', 10, 140, fondo_px=30, anim=(4, 260), juego=True)  # a su izquierda; solo lo usa él
 pon('plant-decoration', 4, 214)
 
 # ── Área de trabajo: doce puestos ────────────────────────────────────────────
-for my in (124, 166, 208):
-    for mx in (140, 262):
+for mx in (140, 262):
+    for my in (130, 160, 190):
         modulo(mx, my)
+    cierre(mx, 190 + 31)
 pon('plant-decoration', 208, 99)
 pon('plant-decoration', 258, 99)
 pon('garrafon-de-agua', 122, 101)
-pon('impresora1', 344, 108, fondo_px=6)
+pon('impresora-grande', 133, 90, anim=(4, 250), juego=True)  # imprime solo cuando alguien va por sus hojas
 pon('basura1', 332, 106, fondo_px=6)
 
 # ── Cafetería ────────────────────────────────────────────────────────────────
@@ -300,23 +316,25 @@ pon('coach4-lado', 22, B + 34, fondo_px=22)
 pon('coach4-lado', 90, B + 34, espejo=True, fondo_px=22)
 pon('tablesmall', 50, B + 48, fondo_px=10)
 pon('plant-decoration', 4, B + 12)
-pon('librero-alv', 122, B + 6)
+pon('librero-alv', 122, B - 5)
 pon('plant-decoration', 132, B + 80)
 
 # ── Juegos ───────────────────────────────────────────────────────────────────
-pon('maquinita-azul', 166, B + 4, anim=(3, 220), juego=True)
-pon('maquinita-roja', 186, B + 4, anim=(3, 260), juego=True)
-pon('maquinita-azul', 206, B + 4, anim=(3, 300), juego=True)
+pon('maquinita-azul', 166, B - 7, anim=(3, 220), juego=True)
+pon('maquinita-roja', 186, B - 7, anim=(3, 260), juego=True)
+pon('maquinita-azul', 206, B - 7, anim=(3, 300), juego=True)
 pon('billar', 232, B + 50, fondo_px=22)
 pon('futbolito', 296, B + 36, fondo_px=28, anim=(2, 320), juego=True)
-pon('vendymachine1', 326, B + 4)
+pon('vendymachine1', 326, B - 7)
 pon('coach1', 168, B + 76, fondo_px=10)
 
-# Dónde se para quien va a jugar un rato y qué sale en su globo. `atras`: juega de espaldas a nosotros.
+# Dónde se para quien va a jugar un rato (o a la impresora) y qué sale en su globo. `atras`: juega de espaldas a nosotros.
 JUEGOS = [
-    {'x': 174, 'y': B + 42, 'emoji': '🕹️', 'atras': True},
-    {'x': 194, 'y': B + 42, 'emoji': '🕹️', 'atras': True},
-    {'x': 214, 'y': B + 42, 'emoji': '🕹️', 'atras': True},
+    {'x': 142, 'y': 124, 'emoji': '🖨️', 'atras': True, 'impresora': True},
+    {'x': 18, 'y': 182, 'emoji': '⛳', 'atras': True, 'jefe': True},
+    {'x': 174, 'y': B + 31, 'emoji': '🕹️', 'atras': True},
+    {'x': 194, 'y': B + 31, 'emoji': '🕹️', 'atras': True},
+    {'x': 214, 'y': B + 31, 'emoji': '🕹️', 'atras': True},
     {'x': 256, 'y': B + 86, 'emoji': '🎱', 'atras': True},
     {'x': 288, 'y': B + 62, 'emoji': '⚽'},
     {'x': 334, 'y': B + 62, 'emoji': '⚽'},
@@ -371,11 +389,12 @@ escena = {
     'puestos': puestos,
     'cafetera': CAFETERA,
     'juegos': JUEGOS,
+    'salida': [310, H - 6],  # por dónde deja la oficina quien se va: el fondo de la sala de juegos
     'tapas': tapas,
     'animados': animados,
     # Personajes que el pack no traía, con su pose sentada.
     'sprites': {f'CHAR{n}': medida(f'char{n}') for n in (6, 7, 8)} | {f'CHAR{n} SENTADO': medida(f'char{n}-sentado') for n in (6, 7, 8)}
-    | {'COMPUTADORA ATRAS': medida('computadora-atras'), 'COMPUTADORA FRENTE': medida('computadora-frente')},
+    | {'COMPUTADORA ATRAS': medida('computadora-atras'), 'LAPTOP LADO': medida('laptop-lado'), 'COMPUTADORA FRENTE': medida('computadora-frente')},
 }
 json.dump(escena, open(os.path.join(SALIDA, 'escena.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(f'escena {W}x{H} | {len(puestos)} puestos + jefe | {len(alcanzable)} celdas caminables, {len(libre - alcanzable)} cerradas | {len(tapas)} tapas | {len(animados)} animados')

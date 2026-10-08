@@ -10,6 +10,7 @@ import InboxPanel from './InboxPanel.vue'
 import BossPanel from './BossPanel.vue'
 import LibraryPanel from './LibraryPanel.vue'
 import MapEditor from './MapEditor.vue'
+import PixelOffice from './PixelOffice.vue'
 
 const studio = useStudio()
 const office = useOffice()
@@ -83,7 +84,9 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
 <template>
   <div class="office" :class="{ split: studio.selected && studio.drawerMode === 'split' }">
     <div class="stage">
-      <div ref="mapEl" class="map" />
+      <!-- La oficina de siempre es la de píxel; el lienzo solo sale para dibujar en el modo creativo. -->
+      <div v-show="editing" ref="mapEl" class="map" />
+      <PixelOffice v-show="!editing" class="pixel" />
 
       <header class="hud top">
         <button class="ghost" @click="studio.goHome()">◂ Inicio</button>
@@ -120,7 +123,6 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
         <p v-for="n in studio.notices" :key="n.id">{{ n.text }}</p>
       </div>
 
-      <p v-if="!editing" class="zoom-hint">rueda: zoom · arrastrar: mover · doble clic: centrar</p>
 
       <HireDialog v-if="studio.overlay === 'hire'" />
       <BoardView v-if="studio.overlay === 'board'" />
@@ -138,6 +140,8 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
 .office.split { grid-template-columns: 1fr 1fr; }
 .stage { position: relative; overflow: hidden; min-width: 0; }
 .map { position: absolute; inset: 0; }
+/* La oficina de píxel deja libre la franja del HUD. */
+.pixel { top: 56px; height: calc(100% - 56px); }
 .hud { position: absolute; left: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; pointer-events: none; }
 .hud > * { pointer-events: auto; }
 .top { top: 12px; }
