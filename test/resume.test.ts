@@ -114,3 +114,31 @@ describe('retomar sesiones al reabrir la app', () => {
     manager.shutdown?.()
   })
 })
+
+describe('cuando no hay conversación que retomar', () => {
+  it('la CLI se cierra enseguida y el jefe entra de nuevo con una conversación nueva', async () => {
+    const repo = await makeRepo()
+    const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
+    const a = await open(repo, store, recorder().spawn)
+    await a.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    a.shutdown()
+
+    // Al reabrir, la CLI que recibe --resume se cierra sola (no encontró esa conversación).
+    const launches: string[][] = []
+    const spawn: Spawner = (_file, args) => {
+      launches.push(args)
+      let onExit: (e: { exitCode: number }) => void = () => {}
+      if (args.includes('--resume')) setTimeout(() => onExit({ exitCode: 1 }), 10)
+      return { pid: 1, onData: () => {}, onExit: (cb) => (onExit = cb), write: () => {}, resize: () => {}, kill: () => onExit({ exitCode: 0 }) }
+    }
+    const b = await open(repo, store, spawn)
+    await b.resume()
+    await new Promise((r) => setTimeout(r, 150))
+    expect(launches).toHaveLength(2)
+    expect(launches[1]).toContain('--session-id')
+    expect(launches[1]).not.toContain('--resume')
+    expect(b.snapshot().bossOnline).toBe(true)
+    // La conversación guardada es ya la nueva.
+    expect(b.snapshot().boss?.sessionId).toBe(launches[1][launches[1].indexOf('--session-id') + 1])
+  })
+})
