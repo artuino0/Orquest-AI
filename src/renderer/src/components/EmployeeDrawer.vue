@@ -61,6 +61,12 @@ async function loadJournal() {
 const captures = ref<(Capture & { url?: string })[]>([])
 const urls = new Map<string, string>()
 const zoomed = ref<string | null>(null)
+/** En la vista grande: ajustada al ancho (se recorre hacia abajo) o a tamaño real (se recorre en ambos sentidos). */
+const fit = ref(true)
+const zoomedName = computed(() => captures.value.find((c) => c.url === zoomed.value)?.path ?? '')
+const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && (zoomed.value = null)
+window.addEventListener('keydown', onKey)
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 /** true mientras se busca por primera vez: para no decir "no hay" antes de saberlo. */
 const searching = ref(false)
 const withUrls = (list: Capture[]) => list.map((c) => ({ ...c, url: urls.get(`${c.path}@${c.at}`) }))
@@ -181,7 +187,17 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
           <div v-else class="wait">{{ c.url === '' ? 'No se pudo abrir' : 'Cargando…' }}</div>
           <figcaption :title="c.path">{{ c.path.split('/').pop() }} <small>{{ time(c.at) }}</small></figcaption>
         </figure>
-        <div v-if="zoomed" class="zoomed" @click.stop="zoomed = null"><img :src="zoomed" alt="" /></div>
+        <!-- Vista grande: la imagen a su ancho y, si es larga, se recorre hacia abajo -->
+        <div v-if="zoomed" class="zoomed" @click.self="zoomed = null">
+          <div class="viewer">
+            <header>
+              <b>{{ zoomedName }}</b>
+              <button class="btn" :title="fit ? 'Ver a tamaño real' : 'Ajustar al ancho'" @click="fit = !fit">{{ fit ? 'Tamaño real' : 'Ajustar al ancho' }}</button>
+              <button class="btn" @click="zoomed = null"><X /> Cerrar</button>
+            </header>
+            <div class="scroll"><img :src="zoomed" :class="{ fit }" alt="" /></div>
+          </div>
+        </div>
       </div>
 
       <ol v-if="tab === 'actividad'" class="timeline">
@@ -251,8 +267,13 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .shots .wait { height: 120px; display: grid; place-items: center; font-size: 11px; color: var(--text-secondary); background: var(--surface); }
 .shots figcaption { padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 2px solid var(--border); }
 .shots small { color: var(--text-secondary); }
-.zoomed { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: var(--veil); cursor: zoom-out; }
-.zoomed img { max-width: 100%; max-height: 100%; border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); }
+.zoomed { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 48px 24px 24px; background: var(--veil); }
+.viewer { display: flex; flex-direction: column; width: min(1100px, 100%); height: 100%; min-height: 0; background: var(--surface); border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); }
+.viewer header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
+.viewer header b { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer .scroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+.viewer img { display: block; max-width: none; margin: 0 auto; }
+.viewer img.fit { max-width: 100%; height: auto; }
 .files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
 .files ul { list-style: none; margin: 0; padding: 6px; font-size: 12px; background: var(--bg); border: 2px solid var(--border); max-height: 180px; overflow: auto; }
 .files li { padding: 4px 8px; cursor: pointer; }
