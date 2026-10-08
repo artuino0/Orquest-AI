@@ -468,6 +468,19 @@ export class Board {
     return this.tasks.filter((x) => x.deps.includes(t.id) && this.refresh(x))
   }
 
+  /**
+   * Aprobada sin nada que integrar (una prueba, una revisión que no tocó
+   * código): se cierra sin pasar por la bandeja del usuario. Libera a quien
+   * esperaba, igual que una integración.
+   */
+  closeEmpty(taskId: string): Task[] {
+    const t = this.task(taskId)
+    if (t.status !== 'approved') throw new RuleError(`${t.id} no está aprobada por el jefe.`)
+    t.status = 'done'
+    this.log(t, 'cerrada: no traía cambios que integrar')
+    return this.tasks.filter((x) => x.deps.includes(t.id) && this.refresh(x))
+  }
+
   userReturn(taskId: string, notes: string): Task {
     const t = this.task(taskId)
     if (!['approved', 'delivered'].includes(t.status)) throw new RuleError(`${t.id} no está esperando tu revisión.`)
