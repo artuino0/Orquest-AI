@@ -8,13 +8,17 @@ import { CHARACTERS, charUrl } from '../characters'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
 const studio = useStudio()
-// Solo estos saben conectarse a las herramientas de Orquest.
-const CAN_LEAD: ProviderId[] = ['claude', 'codex']
-const ready = (id: ProviderId) => studio.usable.some((c) => c.id === id)
-const canLead = (id: ProviderId) => CAN_LEAD.includes(id) && ready(id)
-const leaders = computed(() => studio.clis.filter((c) => canLead(c.id)))
+// Puede ser jefe cualquier CLI lista en esta máquina (las que detecta Inicio): unas usan
+// las herramientas por MCP y las demás con el comando `orquest`. Si alguna no puede, el
+// estudio lo dice al contratar.
+const canLead = (id: ProviderId) => studio.usable.some((c) => c.id === id)
+const leaders = computed(() => studio.usable)
 
 const provider = ref<ProviderId>(leaders.value[0]?.id ?? 'claude')
+// Las CLIs pueden terminar de detectarse con el panel ya abierto.
+watch(leaders, (l) => {
+  if (l.length && !l.some((c) => c.id === provider.value)) provider.value = l[0].id
+})
 const model = ref('')
 const effort = ref<'low' | 'medium' | 'high'>('high')
 const goal = ref(studio.board?.goal ?? '')
@@ -83,7 +87,7 @@ const pending = computed(() => {
       <div class="providers">
         <button
           v-for="c in studio.clis" :key="c.id" type="button" class="prov" :class="{ on: provider === c.id }"
-          :disabled="!canLead(c.id)" :title="canLead(c.id) ? '' : ready(c.id) ? 'Todavía no puede ser jefe' : 'No está lista en esta máquina'"
+          :disabled="!canLead(c.id)" :title="canLead(c.id) ? '' : c.installed ? 'Sin sesión iniciada' : 'No está instalada'"
           @click="provider = c.id"
         >
           <i :style="{ background: `var(--pv-${c.id})` }" />{{ c.name }}
@@ -110,7 +114,7 @@ const pending = computed(() => {
         </button>
       </div>
     </div>
-    <p v-if="!leaders.length" class="err">Ninguna CLI lista puede ser jefe todavía (Claude Code o Codex con sesión).</p>
+    <p v-if="!leaders.length" class="err">Ninguna CLI está lista en esta máquina. Revisa en Inicio cuál falta instalar o iniciar sesión.</p>
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
     <template #footer>
       <span class="foot">Entrará por la puerta y caminará a la oficina del jefe.</span>
