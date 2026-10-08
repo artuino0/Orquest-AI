@@ -1,10 +1,13 @@
 /**
- * Pixel art provisional, dibujado desde matrices. Cuando lleguen los assets de
- * "Arte y mundo" se reemplaza este archivo; la escena solo pide cuadros.
+ * Arte del mundo: carga los PNG de `assets/sprites/generados` y entrega
+ * texturas por nombre (`puesto/escritorio`, `rizos/front`…). La escena solo
+ * pide texturas; aquí se decide qué personaje le toca a cada quien y cómo se
+ * parte su hoja de caminata.
  */
-import type { Bubble, Pose } from './behavior'
+import { Assets, Rectangle, Texture } from 'pixi.js'
+import type { Bubble } from './behavior'
 
-/** Colores de playera por proveedor: así se distingue quién es quién. */
+/** Color por proveedor: así se distingue quién es quién en etiquetas y paneles. */
 export const PROVIDER_COLOR: Record<string, number> = {
   claude: 0xd97757,
   codex: 0x3b82f6,
@@ -15,8 +18,42 @@ export const PROVIDER_COLOR: Record<string, number> = {
   grok: 0x404040,
 }
 
-const SKINS = [0xf5d0b0, 0xe0ac80, 0xc68642, 0x8d5524, 0xffdbac]
-const HAIRS = [0x2b1d14, 0x5a3825, 0xd6b370, 0x1a1a1a, 0xa0522d, 0x7f8c8d]
+// Las hojas completas y los originales del generador se quedan fuera de la app.
+const FILES = import.meta.glob<string>(
+  ['../../../../assets/sprites/generados/**/*.png', '!**/original.png', '!**/hoja.png', '!**/vistas_original.png'],
+  { eager: true, query: '?url', import: 'default' },
+)
+
+const URLS = new Map(Object.entries(FILES).map(([path, url]) => [path.replace(/^.*\/generados\//, '').replace(/\.png$/, ''), url]))
+
+const textures = new Map<string, Texture>()
+
+/** Carga todo el arte una vez. Sin esto `tex` no tiene qué entregar. */
+export async function loadSprites(): Promise<void> {
+  if (textures.size) return
+  // La CSP de la app no deja crear workers desde blobs.
+  Assets.setPreferences({ preferWorkers: false })
+  await Promise.all(
+    [...URLS].map(async ([name, url]) => {
+      const t = await Assets.load<Texture>(url)
+      // Nítido al acercar; al alejar todo el mapa, promedia en vez de perder píxeles.
+      t.source.autoGenerateMipmaps = true
+      t.source.magFilter = 'nearest'
+      t.source.minFilter = 'linear'
+      t.source.mipmapFilter = 'linear'
+      textures.set(name, t)
+    }),
+  )
+}
+
+export function tex(name: string): Texture {
+  const t = textures.get(name)
+  if (!t) throw new Error(`Sprite desconocido: ${name}`)
+  return t
+}
+
+export const BOSS_CHARACTER = 'jefe'
+export const CHARACTERS = ['rizos', 'bob', 'coleta', 'gorra', 'rapada', 'trenza']
 
 function hash(s: string): number {
   let h = 0
@@ -24,77 +61,52 @@ function hash(s: string): number {
   return h
 }
 
-export interface Palette {
-  H: number
-  S: number
-  T: number
-  P: number
-  B: number
-  E: number
+/** El jefe tiene el suyo; a los demás les toca uno fijo según su id. */
+export function characterFor(id: string, role: string): string {
+  return role === 'jefe' ? BOSS_CHARACTER : CHARACTERS[hash(id) % CHARACTERS.length]
 }
 
-export function paletteFor(id: string, provider: string): Palette {
-  const h = hash(id)
-  return {
-    H: HAIRS[h % HAIRS.length],
-    S: SKINS[(h >> 3) % SKINS.length],
-    T: PROVIDER_COLOR[provider] ?? 0x9e9e9e,
-    P: 0x2f3a56,
-    B: 0x1b1a24,
-    E: 0x1b1a24,
+const sheets = new Map<string, Texture[]>()
+
+/** Parte una hoja de cuadros iguales puestos en fila. */
+export function frames(sheet: string, count: number): Texture[] {
+  let list = sheets.get(sheet)
+  if (!list) {
+    const t = tex(sheet)
+    const w = t.width / count
+    list = Array.from({ length: count }, (_, i) => new Texture({ source: t.source, frame: new Rectangle(i * w, 0, w, t.height) }))
+    sheets.set(sheet, list)
   }
+  return list
 }
 
-/** 10×14 píxeles. Letras = clave de la paleta; punto = transparente. */
-const FRONT_STAND = [
-  '..HHHHHH..',
-  '.HHHHHHHH.',
-  '.HSSSSSSH.',
-  '.SSESSESS.',
-  '.SSSSSSSS.',
-  '..SSSSSS..',
-  '..TTTTTT..',
-  '.TTTTTTTT.',
-  'STTTTTTTTS',
-  'STTTTTTTTS',
-  '..PPPPPP..',
-  '..PP..PP..',
-  '..PP..PP..',
-  '..BB..BB..',
-]
+/** Caminata de perfil, mirando a la derecha. */
+export const walkFrames = (character: string) => frames(`${character}/walk/marioneta`, 8)
 
-const WALK_A = [...FRONT_STAND.slice(0, 11), '..PP..PP..', '.PP....PP.', '.BB....BB.']
-const WALK_B = [...FRONT_STAND.slice(0, 11), '...PPPP...', '...PPPP...', '...BBBB...']
+/** Tecleando sentado: 'espalda' de espaldas a la cámara, 'frente' de cara a ella. */
+export const workFrames = (character: string, view: 'espalda' | 'frente') => frames(`${character}/work/sentado_${view}`, 4)
 
-/** De espaldas, frente al monitor. Sin piernas: las tapa la silla. */
-const BACK_SIT = [
-  '..HHHHHH..',
-  '.HHHHHHHH.',
-  '.HHHHHHHH.',
-  '.HHHHHHHH.',
-  '.SHHHHHHS.',
-  '..SSSSSS..',
-  '..TTTTTT..',
-  '.TTTTTTTT.',
-  'STTTTTTTTS',
-  'STTTTTTTTS',
-  '.TTTTTTTT.',
-]
-const BACK_TYPE_A = [...BACK_SIT.slice(0, 7), 'STTTTTTTTS', '.TTTTTTTT.', '.TTTTTTTT.', '.TTTTTTTT.']
-const BACK_TYPE_B = [...BACK_SIT.slice(0, 7), '.TTTTTTTTS', 'STTTTTTTT.', '.TTTTTTTT.', '.TTTTTTTT.']
+/** ¿Ya tiene su hoja de teclear de perfil? Mientras no, se usa la pose quieta. */
+export const hasSideWork = (character: string) => URLS.has(`${character}/work/sentado_lado`)
 
-export function characterFrame(pose: Pose, tick: number): string[] {
-  const odd = Math.floor(tick) % 2 === 1
-  switch (pose) {
-    case 'walk':
-      return odd ? WALK_B : WALK_A
-    case 'type':
-      return odd ? BACK_TYPE_B : BACK_TYPE_A
-    case 'sit':
-      return BACK_SIT
-    case 'stand':
-      return FRONT_STAND
-  }
+/** Sentado de perfil, mirando a la derecha: tecleando (cuadro 0–3) o quieto (-1). */
+export function sideWork(character: string, frame: number): Texture {
+  if (frame < 0 || !hasSideWork(character)) return tex(`${character}/sit`)
+  return frames(`${character}/work/sentado_lado`, 4)[frame]
+}
+
+/** Pantalla encendida, con su parpadeo. */
+export const monitorFrames = () => frames('puesto/monitor_on', 4)
+
+/** Dos letras por proveedor, para la insignia junto al nombre. */
+export const PROVIDER_CODE: Record<string, string> = {
+  claude: 'CL',
+  codex: 'CX',
+  antigravity: 'AG',
+  opencode: 'OC',
+  commandcode: 'CC',
+  kimi: 'KM',
+  grok: 'GK',
 }
 
 /** 7×7 píxeles dentro de la burbuja. */
@@ -107,12 +119,17 @@ export const BUBBLE_ICON: Record<Exclude<Bubble, null>, { color: number; rows: s
   zzz: { color: 0x7e57c2, rows: ['XXXX...', '..X....', '.X.....', 'XXXX...', '....XXX', '.....X.', '....XXX'] },
 }
 
-export const FLOOR: Record<string, [number, number]> = {
-  reception: [0x8d6e63, 0x86675c],
-  boss: [0x6d4c41, 0x67473c],
-  cafeteria: [0xd7ccc8, 0xcfc3bf],
-  department: [0x5c6b8a, 0x576583],
-  corridor: [0x3f3d52, 0x3b394d],
+/** Loseta de cada piso del mapa. */
+export const FLOOR: Record<string, string> = {
+  madera: 'pisos/madera_loseta',
+  espiga: 'pisos/espiga_loseta',
+  alfombra_gris: 'pisos/alfombra_gris_loseta',
+  alfombra_azul: 'pisos/alfombra_azul_loseta',
+  concreto: 'pisos/concreto_loseta',
+  loseta: 'pisos/loseta_loseta',
 }
-export const WALL = 0x24222f
-export const WALL_TOP = 0x34314a
+
+/** Archivo de un sprite, para mostrarlo fuera del mapa (la paleta del modo creativo). */
+export function spriteUrl(name: string): string | undefined {
+  return URLS.get(name)
+}

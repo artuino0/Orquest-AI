@@ -2,7 +2,9 @@
  * Del estado real a lo que se ve. Cada animación sale de un estado; nada es
  * decorado. Lógica pura, sin dibujo.
  */
-import { getRoom, route, routeLength, pointAlong, type Desk, type Point } from './layout'
+import { arcadeSpot, bossQueue, cafeSeat, entrance, route, routeLength, pointAlong, type Desk, type Point } from './layout'
+
+export { entrance }
 
 /**
  * Estados del núcleo más los que llegan con el jefe (fase 2) y los límites
@@ -45,16 +47,12 @@ export const LOOKS: Record<VisualState, Look> = {
   exited: { place: 'exit', pose: 'stand', bubble: null, monitor: 'off', label: 'se fue' },
 }
 
-/** Punto de entrada al estudio: la puerta de Recepción. */
-export function entrance(): Point {
-  const r = getRoom('recepcion')
-  return { x: r.x + 2, y: r.y + 4 }
-}
-
 export interface PlaceContext {
   desk: Desk
   /** Escritorio de quien bloquea, para 'waiting'. */
   dependencyDesk?: Desk
+  /** Dónde pararse a esperarlo sin encimarse con nadie. */
+  standAt?: Point
   /** Lugar libre en la cafetería, para 'resting'. */
   slot?: number
 }
@@ -65,30 +63,23 @@ export function placePoint(place: Place, ctx: PlaceContext): Point {
       return ctx.desk.seat
     case 'beside': {
       const d = ctx.dependencyDesk ?? ctx.desk
-      return { x: d.seat.x + 1, y: d.seat.y }
+      return ctx.standAt ?? { x: d.seat.x + 1, y: d.seat.y }
     }
-    case 'boss': {
-      const r = getRoom('jefe')
-      // Frente al escritorio del jefe, en fila.
-      return { x: r.x + 3 + ((ctx.slot ?? 0) % 7), y: r.y + 5 }
-    }
+    case 'boss':
+      return bossQueue(ctx.slot ?? 0)
     case 'cafeteria': {
-      const r = getRoom('cafeteria')
-      const i = ctx.slot ?? 0
-      return { x: r.x + 2 + (i % 4) * 2, y: r.y + 2 + Math.floor(i / 4) * 2 }
+      const { x, y } = cafeSeat(ctx.slot ?? 0)
+      return { x, y }
     }
-    case 'arcade': {
-      // Frente a las maquinitas de la Cafetería.
-      const r = getRoom('cafeteria')
-      return { x: r.x + 8 + ((ctx.slot ?? 0) % 3), y: r.y + 5 }
-    }
+    case 'arcade':
+      return arcadeSpot(ctx.slot ?? 0)
     case 'exit':
       return entrance()
   }
 }
 
 /** Casillas por segundo. */
-export const WALK_SPEED = 6
+export const WALK_SPEED = 4
 
 /**
  * Un personaje en el mapa. Cuando cambia su destino calcula la ruta desde donde
@@ -125,12 +116,13 @@ export class Actor {
     return this.walking ? 'walk' : this.look.pose
   }
 
-  setState(state: VisualState, ctx?: Partial<PlaceContext>) {
+  /** `replan`: la oficina cambió; vuelve a calcular el camino aunque vaya al mismo lugar. */
+  setState(state: VisualState, ctx?: Partial<PlaceContext>, replan = false) {
     if (this.gone) return
     this.state = state
     if (ctx) this.ctx = { ...this.ctx, ...ctx }
     const next = placePoint(this.look.place, this.ctx)
-    if (next.x === this.target.x && next.y === this.target.y) return
+    if (!replan && next.x === this.target.x && next.y === this.target.y) return
     this.target = next
     this.path = route(this.pos, next)
     this.walked = 0
@@ -149,10 +141,13 @@ export class Actor {
     }
   }
 
-  /** Hacia dónde mira mientras camina, para voltear el sprite. */
-  facing(): 'left' | 'right' {
-    if (!this.walking) return 'right'
+  /** Hacia dónde camina, para elegir el sprite; quieto mira al frente. */
+  facing(): 'left' | 'right' | 'up' | 'down' {
+    if (!this.walking) return 'down'
     const ahead = pointAlong(this.path, this.walked + 0.1)
-    return ahead.x < this.pos.x ? 'left' : 'right'
+    const dx = ahead.x - this.pos.x
+    const dy = ahead.y - this.pos.y
+    if (Math.abs(dy) > Math.abs(dx)) return dy < 0 ? 'up' : 'down'
+    return dx < 0 ? 'left' : 'right'
   }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
 import { OfficeScene } from '../world/scene'
 import EmployeeDrawer from './EmployeeDrawer.vue'
@@ -8,10 +9,14 @@ import BoardView from './BoardView.vue'
 import InboxPanel from './InboxPanel.vue'
 import BossPanel from './BossPanel.vue'
 import LibraryPanel from './LibraryPanel.vue'
+import MapEditor from './MapEditor.vue'
 
 const studio = useStudio()
+const office = useOffice()
 const mapEl = ref<HTMLDivElement>()
-let scene: OfficeScene | undefined
+const scene = shallowRef<OfficeScene>()
+/** Modo creativo: se dibuja la oficina en vez de trabajar en ella. */
+const editing = ref(false)
 
 /**
  * Lo que se ve de cada empleado: su terminal manda mientras trabaja o pide
@@ -21,7 +26,7 @@ function push() {
   const hints = studio.board?.hints ?? {}
   let delivering = 0
   let gaming = 0
-  scene?.sync(
+  scene.value?.sync(
     studio.employees.map((e) => {
       const h = hints[e.id]
       const base = { id: e.id, name: studio.nameOf(e.id), role: e.role, provider: e.provider }
@@ -42,21 +47,33 @@ const HUD_H = 56
 const winW = ref(window.innerWidth)
 const onResize = () => (winW.value = window.innerWidth)
 function insets() {
-  const floating = !!studio.selected && studio.drawerMode === 'float'
-  scene?.setInsets({ top: HUD_H, right: floating ? Math.min(760, winW.value * 0.6) + 32 : 0, bottom: 8, left: 0 })
+  const floating = !!studio.selected && studio.drawerMode === 'float' && !editing.value
+  // El panel del modo creativo ocupa la izquierda.
+  scene.value?.setInsets({ top: HUD_H, right: floating ? Math.min(760, winW.value * 0.6) + 32 : 0, bottom: 8, left: editing.value ? 320 : 0 })
 }
 
-onMounted(() => {
-  scene = new OfficeScene(mapEl.value!, (id) => studio.select(id))
+onMounted(async () => {
+  scene.value = new OfficeScene(mapEl.value!, (id) => studio.select(id))
   window.addEventListener('resize', onResize)
   insets()
   push()
+  await office.load()
+  scene.value.setMap(office.map)
 })
-watch(() => [studio.selected, studio.drawerMode, winW.value], insets)
+// Cada trazo del modo creativo se ve al momento, con la gente adentro.
+watch(() => office.map, (m) => scene.value?.setMap(m))
+watch(() => [studio.selected, studio.drawerMode, winW.value, editing.value], insets)
+function toggleEdit() {
+  editing.value = !editing.value
+  if (editing.value) {
+    studio.overlay = null
+    studio.select(null)
+  }
+}
 watch(() => [studio.employees.map((e) => e.id + e.state).join(), studio.selected, JSON.stringify(studio.board?.hints)], push)
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
-  scene?.destroy()
+  scene.value?.destroy()
 })
 
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
@@ -86,13 +103,16 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
           </button>
           <button :class="{ on: studio.overlay === 'board' }" @click="toggle('board')">Tablero</button>
           <button :class="{ on: studio.overlay === 'library' }" @click="toggle('library')">Expedientes</button>
+          <button :class="{ on: editing }" @click="toggleEdit">Editar oficina</button>
           <button :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
             Entregas<span v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</span>
           </button>
         </nav>
       </header>
 
-      <p v-if="!studio.bossOnline && !studio.overlay" class="hint">
+      <MapEditor v-if="editing && scene" :scene="scene" @close="editing = false" />
+
+      <p v-if="!studio.bossOnline && !studio.overlay && !editing" class="hint">
         La oficina está vacía. Contrata al <b>jefe</b>: él propone la plantilla.
       </p>
 
@@ -100,7 +120,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => (studio.o
         <p v-for="n in studio.notices" :key="n.id">{{ n.text }}</p>
       </div>
 
-      <p class="zoom-hint">rueda: zoom · arrastrar: mover · doble clic: centrar</p>
+      <p v-if="!editing" class="zoom-hint">rueda: zoom · arrastrar: mover · doble clic: centrar</p>
 
       <HireDialog v-if="studio.overlay === 'hire'" />
       <BoardView v-if="studio.overlay === 'board'" />

@@ -48,6 +48,10 @@ export interface OrquestApi {
   saveManual(m: Manual): Promise<void>
   checkSlots(slots: { provider: ProviderId; model?: string; role: string }[]): Promise<Check[]>
 
+  // Oficina dibujada en el modo creativo: una por estudio. El renderer sabe qué significa.
+  loadOffice(): Promise<unknown>
+  saveOffice(office: unknown): Promise<void>
+
   onBoard(cb: (s: StudioSnapshot) => void): () => void
   onNotice(cb: (text: string) => void): () => void
 
