@@ -33,7 +33,7 @@
   #dolor.fuera { opacity: 0; transform: scale(.05); }
   .term { position: absolute; width: 520px; height: 260px; background: #08070b; border: 3px solid var(--line); box-shadow: 6px 6px 0 #000c; opacity: 0; transform: scale(.9) translateY(14px); transition: opacity .12s, transform .16s cubic-bezier(.2,1.6,.4,1); overflow: hidden; }
   .term.on { opacity: 1; transform: none; }
-  .term header { padding: 4px 12px; background: var(--surface-2); border-bottom: 3px solid var(--border); font-size: 14px; color: var(--dim); }
+  .term header { position: relative; z-index: 1; padding: 4px 12px; background: var(--surface-2); border-bottom: 3px solid var(--border); font-size: 14px; color: var(--dim); }
   .term pre { margin: 0; padding: 8px 12px; font: 14px/1.5 var(--mono); color: #7fd18a; white-space: pre; }
   .term pre.corre { animation: corre 6s linear infinite; }
   @keyframes corre { to { transform: translateY(-50%); } }
