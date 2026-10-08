@@ -85,15 +85,21 @@ if (flotante) document.documentElement.classList.add('flotante');
 // --- escala entera ---
 function ajustarEscala() {
   const estilo = getComputedStyle(els.main);
-  const lateral = Number.parseFloat(getComputedStyle(els.sidebar).width) || 280;
-  const gap = flotante ? 0 : 12;
+  // Dentro de la app no hay lista de eventos al lado: la oficina usa todo el ancho.
+  const sinLateral = getComputedStyle(els.sidebar).display === 'none';
+  const lateral = sinLateral ? 0 : Number.parseFloat(getComputedStyle(els.sidebar).width) || 280;
+  const gap = flotante || sinLateral ? 0 : 12;
   const ancho = els.main.clientWidth - Number.parseFloat(estilo.paddingLeft) - Number.parseFloat(estilo.paddingRight) - lateral - gap;
   const alto = els.main.clientHeight - Number.parseFloat(estilo.paddingTop) - Number.parseFloat(estilo.paddingBottom);
   // No llena la pantalla: usa el 80 % de lo que cabe, en pasos de medio punto
   // (1, 1.5, 2…) para que el píxel siga parejo. ?escala=2 la fija a mano.
-  const cabe = Math.min(ancho / ESCENA.w, alto / ESCENA.h);
-  const fija = Number(new URLSearchParams(location.search).get('escala'));
-  const s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * 0.8 * 2) / 2);
+  // Dentro de la app la oficina es todo el marco.
+  const cabe = sinLateral ? Math.min(innerWidth / ESCENA.w, innerHeight / ESCENA.h) : Math.min(ancho / ESCENA.w, alto / ESCENA.h);
+  // Dentro de la app llena lo que cabe, y el panel puede fijarla con su control de zoom.
+  const fija = window.OFICINA.escala || Number(new URLSearchParams(location.search).get('escala'));
+  const holgura = window.OFICINA.jefeReal ? 1 : 0.8;
+  const s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * holgura * 2) / 2);
+  window.OFICINA.alEscalar?.(s);
   els.vista.style.setProperty('--s', s);
 }
 window.addEventListener('resize', ajustarEscala);

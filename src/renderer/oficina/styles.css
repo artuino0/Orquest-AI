@@ -310,6 +310,7 @@ html.flotante #cerrar-flotante { display: block; }
 
 /* Dentro de la app: sin encabezado (ya lo trae el panel), fondo del panel y
    personajes que responden al clic. */
-.en-app header { display: none; }
+.en-app header, .en-app #sidebar { display: none; }
+.en-app #office-wrap { overflow: auto; }
 .en-app, .en-app body { background: transparent; }
 .en-app .char, .en-app .char-capa { pointer-events: auto; cursor: pointer; }
