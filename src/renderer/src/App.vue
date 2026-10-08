@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useStudio } from './stores/studio'
+import './theme'
 import HomeScreen from './components/HomeScreen.vue'
 import OfficeScreen from './components/OfficeScreen.vue'
 

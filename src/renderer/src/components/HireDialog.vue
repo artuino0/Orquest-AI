@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
+import { LOOK, lookOf } from '../status'
 import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
+import PanelFrame from './PanelFrame.vue'
 
 /**
  * El jefe propone la plantilla; aquí la apruebas tal cual o con tus cambios
@@ -34,11 +37,19 @@ watch(
   },
   { immediate: true },
 )
-const blocked = computed(() => checks.value.some((c) => !c.ok))
-const checkText = (c?: Check) => (!c ? '' : c.ok ? c.warning ?? '' : c.reason)
+const forbidden = computed(() => checks.value.filter((c) => !c.ok).length)
+/** Cómo sale la regla del expediente de una fila. */
+function rule(c: Check | undefined, r: Row) {
+  const cli = cliName(r.provider)
+  if (!c) return { kind: 'ok', chip: 'Permitido', text: '' }
+  if (!c.ok) return { kind: 'no', chip: 'Prohibido', text: c.reason }
+  if (c.warning) return { kind: 'warn', chip: 'Aviso', text: c.warning }
+  return { kind: 'ok', chip: 'Permitido', text: `${cli} puede ocupar ${r.role}.` }
+}
 
-const staffed = computed(() => studio.board?.slots.filter((s) => s.status !== 'proposed') ?? [])
+const cliName = (id: ProviderId) => studio.clis.find((c) => c.id === id)?.name ?? id
 const first = (): ProviderId => studio.usable[0]?.id ?? 'claude'
+const EFFORT: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto' }
 
 function add() {
   rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '' })
@@ -54,92 +65,124 @@ async function approve() {
 async function askBoss() {
   await studio.sayToBoss('Propón la plantilla para el proyecto.')
 }
+
+/** Ya contratados: lo que dice el tablero, con el estado vivo de su terminal. */
+const staff = computed(() =>
+  (studio.board?.staff ?? []).map((m) => {
+    const e = studio.employees.find((x) => x.id === m.id)
+    const look = LOOK[e ? lookOf(e, studio.board?.hints) : 'exited']
+    const slot = studio.board?.slots.find((s) => s.employeeId === m.id)
+    return { ...m, look, effort: slot?.effort ?? e?.effort, context: Math.round(studio.board?.context[m.id] ?? e?.context ?? 0) }
+  }),
+)
+const subtitle = computed(() => {
+  const n = rows.value.length
+  return n ? `Propuesta de ${studio.nameOf('jefe')} · ${n} ${n === 1 ? 'puesto' : 'puestos'} por aprobar` : `${staff.value.length} en la plantilla`
+})
 </script>
 
 <template>
-  <div class="sheet">
-    <header>
-      <h2>Plantilla</h2>
-      <button class="x" @click="studio.overlay = null">✕</button>
-    </header>
-
+  <PanelFrame title="Plantilla" :subtitle="subtitle">
     <template v-if="rows.length">
-      <p class="note">El jefe propone. Ajusta lo que quieras y aprueba; él levanta a cada empleado.</p>
-      <table>
+      <table class="tbl proposal">
         <thead>
-          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esfuerzo</th><th /></tr>
+          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Motivo del jefe</th><th>Regla del expediente</th><th /></tr>
         </thead>
         <tbody>
-          <template v-for="(r, i) in rows" :key="r.id ?? i">
-            <tr>
-              <td><input v-model="r.name" class="name" placeholder="se asigna solo" /></td>
-              <td><select v-model="r.role"><option v-for="d in DEPARTMENTS" :key="d">{{ d }}</option></select></td>
-              <td>
-                <select v-model="r.provider">
+          <tr v-for="(r, i) in rows" :key="r.id ?? i" :class="rule(checks[i], r).kind">
+            <td><label class="name"><input v-model="r.name" placeholder="se asigna solo" /><Pencil /></label></td>
+            <td>
+              <select v-model="r.role" class="plain"><option v-for="d in DEPARTMENTS" :key="d">{{ d }}</option></select>
+            </td>
+            <td>
+              <span class="pv"><i :style="{ background: `var(--pv-${r.provider})` }" />
+                <select v-model="r.provider" class="plain">
                   <option v-for="c in studio.usable" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  <option v-if="!studio.usable.some((c) => c.id === r.provider)" :value="r.provider">{{ cliName(r.provider) }}</option>
                 </select>
-              </td>
-              <td><input v-model="r.model" placeholder="por defecto" /></td>
-              <td>
-                <select v-model="r.effort">
-                  <option :value="undefined">por defecto</option>
-                  <option value="low">bajo</option>
-                  <option value="medium">medio</option>
-                  <option value="high">alto</option>
-                </select>
-              </td>
-              <td><button class="x" title="Quitar puesto" @click="rows.splice(i, 1)">✕</button></td>
-            </tr>
-            <tr v-if="r.reason" class="reason"><td colspan="6">“{{ r.reason }}”</td></tr>
-            <tr v-if="checkText(checks[i])" class="check" :class="checks[i]?.ok ? 'warn' : 'block'"><td colspan="6">{{ checks[i]?.ok ? '⚠' : '⛔' }} {{ checkText(checks[i]) }}</td></tr>
-          </template>
+              </span>
+            </td>
+            <td><input v-model="r.model" class="plain" placeholder="por defecto" /></td>
+            <td>
+              <select v-model="r.effort" class="plain">
+                <option :value="undefined">—</option>
+                <option value="low">bajo</option><option value="medium">medio</option><option value="high">alto</option>
+              </select>
+            </td>
+            <td class="dim why">{{ r.reason || '—' }}</td>
+            <td class="rule">
+              <span class="chip">{{ rule(checks[i], r).chip }}</span>
+              <p>{{ rule(checks[i], r).text }}</p>
+            </td>
+            <td><button class="trash" title="Quitar puesto" @click="rows.splice(i, 1)"><Trash2 /></button></td>
+          </tr>
         </tbody>
       </table>
-      <p v-if="studio.error" class="err">{{ studio.error }}</p>
-      <footer>
-        <button @click="add">+ Puesto</button>
-        <button class="primary" :disabled="busy || blocked" @click="approve">Aprobar {{ rows.length }}</button>
-      </footer>
+      <div class="actions">
+        <button class="btn" @click="add"><Plus /> Añadir puesto</button>
+        <span class="grow" />
+        <span v-if="forbidden" class="stop"><Ban /> {{ forbidden }} {{ forbidden === 1 ? 'fila prohibida' : 'filas prohibidas' }}: cambia su proveedor o quítala para poder aprobar.</span>
+        <span v-if="studio.error" class="stop">{{ studio.error }}</span>
+        <button class="btn primary" :disabled="busy || !!forbidden" @click="approve"><CheckIcon /> {{ busy ? 'Aprobando…' : `Aprobar ${rows.length}` }}</button>
+      </div>
     </template>
 
-    <template v-else>
-      <p class="note">
-        {{ studio.bossOnline ? 'El jefe aún no propone plantilla.' : 'Primero contrata al jefe: él propone la plantilla.' }}
-      </p>
-      <button v-if="studio.bossOnline" @click="askBoss">Pedírsela</button>
-      <button v-else class="primary" @click="studio.overlay = 'boss'">Contratar al jefe</button>
-    </template>
+    <div v-else-if="!staff.length" class="blank">
+      <Users />
+      <h2>Aún no hay plantilla</h2>
+      <p v-if="studio.bossOnline">El jefe todavía no propone puestos. Pídeselo y aparecerán aquí para que los apruebes.</p>
+      <p v-else>Primero contrata al jefe: él lee el proyecto y propone quién hace falta.</p>
+      <button v-if="studio.bossOnline" class="btn primary" @click="askBoss">Pedir propuesta al Jefe</button>
+      <button v-else class="btn primary" @click="studio.overlay = 'boss'">Contratar jefe</button>
+    </div>
 
-    <section v-if="staffed.length">
-      <h3>Aprobados</h3>
-      <ul>
-        <li v-for="s in staffed" :key="s.id">
-          <b>{{ s.name }}</b> · {{ s.role }} · {{ s.provider }}{{ s.model ? ' · ' + s.model : '' }}
-          <small>{{ s.status === 'hired' ? 'contratado' : 'por levantar' }}</small>
-        </li>
-      </ul>
-    </section>
-  </div>
+    <template v-if="staff.length">
+      <span class="cap">Ya contratados · {{ staff.length }}</span>
+      <table class="tbl">
+        <thead>
+          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Estado</th><th>Contexto</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="m in staff" :key="m.id" class="pick" @click="studio.select(m.id)">
+            <td class="strong">{{ m.name }}</td>
+            <td>{{ m.role }}</td>
+            <td><span class="pv"><i :style="{ background: `var(--pv-${m.provider})` }" />{{ cliName(m.provider) }}</span></td>
+            <td class="dim">{{ m.model ?? '—' }}</td>
+            <td>{{ m.effort ? EFFORT[m.effort] : '—' }}</td>
+            <td><span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.look.label }}</span></td>
+            <td><span class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+  </PanelFrame>
 </template>
 
 <style scoped>
-.sheet { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); max-height: calc(100% - 80px); overflow: auto; background: var(--panel); border: 3px solid var(--line); box-shadow: 6px 6px 0 #000; padding: 16px; display: grid; gap: 12px; }
-header, footer { display: flex; justify-content: space-between; align-items: center; }
-h2 { margin: 0; }
-h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
-.note { margin: 0; color: var(--muted); font-size: 12px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { text-align: left; color: var(--muted); font-weight: normal; font-size: 11px; padding: 4px; }
-td { padding: 4px; vertical-align: top; }
-td select, td input { width: 100%; }
-td .name { width: 100px; }
-.check td { font-size: 11px; padding-top: 0; }
-.check.warn td { color: var(--accent); }
-.check.block td { color: var(--blocked); }
-.reason td { color: var(--muted); font-size: 11px; padding-top: 0; font-style: italic; }
-ul { list-style: none; margin: 0; padding: 0; font-size: 12px; display: grid; gap: 2px; }
-small { color: var(--muted); margin-left: 6px; }
-.x { padding: 0 6px; }
-.err { color: var(--blocked); font-size: 12px; margin: 0; }
-.primary { background: var(--accent); color: #1b1a24; border-color: #000; font-weight: bold; }
+.proposal tr.warn td { background: var(--tint-warn); }
+.proposal tr.no td { background: var(--tint-danger); }
+.name { display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--surface); border: 2px solid var(--border-light); width: 112px; }
+.name input { flex: 1; min-width: 0; border: 0; background: none; padding: 5px 0; font: 700 12px var(--font); color: var(--text-primary); outline: none; }
+.name svg { width: 12px; height: 12px; color: var(--text-secondary); flex: none; }
+.plain { border: 0; background: none; padding: 2px 0; font: 12px var(--font); color: var(--text-primary); outline: none; max-width: 130px; }
+select.plain { cursor: pointer; }
+select.plain option { background: var(--surface); }
+.why { line-height: 1.5; max-width: 280px; }
+.rule { max-width: 260px; }
+.rule p { margin: 4px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
+tr.ok .chip { color: var(--st-idle); }
+tr.warn .chip, tr.warn .rule p { color: var(--accent); }
+tr.no .chip, tr.no .rule p { color: var(--st-block); }
+.chip { text-transform: uppercase; }
+.trash { border: 0; background: none; padding: 4px; color: var(--text-secondary); display: grid; }
+.trash svg { width: 16px; height: 16px; }
+.trash:hover { color: var(--st-block); }
+.actions { display: flex; align-items: center; gap: 12px; }
+.grow { flex: 1; }
+.stop { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--st-block); }
+.stop svg { width: 14px; height: 14px; }
+.pick { cursor: pointer; }
+.pick:hover td { background: var(--surface); }
+.tbl .chip { text-transform: none; }
+.proposal .chip { text-transform: uppercase; }
 </style>
