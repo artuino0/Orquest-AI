@@ -77,6 +77,11 @@ const alerts = computed(() => {
   for (const e of studio.employees) {
     if (e.state === 'blocked') list.push({ danger: true, text: `${studio.nameOf(e.id)} te necesita: abre su terminal`, go: () => studio.select(e.id) })
   }
+  // Equipo contratado con las terminales cerradas: se puede retomar cuando quieras.
+  const team = studio.board?.resumable ?? []
+  if (team.length && studio.resumeAsked && !studio.resuming) {
+    list.push({ text: `Tu equipo (${team.length}) está contratado con sus terminales cerradas · Retomar actividades`, go: () => void studio.resumeProject(true) })
+  }
   const n = studio.proposal.length
   if (n) list.push({ text: `El Jefe propone ${n} ${n === 1 ? 'contratación' : 'contrataciones'} · ver Plantilla`, go: () => (studio.overlay = 'hire') })
   return list
@@ -155,7 +160,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans') =>
       <MapEditor v-if="editing && scene" :scene="scene" @close="editing = false" />
 
       <!-- Quedó gente al cerrar la app: ¿se retoma? -->
-      <div v-if="studio.board?.resumable.length && !editing" class="empty-veil">
+      <div v-if="studio.board?.resumable.length && !studio.resumeAsked && !studio.overlay && !editing" class="empty-veil">
         <section class="panel empty">
           <img :src="CHAR1" alt="" />
           <h1 class="title-pixel">¿Retomamos donde se quedaron?</h1>
@@ -165,14 +170,14 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans') =>
           </p>
           <p v-if="studio.error" class="bad">{{ studio.error }}</p>
           <div class="choices">
-            <button class="btn" :disabled="studio.resuming" @click="studio.resumeProject(false)">Ahora no</button>
+            <button class="btn" :disabled="studio.resuming" title="Entras a la oficina; el equipo sigue contratado con sus terminales cerradas" @click="studio.resumeProject(false)">Ahora no, solo entrar</button>
             <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)"><RotateCcw /> {{ studio.resuming ? 'Volviendo…' : 'Retomar' }}</button>
           </div>
         </section>
       </div>
 
       <!-- Oficina vacía: todavía no hay jefe -->
-      <div v-else-if="!studio.bossOnline && !studio.overlay && !editing" class="empty-veil">
+      <div v-else-if="!studio.bossOnline && !studio.board?.resumable.length && !studio.overlay && !editing" class="empty-veil">
         <section class="panel empty">
           <img :src="CHAR1" alt="" />
           <h1 class="title-pixel">La oficina está vacía</h1>
