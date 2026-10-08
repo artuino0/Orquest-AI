@@ -95,11 +95,15 @@ function ajustarEscala() {
   // (1, 1.5, 2…) para que el píxel siga parejo. ?escala=2 la fija a mano.
   // Dentro de la app la oficina es todo el marco.
   const cabe = sinLateral ? Math.min(innerWidth / ESCENA.w, innerHeight / ESCENA.h) : Math.min(ancho / ESCENA.w, alto / ESCENA.h);
-  // Dentro de la app llena lo que cabe, y el panel puede fijarla con su control de zoom.
-  const fija = window.OFICINA.escala || Number(new URLSearchParams(location.search).get('escala'));
-  const holgura = window.OFICINA.jefeReal ? 1 : 0.8;
-  const s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * holgura * 2) / 2);
-  window.OFICINA.alEscalar?.(s);
+  let s;
+  if (sinLateral) {
+    // Dentro de la app, 1× es la oficina llenando su marco (lo más grande que cabe entera);
+    // el zoom del panel multiplica a partir de ahí.
+    s = Math.max(0.5, Math.round(cabe * (window.OFICINA.zoom || 1) * 100) / 100);
+  } else {
+    const fija = Number(new URLSearchParams(location.search).get('escala'));
+    s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * 0.8 * 2) / 2);
+  }
   els.vista.style.setProperty('--s', s);
 }
 window.addEventListener('resize', ajustarEscala);

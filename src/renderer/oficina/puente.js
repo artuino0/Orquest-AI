@@ -41,7 +41,8 @@ function recibirEstado({ people, activities, sprites = {} }) {
   actividades = nuevas
 }
 
-let escala = 1
+// Zoom sobre la vista de entrada: 1 = la oficina llenando su marco.
+let zoom = 1
 const alPanel = (msg) => window.parent.postMessage({ orquest: 'oficina', ...msg }, '*')
 
 // El primer estado llega antes de que arranque la oficina: así nace con quien ya está.
@@ -52,9 +53,11 @@ const primero = new Promise((listo) => {
       recibirEstado(e.data)
       listo()
     } else if (e.data.type === 'zoom') {
-      // Medio punto más o menos; app.js vuelve a medir al avisarle del cambio de tamaño.
-      window.OFICINA.escala = Math.min(4, Math.max(1, escala + e.data.delta))
+      // Un cuarto más o menos; app.js vuelve a medir al avisarle del cambio de tamaño.
+      zoom = Math.min(4, Math.max(1, zoom + e.data.delta))
+      window.OFICINA.zoom = zoom
       window.dispatchEvent(new Event('resize'))
+      alPanel({ type: 'escala', escala: zoom })
     } else if (e.data.type === 'evento') {
       const { at, agent, type, text, emoji, verdict } = e.data.evento
       avisar({ type: 'evento', evento: { ts: new Date(at).toISOString(), agent, type, text, emoji, verdict } })
@@ -76,11 +79,6 @@ window.OFICINA = {
     },
   },
   alElegir: (agent) => alPanel({ type: 'elegir', agent }),
-  alEscalar: (s) => {
-    if (s === escala) return
-    escala = s
-    alPanel({ type: 'escala', escala: s })
-  },
 }
 alPanel({ type: 'listo' })
 await primero
