@@ -1003,8 +1003,10 @@ function crearReloj() {
 }
 
 // --- el jefe y su golfito: de vez en cuando, si nadie lo anda buscando ---
+// ?quieto=1 apaga el ambiente al azar (golfito y descansos): para grabar, donde cada quien debe estar donde se le dijo.
+const QUIETO = PARAMS.get('quieto') === '1';
 setInterval(() => {
-  if (!hayJefe()) return; // sin jefe contratado no hay a quién mandar
+  if (QUIETO || !hayJefe()) return; // sin jefe contratado no hay a quién mandar
   const boss = jefe();
   const golf = JUEGOS.find(j => j.jefe && !j.ocupado);
   if (!boss || !golf || boss.ocio || !boss.enSilla() || boss.pendientes > 0) return;
@@ -1014,6 +1016,7 @@ setInterval(() => {
 
 // --- descansos: café o un rato en los juegos ---
 setInterval(() => {
+  if (QUIETO) return;
   const todos = [...personajes.values()];
   if (todos.filter(p => p.ocio).length >= DESCANSANDO_MAX) return;
   const sinTrabajo = todos.filter(p => !p.meta.isBoss && p.puesto && p.estado === 'idle' && p.enSilla() && p.pendientes === 0);
