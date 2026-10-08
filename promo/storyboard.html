@@ -187,21 +187,24 @@ $ agy ▌           $ opencode ▌
     </div>
   </section>
 
-  <h2>Guion para ElevenLabs</h2>
-  <pre><span class="ella"></span>[casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
-<span class="ella"></span>[casual] Esto es Orquest.
-<span class="ella"></span>[casual] Hola, Jhonny.
-<span class="jh"></span>[friendly] Hola. ¿Qué necesitas?
-<span class="ella"></span>[casual] Hagamos una tienda en línea.
-<span class="jh"></span>[friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
-<span class="jh"></span>[friendly] ¿Por dónde empezamos?
-<span class="ella"></span>[casual] Comienza con el login.
-<span class="jh"></span>[friendly] Va. Ya lo repartí.
-<span class="jh"></span>[friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
-<span class="ella"></span>[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
-<span class="jh"></span>[friendly] Ya va de vuelta a su escritorio.
-<span class="ella"></span>[casual] Orquest AI. El código está abierto.</pre>
-  <p class="src" style="margin-top:10px">Una etiqueta por voz, siempre la misma. Los nombres ELLA y JHONNY no se pegan: solo dicen qué voz lleva la línea. El archivo <code>promo/guion-elevenlabs.txt</code> trae también las líneas separadas por voz.</p>
+  <h2>Guion para ElevenLabs · un clip por línea</h2>
+  <table>
+    <tr><th>Clip</th><th>Voz</th><th>Entra en</th><th>Texto que se pega</th><th>Silencio después</th></tr>
+    <tr><td>01</td><td><span class="ella"></span></td><td>0:00</td><td>[casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.</td><td class="src">0.5 s · las terminales caen dentro del edificio</td></tr>
+    <tr><td>02</td><td><span class="ella"></span></td><td>0:07</td><td>[casual] Esto es Orquest.</td><td class="src">1.5 s · Jhonny entra y se sienta</td></tr>
+    <tr><td>03</td><td><span class="ella"></span></td><td>0:10</td><td>[casual] Hola, Jhonny.</td><td class="src">0.4 s</td></tr>
+    <tr><td>04</td><td><span class="jh"></span></td><td>0:12</td><td>[friendly] Hola. ¿Qué necesitas?</td><td class="src">0.5 s</td></tr>
+    <tr><td>05</td><td><span class="ella"></span></td><td>0:14</td><td>[casual] Hagamos una tienda en línea.</td><td class="src">1 s · el chat marca «pensando…»</td></tr>
+    <tr><td>06</td><td><span class="jh"></span></td><td>0:17</td><td>[friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.</td><td class="src"><b>4 s</b> · clic en Contratar; los cuatro entran y toman su cubículo</td></tr>
+    <tr><td>07</td><td><span class="jh"></span></td><td>0:27</td><td>[friendly] ¿Por dónde empezamos?</td><td class="src">0.5 s</td></tr>
+    <tr><td>08</td><td><span class="ella"></span></td><td>0:29</td><td>[casual] Comienza con el login.</td><td class="src">1 s · el chat marca «planeando…»</td></tr>
+    <tr><td>09</td><td><span class="jh"></span></td><td>0:32</td><td>[friendly] Va. Ya lo repartí.</td><td class="src"><b>8 s</b> · la jornada: teclean, impresora, llevan su hoja a Jhonny</td></tr>
+    <tr><td>10</td><td><span class="jh"></span></td><td>0:42</td><td>[friendly] Ya entregaron. Mario encontró un error en lo de Pablo.</td><td class="src">0.6 s · se abre el panel Entregas</td></tr>
+    <tr><td>11</td><td><span class="ella"></span></td><td>0:46</td><td>[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.</td><td class="src">0.8 s · clic en Devolver</td></tr>
+    <tr><td>12</td><td><span class="jh"></span></td><td>0:51</td><td>[friendly] Ya va de vuelta a su escritorio.</td><td class="src">2 s · la cámara se aleja; Pablo teclea solo</td></tr>
+    <tr><td>13</td><td><span class="ella"></span></td><td>0:55</td><td>[casual] Orquest AI. El código está abierto.</td><td class="src"></td></tr>
+  </table>
+  <p class="src" style="margin-top:10px">Cada línea se genera como un audio aparte y el silencio se pone en la edición, no en ElevenLabs. Una etiqueta por voz, siempre la misma. Los segundos son aproximados: se ajustan a lo que dure cada audio. El archivo <code>promo/guion-elevenlabs.txt</code> trae lo mismo y además la lista separada por voz.</p>
 
   <h2>Tiempos</h2>
   <table>
