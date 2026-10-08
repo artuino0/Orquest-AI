@@ -361,3 +361,9 @@ html.en-app, .en-app body { height: 100%; min-height: 0; overflow: hidden; }
 .calle .espejo { transform: scaleX(-1); }
 .calle .cosa { background-repeat: no-repeat; background-size: 100% 100%; }
 .calle .cosa.hoja { bottom: auto; left: auto; background-size: calc(var(--fw) * var(--n) * 1px * var(--s)) 100%; }
+/* Muro exterior del edificio visto desde arriba: contorno oscuro y tapa clara, como las divisiones de adentro. */
+.calle .muro {
+  bottom: 0; z-index: 900;
+  background: linear-gradient(to right, #333c57 0 calc(1px * var(--s)), #f4f4f4 0 calc(4px * var(--s)), #94b0c2 0 calc(5px * var(--s)), #333c57 0);
+  box-shadow: 0 calc(-1px * var(--s)) 0 #333c57;
+}

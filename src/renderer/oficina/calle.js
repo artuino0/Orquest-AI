@@ -28,8 +28,14 @@ const VEHICULOS = [
 ]
 const PEATONES = [1, 2, 3, 4]
 const PEATON = [17, 23]
-const VEL_COCHE = 46 // px nativos por segundo
-const VEL_PEATON = 13
+// Ambiente, no espectáculo: pasa algo de vez en cuando y despacio, para no distraer del trabajo.
+const VEL_COCHE = 34 // px nativos por segundo
+const VEL_PEATON = 10
+const CADA_COCHE_MS = [22000, 60000] // por carril
+const CADA_PEATON_MS = [35000, 90000] // por banqueta
+// Muro exterior del edificio: separa la oficina de la calle. Arranca donde acaba el cielo.
+const MURO = 6
+const MURO_DESDE = 48
 const entre = (a, b) => a + Math.random() * (b - a)
 const azar = (lista) => lista[Math.floor(Math.random() * lista.length)]
 
@@ -68,6 +74,8 @@ function armar(espejo) {
   pieza(lado, 'suelo raya', X.raya, 4)
   pieza(lado, `suelo bordillo${espejo ? '' : ' espejo'}`, X.borde2, BORDE)
   pieza(lado, 'suelo acera', X.acera2, ANCHO - X.acera2)
+  const muro = pieza(lado, 'muro', 0, MURO)
+  muro.style.top = px(MURO_DESDE)
   // Mobiliario junto al bordillo; la gente camina del lado del edificio para no encimarse.
   const y = espejo ? [70, 168, 250, 310] : [40, 132, 214, 290]
   sprite(lado, 'farola', ACERA - 24, y[0], 21, 40)
@@ -116,9 +124,9 @@ function trafico(lado, baja) {
       cruzar(lado, { hoja: `${v.nombre}-${baja ? 'frente' : 'atras'}-anim`, cuadros: 2, w, h, x: carriles(lado)[baja ? 'baja' : 'sube'], baja, velocidad: VEL_COCHE * entre(0.9, 1.15), ms: 200 })
     }
     // El siguiente sale cuando este ya dejó hueco de sobra.
-    setTimeout(sale, entre(3200, 9000))
+    setTimeout(sale, entre(...CADA_COCHE_MS))
   }
-  setTimeout(sale, entre(300, 5000))
+  setTimeout(sale, entre(2000, CADA_COCHE_MS[1]))
 }
 
 function gente(lado, x, baja) {
@@ -127,18 +135,17 @@ function gente(lado, x, baja) {
       const n = azar(PEATONES)
       cruzar(lado, { hoja: `peaton${n}-${baja ? 'camina' : 'atras-camina'}`, cuadros: 4, w: PEATON[0], h: PEATON[1], x, baja, velocidad: VEL_PEATON * entre(0.85, 1.2), ms: 150 })
     }
-    setTimeout(sale, entre(7000, 19000))
+    setTimeout(sale, entre(...CADA_PEATON_MS))
   }
-  setTimeout(sale, entre(500, 9000))
+  setTimeout(sale, entre(4000, CADA_PEATON_MS[1]))
 }
 
 const lados = [armar(true), armar(false)]
 for (const lado of lados) {
   trafico(lado, true)
   trafico(lado, false)
-  gente(lado, 3, true)
-  gente(lado, 20, false)
-  gente(lado, X.acera2 + 30, Math.random() < 0.5)
+  // Una sola fila de gente por lado, junto al edificio.
+  gente(lado, MURO + 6, Math.random() < 0.5)
 }
 
 // Cada calle se pega al costado de la oficina, a su misma altura.
