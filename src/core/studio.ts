@@ -18,6 +18,9 @@ import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
 import { commitDelivery, currentBranch, deliveryDiff, mergeOffice, repoRoot, type Office } from './worktree.js'
 
+/** Una CLI que se cierra antes de esto tras pedirle retomar, es que no tenía conversación que retomar. */
+const RESUME_GRACE_MS = 20_000
+
 const exists = (path: string) => access(path).then(() => true, () => false)
 
 export type Caller = { kind: 'boss' } | { kind: 'employee'; id: string }
@@ -110,6 +113,24 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     const onExit = (id: string) => {
       if (!this.isOurs(id) || this.resting.has(id)) return
+      // Quiso retomar su conversación y la CLI se cerró enseguida: no había qué retomar. Entra de nuevo, desde cero.
+      const tried = this.resumeTries.get(id)
+      this.resumeTries.delete(id)
+      const l = this.launches.get(id)
+      if (tried && l && Date.now() - tried < RESUME_GRACE_MS) {
+        const journal = this.journal.path(id)
+        const note = `La app se reabrió y tu conversación anterior no se pudo retomar. Lee tu bitácora (${journal}) y sigue donde ibas${id === BOSS_ID ? ' (leer_proyecto)' : ' (leer_tarea)'}.`
+        // Igual que al volver de descansar: se retira la terminal cerrada y entra otra en la misma oficina.
+        Promise.resolve(this.opts.manager.get(id) ? this.opts.manager.fire(id, this.root) : undefined)
+          .then(() => this.launch(id, l, [note], false))
+          .then(() => this.fact(id, 'no se pudo retomar su conversación; entró con una nueva'))
+          .catch((err) => {
+            this.board.offline(id)
+            this.emit('notice', `${this.nameOf(id)} no pudo volver: ${(err as Error).message}`)
+          })
+          .finally(() => this.changed())
+        return
+      }
       this.board.offline(id)
       this.changed()
     }
@@ -235,6 +256,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     // La conversación cambia cada vez que nace una nueva: se guarda la vigente.
     if (id === BOSS_ID && this.board.boss) this.board.boss.sessionId = emp.sessionId
     else this.board.returned(id, emp.sessionId)
+    if (emp.resumed) this.resumeTries.set(id, Date.now())
     // Quien retomó ya trae su manual en la conversación.
     const intro = emp.resumed ? [] : l.intro(emp.office)
     for (const m of [...intro, ...(typeof extra === 'function' ? extra(emp) : extra)]) this.notify(id, m)
@@ -306,6 +328,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     ], resume)
   }
 
+  /** Cuándo se intentó retomar la conversación de cada quien: si su CLI se cierra enseguida, entra con una nueva. */
+  private resumeTries = new Map<string, number>()
   private resumedOnce = false
   /**
    * Al reabrir un proyecto: el jefe y quienes seguían contratados vuelven a su
