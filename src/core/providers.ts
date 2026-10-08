@@ -364,8 +364,11 @@ ${stderr}`
     permissionGaps: (p) => (p.allow.length || p.deny.length ? ['Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.'] : []),
     screen: {
       working: [ESC_TO_INTERRUPT, /Working \(/],
-      blocked: [...PERMISSION, /allow command\?/i],
-      idle: [/send ⏎|⏎ send/i],
+      // Al arrancar puede ofrecer actualizarse o preguntar si confías en la carpeta: lo decide el usuario.
+      // (Si Orquest escribiera ahí, su Enter elegiría "Update now" y Codex se cerraría para actualizarse.)
+      blocked: [...PERMISSION, /allow command\?/i, /update available/i, /skip until next version/i, /do you trust/i, /trust (this|the contents of this) (folder|directory)/i],
+      // Caja de entrada vacía: su texto de ayuda y la pista de atajos (visto en 0.160).
+      idle: [/send ⏎|⏎ send/i, /Ask Codex to do anything/i, /\? for shortcuts/i],
       context: contextFrom([[/(\d+)% context left/i, (n) => 100 - n]]),
     },
     verified: false,

@@ -65,6 +65,8 @@ export interface OrquestApi {
   fire(id: string): Promise<void>
   /** Manda a descansar: traspaso, reinicio con contexto limpio y de vuelta. */
   rest(id: string): Promise<void>
+  /** Vuelve a sentar a alguien cuya CLI se cerró. */
+  bringBack(id: string): Promise<void>
   journal(id: string): Promise<string>
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>

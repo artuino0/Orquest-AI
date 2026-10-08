@@ -102,6 +102,7 @@ export const useStudio = defineStore('studio', () => {
   const nameOf = (id: string): string => (id === 'jefe' ? 'Jefe' : board.value?.staff.find((m) => m.id === id)?.name ?? id)
   const gamingCount = computed(() => Object.values(board.value?.hints ?? {}).filter((h) => h.state === 'gaming').length)
   const rest = (id: string) => attempt(() => window.orquest.rest(id))
+  const bringBack = (id: string) => attempt(() => window.orquest.bringBack(id))
   const tasksOf = (id: string): Task[] => board.value?.tasks.filter((t) => t.assignee === id) ?? []
   const counts = computed(() => {
     const c: Partial<Record<EmployeeState, number>> = {}
@@ -221,7 +222,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
     bossCharacter, setBossCharacter, characterOf,
-    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest,
+    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })

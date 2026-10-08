@@ -39,6 +39,7 @@ const api: OrquestApi = {
   onNotice: (cb) => listen('notice', cb),
   fire: (id) => invoke('employee:fire', id),
   rest: (id) => invoke('employee:rest', id),
+  bringBack: (id) => invoke('employee:back', id),
   journal: (id) => invoke('employee:journal', id),
   list: () => invoke('employee:list'),
   scrollback: (id) => invoke('employee:scrollback', id),

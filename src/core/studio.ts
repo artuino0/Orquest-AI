@@ -463,6 +463,20 @@ export class Studio extends EventEmitter<StudioEvents> {
    * contexto limpio en la misma oficina; al volver lee su bitácora. En el mapa
    * se va a jugar videojuegos mientras tanto. Lo que dura es lo que tarda.
    */
+  /** Vuelve a sentar en su escritorio a alguien cuya CLI se cerró (no a quien despediste). */
+  async bringBack(id: string) {
+    if (this.opts.manager.isLive(id)) throw new RuleError(`${this.nameOf(id)} ya está en la oficina.`)
+    const m = this.board.staff.find((x) => x.id === id)
+    const slot = this.board.slots.find((x) => x.employeeId === id)
+    if (!m || !slot) throw new RuleError(`No existe el empleado ${id}.`)
+    if (m.gone) throw new RuleError(`${m.name} fue despedido. Para ese puesto, pídele al jefe que proponga a alguien.`)
+    if (!m.office || !(await exists(m.office.path))) throw new RuleError(`${m.name} ya no tiene oficina (su carpeta no está). Pídele al jefe que lo levante de nuevo.`)
+    await this.hireSlot(slot, m)
+    this.fact(id, 'volvió a su escritorio (lo trajo el usuario)')
+    this.notify(BOSS_ID, `${m.name} (${id}) volvió a su escritorio.`)
+    this.changed()
+  }
+
   async rest(id: string, reason = 'lo mandó el usuario') {
     const l = this.launches.get(id)
     if (!l) throw new RuleError(`${this.nameOf(id)} no está en la oficina.`)
