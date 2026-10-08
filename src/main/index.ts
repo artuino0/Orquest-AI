@@ -135,6 +135,7 @@ handle('office:save', (office: unknown) => writeOffice(officePath(), office))
 
 handle('employee:fire', (id: string) => studio().fire(id))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
+handle('employee:back', (id: string) => studio().bringBack(id))
 handle('employee:rest', (id: string) => {
   void studio().rest(id).catch((err) => send('notice', (err as Error).message))
 })

@@ -72,7 +72,7 @@ const staff = computed(() =>
     const e = studio.employees.find((x) => x.id === m.id)
     const look = LOOK[e ? lookOf(e, studio.board?.hints) : 'exited']
     const slot = studio.board?.slots.find((s) => s.employeeId === m.id)
-    return { ...m, look, effort: slot?.effort ?? e?.effort, context: Math.round(studio.board?.context[m.id] ?? e?.context ?? 0) }
+    return { ...m, look, out: !e, effort: slot?.effort ?? e?.effort, context: Math.round(studio.board?.context[m.id] ?? e?.context ?? 0) }
   }),
 )
 const subtitle = computed(() => {
@@ -140,6 +140,7 @@ const subtitle = computed(() => {
       <button v-else class="btn primary" @click="studio.overlay = 'boss'">Contratar jefe</button>
     </div>
 
+    <p v-if="studio.error && !rows.length" class="stop">{{ studio.error }}</p>
     <template v-if="staff.length">
       <span class="cap">Ya contratados · {{ staff.length }}</span>
       <table class="tbl">
@@ -147,13 +148,16 @@ const subtitle = computed(() => {
           <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Estado</th><th>Contexto</th></tr>
         </thead>
         <tbody>
-          <tr v-for="m in staff" :key="m.id" class="pick" @click="studio.select(m.id)">
+          <tr v-for="m in staff" :key="m.id" :class="{ pick: !m.out, out: m.out }" @click="!m.out && studio.select(m.id)">
             <td class="strong">{{ m.name }}</td>
             <td>{{ m.role }}</td>
             <td><span class="pv"><i :style="{ background: `var(--pv-${m.provider})` }" />{{ cliName(m.provider) }}</span></td>
             <td class="dim">{{ m.model ?? '—' }}</td>
             <td>{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
-            <td><span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.look.label }}</span></td>
+            <td>
+              <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? 'Despedido' : m.look.label }}</span>
+              <button v-if="m.out && !m.gone" class="btn back" title="Su CLI se cerró: vuelve a abrirla en su misma oficina" @click.stop="studio.bringBack(m.id)">Traer de vuelta</button>
+            </td>
             <td><span class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%</span></td>
           </tr>
         </tbody>
@@ -185,6 +189,8 @@ tr.no .chip, tr.no .rule p { color: var(--st-block); }
 .grow { flex: 1; }
 .stop { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--st-block); }
 .stop svg { width: 14px; height: 14px; }
+.out td { color: var(--text-secondary); }
+.back { margin-left: 8px; padding: 3px 8px; font-size: 11px; }
 .pick { cursor: pointer; }
 .pick:hover td { background: var(--surface); }
 .tbl .chip { text-transform: none; }
