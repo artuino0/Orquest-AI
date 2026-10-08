@@ -59,7 +59,9 @@ describe('adaptadores', () => {
     ])
   })
   it('avisa lo que un proveedor genérico no soporta', () => {
-    expect(PROVIDERS.grok.unsupported({ effort: 'high' })).toHaveLength(1)
+    // Kimi no recibe esfuerzo por argumento; Grok sí (--reasoning-effort) y ya no avisa.
+    expect(PROVIDERS.kimi.unsupported({ effort: 'high' })).toHaveLength(1)
+    expect(PROVIDERS.grok.unsupported({ effort: 'high' })).toHaveLength(0)
   })
   it('ningún proveedor salta permisos por defecto', () => {
     for (const p of Object.values(PROVIDERS)) {
