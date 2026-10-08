@@ -1,7 +1,7 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as pty from 'node-pty'
-import { RuleError } from '../core/board.js'
+import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { detectAll } from '../core/detect.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
@@ -65,6 +65,15 @@ handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Elige el repositorio del proyecto' })
   return r.canceled ? null : r.filePaths[0]
 })
+
+handle('project:summaries', (repos: string[]) =>
+  repos.map((repo) => {
+    const saved = store.load(repo)
+    return saved ? summarize(saved) : null
+  }),
+)
+// Solo páginas web: lo que llega del renderer no abre archivos ni otros protocolos.
+handle('shell:open', (url: string) => (/^https:\/\//.test(url) ? shell.openExternal(url) : undefined))
 
 handle('project:open', async (repo: string) => {
   const root = await repoRoot(repo)

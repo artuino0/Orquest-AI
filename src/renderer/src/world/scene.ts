@@ -91,6 +91,8 @@ const TABLE = { person: -16, personIn: 8, chair: -6, chairIn: -4 }
 const PANEL = { back: -62, side: 10, sideBehind: -96 }
 /** Dónde va la placa de quien mira al frente, sobre la base de su escritorio: tapa la espalda de su monitor, no la pantalla del de enfrente. */
 const TAG_UP = 80
+/** La tipografía de los paneles; el mapa la usa en placas y rótulos. */
+const FONT = 'JetBrains Mono, monospace'
 /** Ancho de la insignia del proveedor en la placa. */
 const BADGE = 26
 const ACCENT = 0xf2b84b
@@ -150,6 +152,8 @@ export class OfficeScene {
     this.parent.appendChild(this.app.canvas)
     this.app.canvas.style.imageRendering = 'pixelated'
     await loadSprites()
+    // Pixi mide el texto al crearlo: la tipografía tiene que estar ya cargada.
+    await Promise.all(['400 14px', '700 20px'].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {})
     this.app.stage.addChild(this.world)
     this.objects.sortableChildren = true
     this.guides.visible = false
@@ -534,7 +538,7 @@ export class OfficeScene {
   }
 
   private plate(text: string, x: number, y: number, layer: Container, size = 24, color = ACCENT) {
-    const label = new Text({ text, style: { fontFamily: 'monospace', fontSize: size, fill: color, fontWeight: 'bold' } })
+    const label = new Text({ text, style: { fontFamily: FONT, fontSize: size, fill: color, fontWeight: 'bold' } })
     label.position.set(x + 8, y + 4)
     layer.addChild(new Graphics().rect(x, y, label.width + 16, label.height + 8).fill({ color: PLATE, alpha: 0.9 }), label)
   }
@@ -662,13 +666,13 @@ export class OfficeScene {
 
     const tag = new Container()
     const plate = new Graphics()
-    const label = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 20, fill: 0xece9f7, fontWeight: 'bold' } })
+    const label = new Text({ text: '', style: { fontFamily: FONT, fontSize: 20, fill: 0xece9f7, fontWeight: 'bold' } })
     label.anchor.set(0.5, 0)
-    const role = new Text({ text: e.role, style: { fontFamily: 'monospace', fontSize: 14, fill: 0xb7b3cf } })
+    const role = new Text({ text: e.role, style: { fontFamily: FONT, fontSize: 14, fill: 0xb7b3cf } })
     role.anchor.set(0.5, 0)
     // Texto oscuro o claro según el color del proveedor.
     const light = ((PROVIDER_COLOR[e.provider] ?? 0x9e9e9e) & 0xff00) >> 8 > 0x90
-    const code = new Text({ text: PROVIDER_CODE[e.provider] ?? '??', style: { fontFamily: 'monospace', fontSize: 15, fill: light ? 0x14121c : 0xffffff, fontWeight: 'bold' } })
+    const code = new Text({ text: PROVIDER_CODE[e.provider] ?? '??', style: { fontFamily: FONT, fontSize: 15, fill: light ? 0x14121c : 0xffffff, fontWeight: 'bold' } })
     code.label = 'code'
     code.anchor.set(0.5)
     tag.addChild(plate, label, role, code)

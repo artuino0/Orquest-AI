@@ -1,20 +1,24 @@
 import { execFile } from 'node:child_process'
-import { access } from 'node:fs/promises'
+import { access, readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { promisify } from 'node:util'
 import { PROVIDERS, type ProviderAdapter, type ProviderId } from './providers.js'
-
-const run = promisify(execFile)
 
 export interface CliStatus {
   id: ProviderId
   name: string
   installed: boolean
   binary?: string
+  /** Número de versión, sin el nombre de la CLI. */
   version?: string
   /** true/false si se pudo comprobar; null si el proveedor no tiene forma conocida. */
   session: boolean | null
+  /** Con qué cuenta o plan está la sesión, si la CLI lo dice. */
+  account?: string
+  /** Qué hacer para iniciar sesión. */
+  login?: string
+  /** Cómo instalarla. */
+  install?: { command?: string; url: string }
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -26,9 +30,18 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+/** Existe y, si es carpeta, tiene algo dentro: una carpeta de credenciales vacía no es sesión. */
+async function holdsSomething(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory() ? (await readdir(path)).length > 0 : true
+  } catch {
+    return false
+  }
+}
+
 /** Busca un ejecutable en el PATH sin depender de `which`. */
 export async function findBinary(name: string, pathEnv = process.env.PATH ?? ''): Promise<string | undefined> {
-  const exts = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']
+  const exts = process.platform === 'win32' ? ['.exe', '.cmd', '.bat'] : ['']
   for (const dir of pathEnv.split(delimiter).filter(Boolean)) {
     for (const ext of exts) {
       const candidate = join(dir, name + ext)
@@ -38,33 +51,72 @@ export async function findBinary(name: string, pathEnv = process.env.PATH ?? '')
   return undefined
 }
 
+export interface CliOutput {
+  stdout: string
+  stderr: string
+  /** Código de salida; -1 si no se pudo ejecutar o se pasó de tiempo. */
+  code: number
+}
+
+/**
+ * Corre una CLI y devuelve lo que contestó, sin lanzar. En Windows las CLIs
+ * instaladas con npm son lanzadores .cmd, que Node no ejecuta directo: van por
+ * el intérprete del sistema.
+ */
+export function runCli(binary: string, args: string[], timeoutMs = 8000): Promise<CliOutput> {
+  const batch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(binary)
+  const file = batch ? (process.env.ComSpec ?? 'cmd.exe') : binary
+  // /s con comillas alrededor de todo: la ruta puede traer espacios.
+  const argv = batch ? ['/d', '/s', '/c', `""${binary}" ${args.join(' ')}"`] : args
+  return new Promise((done) => {
+    execFile(file, argv, { timeout: timeoutMs, windowsHide: true, windowsVerbatimArguments: batch }, (err, stdout, stderr) => {
+      const code = err ? (typeof err.code === 'number' ? err.code : -1) : 0
+      done({ stdout: String(stdout), stderr: String(stderr), code })
+    })
+  })
+}
+
+/** "codex-cli 0.48.0" → "0.48.0". Si no trae número, la primera línea tal cual. */
+function versionOf(out: string): string | undefined {
+  const line = out.trim().split('\n')[0]?.trim()
+  if (!line) return undefined
+  return /\d+\.\d+(\.\d+)?([-.+][\w.]+)?/.exec(line)?.[0] ?? line
+}
+
 export async function detectProvider(p: ProviderAdapter, home = homedir()): Promise<CliStatus> {
+  const base = { id: p.id, name: p.name, login: p.login, install: p.install }
   let binary: string | undefined
   for (const b of p.binaries) {
     binary = await findBinary(b)
     if (binary) break
   }
-  if (!binary) return { id: p.id, name: p.name, installed: false, session: null }
+  if (!binary) return { ...base, installed: false, session: null }
 
-  let version: string | undefined
-  try {
-    const { stdout } = await run(binary, p.versionArgs, { timeout: 5000 })
-    version = stdout.trim().split('\n')[0]
-  } catch {
-    // Instalada pero no respondió a --version; se reporta sin versión.
-  }
+  // Instalada pero muda ante --version: se reporta sin versión.
+  const v = await runCli(binary, p.versionArgs)
+  const version = versionOf(v.stdout) ?? versionOf(v.stderr)
 
   let session: boolean | null = null
-  if (p.sessionPaths.length) {
+  let account: string | undefined
+  if (p.sessionCheck) {
+    const out = await runCli(binary, p.sessionCheck.args)
+    // Si ni siquiera corrió, no dice nada sobre la sesión: se mira el archivo.
+    if (out.code !== -1) {
+      const r = p.sessionCheck.read(out)
+      session = r.ok
+      account = r.account
+    }
+  }
+  if (session === null && p.sessionPaths.length) {
     session = false
     for (const rel of p.sessionPaths) {
-      if (await exists(join(home, rel))) {
+      if (await holdsSomething(join(home, rel))) {
         session = true
         break
       }
     }
   }
-  return { id: p.id, name: p.name, installed: true, binary, version, session }
+  return { ...base, installed: true, binary, version, session, ...(account && { account }) }
 }
 
 /** Revisa todas las CLIs conocidas. Sin al menos una usable, no se puede contratar. */
@@ -72,6 +124,9 @@ export async function detectAll(home?: string): Promise<CliStatus[]> {
   return Promise.all(Object.values(PROVIDERS).map((p) => detectProvider(p, home)))
 }
 
+/** Lista: instalada y sin prueba de que le falte sesión. */
+export const isReady = (s: CliStatus) => s.installed && s.session !== false
+
 export function canHire(statuses: CliStatus[]): boolean {
-  return statuses.some((s) => s.installed && s.session !== false)
+  return statuses.some(isReady)
 }

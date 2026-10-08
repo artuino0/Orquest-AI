@@ -1,5 +1,5 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
-import type { Slot, Task } from '../core/board.js'
+import type { ProjectSummary, Slot, Task } from '../core/board.js'
 import type { CliStatus } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
@@ -9,7 +9,7 @@ import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
-export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProviderId, Slot, StudioSnapshot, Task }
+export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
   provider: ProviderId
@@ -33,6 +33,10 @@ export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
 export interface OrquestApi {
   detectClis(): Promise<CliStatus[]>
   pickRepo(): Promise<string | null>
+  /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
+  projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>
+  /** Abre una página en el navegador del sistema (guías de instalación). */
+  openExternal(url: string): Promise<void>
 
   // Proyecto, jefe y tablero.
   openProject(repo: string): Promise<StudioSnapshot>

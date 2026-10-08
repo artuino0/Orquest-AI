@@ -258,7 +258,8 @@ ${stderr}`
     },
     verified: false,
   },
-  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }),
+  // agy no tiene comando para preguntar por la sesión; guarda su acceso de Google junto al de Gemini.
+  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/oauth_creds.json']),
   opencode: generic('opencode', 'OpenCode', ['opencode'], { command: 'npm install -g opencode-ai', url: 'https://opencode.ai' }, ['.local/share/opencode/auth.json'], {
     sessionCheck: {
       args: ['auth', 'list'],
