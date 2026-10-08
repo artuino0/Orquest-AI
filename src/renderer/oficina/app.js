@@ -105,6 +105,8 @@ function ajustarEscala() {
     s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * 0.8 * 2) / 2);
   }
   els.vista.style.setProperty('--s', s);
+  // La calle de los lados (calle.js) se acomoda a esta escala.
+  window.dispatchEvent(new CustomEvent('oficina:escala', { detail: { s, alto: ESCENA.h } }));
 }
 window.addEventListener('resize', ajustarEscala);
 ajustarEscala();
@@ -838,6 +840,7 @@ function iniciarDia() {
     // al abrir la página el filtro va directo; después cambia con transición
     if (!faseActual) escena.style.transition = 'none';
     escena.style.filter = fase.filtro;
+    window.dispatchEvent(new CustomEvent('oficina:fase', { detail: { filtro: fase.filtro } }));
     if (!faseActual) { void escena.offsetWidth; escena.style.transition = ''; }
     const n = recolorear(await baseNubes, { '#f4f4f4': fase.nubes[0], '#73eff7': fase.nubes[1] });
     lienzo.getContext('2d').putImageData(n, 0, 0);
@@ -876,6 +879,7 @@ function iniciarDia() {
     }
     if (noche !== nocheActual) {
       nocheActual = noche;
+      window.dispatchEvent(new CustomEvent('oficina:noche', { detail: noche }));
       for (const p of personajes.values()) p.refrescar();
     }
   };
