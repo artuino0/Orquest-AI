@@ -7,6 +7,8 @@
 **Tono:** cercano y un poco juguetón, sin vender humo. Es una herramienta de trabajo que se ve como un juego, no un juguete.
 **Idea central:** *tus agentes de código ya trabajan; ahora puedes verlos trabajar.*
 
+**Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/` (17 pantallas a 2560×1600). Este documento es el guion; aquel, toma por toma con su imagen.
+
 **Regla de producción:** todo lo que se ve en pantalla es la app corriendo de verdad. Nada de maquetas: cada animación de Orquest es un estado real, y el comercial tiene que cumplir lo mismo que promete.
 
 ---

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orquest AI · Storyboard del comercial</title>
+<style>
+  :root { --bg: #15121b; --surface: #221d2c; --surface-2: #2f2839; --border: #08070b; --line: #4a4159; --text: #f4eadb; --dim: #a89db6; --accent: #f2b544; --blue: #4c9bf5; --green: #5fcb6b; --red: #f0524f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
+  main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { margin: 0; font-size: 30px; color: var(--accent); letter-spacing: 1px; }
+  h2 { margin: 44px 0 14px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+  p { margin: 0 0 10px; }
+  .lead { color: var(--dim); max-width: 760px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  .facts span { padding: 4px 10px; background: var(--surface); border: 2px solid var(--border); box-shadow: 2px 2px 0 #000a; font-size: 12px; }
+  .facts b { color: var(--accent); }
+  .note { margin: 18px 0 0; padding: 12px 14px; background: #33280f; border: 2px solid var(--accent); font-size: 13px; }
+  .scene { display: grid; grid-template-columns: 440px 1fr; gap: 18px; margin-bottom: 16px; padding: 14px; background: var(--surface); border: 3px solid var(--border); box-shadow: 4px 4px 0 #000a; }
+  .shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; border: 2px solid var(--border); }
+  .shot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+  .shot.zoom img { width: 220%; height: 220%; }
+  .shot .tag { position: absolute; left: 6px; top: 6px; padding: 1px 6px; font-size: 10px; background: #000c; color: var(--accent); border: 1px solid var(--accent); }
+  .shot.made { display: grid; place-items: center; padding: 16px; background: #000; color: var(--green); font-size: 11px; line-height: 1.5; }
+  .shot.made pre { margin: 0; white-space: pre-wrap; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .n { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .t { padding: 1px 8px; font-size: 11px; color: var(--blue); border: 2px solid currentColor; }
+  .head h3 { margin: 0; font-size: 15px; }
+  dl { margin: 0; display: grid; grid-template-columns: 78px 1fr; gap: 4px 10px; font-size: 13px; }
+  dt { color: var(--dim); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding-top: 3px; }
+  dd { margin: 0; }
+  .vo { color: var(--text); font-style: italic; }
+  .vo::before { content: "«"; } .vo::after { content: "»"; }
+  .txt { color: var(--accent); font-weight: 700; }
+  .src { color: var(--dim); font-size: 12px; }
+  blockquote { margin: 0; padding: 14px 18px; background: var(--surface); border-left: 4px solid var(--accent); }
+  blockquote p { margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 2px solid var(--border); font-size: 13px; }
+  th { text-align: left; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); padding: 8px 10px; background: var(--surface-2); }
+  td { padding: 8px 10px; border-top: 2px solid var(--bg); vertical-align: top; }
+  ul { margin: 0; padding-left: 20px; }
+  @media (max-width: 900px) { .scene { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>ORQUEST AI</h1>
+  <p class="lead">Storyboard del comercial para conseguir gente que ayude a desarrollarlo. Las pantallas salen del diseño en Pencil (<code>oirquestai.pen</code>), exportadas a <code>promo/pen/</code>.</p>
+  <div class="facts">
+    <span><b>45 s</b> · versión de 20 s al final</span>
+    <span><b>16:9</b>, con la acción al centro para recortar a 9:16</span>
+    <span>Voz en español · música chiptune suave</span>
+    <span>Idea: <b>tus agentes ya trabajan; ahora puedes verlos trabajar</b></span>
+  </div>
+  <p class="note"><b>Ojo antes de producir:</b> la oficina del diseño (cuartos rotulados: Backend, QA, Recepción…) no es la que hoy trae la app (seis cuartos sin rótulo, con calle a los lados). Si el video usa la del diseño, enseña algo que el visitante no va a encontrar tal cual al instalarla. Abajo marco en qué tomas pasa y la alternativa.</p>
+
+  <h2>Storyboard · 45 segundos</h2>
+
+  <section class="scene">
+    <div class="shot made"><pre>$ claude ▌
+$ codex ▌         ← cuatro terminales
+$ agy ▌             que se enciman
+$ opencode ▌        hasta tapar todo</pre></div>
+    <div>
+      <div class="head"><span class="n">1</span><span class="t">0–4 s</span><h3>El problema</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Pantalla negra. Aparecen cuatro terminales, una por una, con texto corriendo. Se enciman.</dd>
+        <dt>Voz</dt><dd class="vo">¿Cuántas terminales tienes abiertas ahorita?</dd>
+        <dt>Movimiento</dt><dd>Cada terminal entra con un golpe seco; la cámara tiembla un poco con la cuarta.</dd>
+        <dt>Origen</dt><dd class="src">No hay pantalla en el pen: se arma con tipografía. Usa la fuente y los colores del diseño.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/01-inicio.png" alt=""><span class="tag">01-inicio</span></div>
+    <div>
+      <div class="head"><span class="n">2</span><span class="t">4–8 s</span><h3>Aparece Orquest</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Las terminales se encogen y caen sobre la fila de personajes de Inicio. Queda la pantalla de Inicio: el nombre, los proyectos y los agentes detectados en la máquina.</dd>
+        <dt>Voz</dt><dd class="vo">¿Y sabes qué está haciendo cada una?</dd>
+        <dt>Texto</dt><dd class="txt">ORQUEST AI</dd>
+        <dt>Movimiento</dt><dd>Empuje lento hacia el título; las etiquetas INSTALADA se encienden una tras otra.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="pair">
+      <div class="shot"><img src="pen/03-oficina-vacia.png" alt=""><span class="tag">03-oficina-vacia</span></div>
+      <div class="shot"><img src="pen/04-contratar-jefe.png" alt=""><span class="tag">04-contratar-jefe</span></div>
+    </div>
+    <div>
+      <div class="head"><span class="n">3</span><span class="t">8–13 s</span><h3>Contratas al jefe</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>La oficina vacía con su aviso. Clic en «Contratar jefe»: se abre el panel, se escribe el objetivo, se elige el personaje.</dd>
+        <dt>Voz</dt><dd class="vo">En Orquest AI, tus agentes son empleados. Contratas a un jefe y le dices qué quieres.</dd>
+        <dt>Movimiento</dt><dd>Corte por clic. El objetivo se teclea letra por letra; el recuadro del personaje elegido se enciende.</dd>
+        <dt>Origen</dt><dd class="src">La oficina de fondo es la del diseño (ver nota de arriba).</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/05-plantilla.png" alt=""><span class="tag">05-plantilla</span></div>
+    <div>
+      <div class="head"><span class="n">4</span><span class="t">13–19 s</span><h3>Él propone al equipo</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Plantilla: tres puestos propuestos con su proveedor y el motivo del jefe. Las filas entran una por una: verde permitido, ámbar aviso, rojo prohibido. Abajo, los ya contratados con su estado.</dd>
+        <dt>Voz</dt><dd class="vo">Él propone al equipo: quién hace backend, quién frontend, quién prueba. Tú apruebas.</dd>
+        <dt>Texto</dt><dd class="txt">Usa las CLIs y suscripciones que ya tienes</dd>
+        <dt>Movimiento</dt><dd>Recorrido de arriba abajo; el cursor termina sobre «Aprobar».</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="pair">
+      <div class="shot"><img src="pen/06-oficina.png" alt=""><span class="tag">06-oficina</span></div>
+      <div class="shot"><img src="pen/07-empleado-terminal.png" alt=""><span class="tag">07-empleado-terminal</span></div>
+    </div>
+    <div>
+      <div class="head"><span class="n">5</span><span class="t">19–26 s</span><h3>Cada animación es un estado real</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>La oficina trabajando. Acercamiento a un globo, luego al aviso rojo «Nico te necesita». Clic: se abre su panel con la terminal y la pregunta de permiso.</dd>
+        <dt>Voz</dt><dd class="vo">Cada animación es un estado real. Si alguien teclea, está trabajando. Si levanta la mano, te necesita.</dd>
+        <dt>Texto</dt><dd class="txt">Cada animación es un estado real</dd>
+        <dt>Movimiento</dt><dd>Dos acercamientos cortos y un corte al panel. Es la toma más importante: aquí sube la música.</dd>
+        <dt>Origen</dt><dd class="src">Oficina del diseño. Los botones «Permitir una vez / siempre / Negar» del panel no existen en la app: hoy se contesta en la terminal. Conviene taparlos o grabar esta toma de la app real.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/11-entregas.png" alt=""><span class="tag">11-entregas</span></div>
+    <div>
+      <div class="head"><span class="n">6</span><span class="t">26–32 s</span><h3>Tú decides qué entra</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Entregas: el reporte, el veredicto de QA en verde y el diff con líneas verdes y rojas. Clic en «Integrar».</dd>
+        <dt>Voz</dt><dd class="vo">Cuando terminan, te traen su entrega. El jefe revisa, QA prueba, y tú decides qué entra.</dd>
+        <dt>Texto</dt><dd class="txt">Tú apruebas cada integración</dd>
+        <dt>Movimiento</dt><dd>El diff se desliza hacia arriba como si se leyera; destello en «Integrar».</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="pair">
+      <div class="shot"><img src="pen/15-sprites-estados.png" alt=""><span class="tag">15-sprites-estados</span></div>
+      <div class="shot"><img src="pen/09-jefe-chat.png" alt=""><span class="tag">09-jefe-chat</span></div>
+    </div>
+    <div>
+      <div class="head"><span class="n">7</span><span class="t">32–37 s</span><h3>También descansan</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Montaje rápido de los estados del personaje: trabajando, esperando a otro, entregando, jugando, descansando. Un parpadeo del chat con el jefe.</dd>
+        <dt>Voz</dt><dd class="vo">Y sí: también descansan.</dd>
+        <dt>Movimiento</dt><dd>Un estado por medio segundo, al ritmo de la música. Respiro cómico antes del cierre.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="pair">
+      <div class="shot"><img src="pen/06-oficina.png" alt=""><span class="tag">06-oficina</span></div>
+      <div class="shot"><img src="pen/16-oficina-claro.png" alt=""><span class="tag">16-oficina-claro</span></div>
+    </div>
+    <div>
+      <div class="head"><span class="n">8</span><span class="t">37–42 s</span><h3>Es código abierto</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>La oficina completa. Pasa de tema oscuro a claro con un barrido. Encima, el llamado.</dd>
+        <dt>Voz</dt><dd class="vo">Orquest AI es código abierto. Apenas empieza, y falta mucho por construir.</dd>
+        <dt>Texto</dt><dd class="txt">Código abierto · Apache 2.0</dd>
+        <dt>Movimiento</dt><dd>Alejamiento lento; el barrido de tema cruza de izquierda a derecha.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/17-inicio-claro.png" alt=""><span class="tag">17-inicio-claro</span></div>
+    <div>
+      <div class="head"><span class="n">9</span><span class="t">42–45 s</span><h3>Ven a construirlo</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>La fila de personajes de Inicio, el nombre y la liga del repositorio. Uno de los personajes saluda.</dd>
+        <dt>Voz</dt><dd class="vo">Ven a construirlo con nosotros.</dd>
+        <dt>Texto</dt><dd class="txt">github.com/artuino0/Orquest-AI · Manda tu PR</dd>
+        <dt>Movimiento</dt><dd>Todo quieto dos segundos para que se alcance a leer la liga.</dd>
+        <dt>Créditos</dt><dd class="src">Arte: Pixel Office, de 2dPig · 2dpig.itch.io/pixel-office</dd>
+      </dl>
+    </div>
+  </section>
+
+  <h2>Guion de voz</h2>
+  <blockquote>
+    <p>¿Cuántas terminales tienes abiertas ahorita?<br>¿Y sabes qué está haciendo cada una?</p>
+    <p>En Orquest AI, tus agentes son empleados. Contratas a un jefe y le dices qué quieres.<br>Él propone al equipo: quién hace backend, quién frontend, quién prueba. Tú apruebas.</p>
+    <p>Cada animación es un estado real. Si alguien teclea, está trabajando. Si levanta la mano, te necesita.</p>
+    <p>Cuando terminan, te traen su entrega. El jefe revisa, QA prueba, y tú decides qué entra.</p>
+    <p>Y sí: también descansan.</p>
+    <p>Orquest AI es código abierto. Apenas empieza, y falta mucho por construir.<br>Ven a construirlo con nosotros.</p>
+  </blockquote>
+  <p class="src" style="margin-top:10px">Unas 95 palabras: caben en 45 segundos a ritmo tranquilo.</p>
+
+  <h2>Versión de 20 segundos</h2>
+  <table>
+    <tr><th>Tiempo</th><th>Pantalla del pen</th><th>Voz</th></tr>
+    <tr><td>0–4 s</td><td>Terminales que caen sobre <code>01-inicio</code></td><td class="vo">Tus agentes de código ya trabajan.</td></tr>
+    <tr><td>4–11 s</td><td><code>06-oficina</code> con acercamiento al aviso «te necesita»</td><td class="vo">Ahora puedes verlos trabajar. Cada animación es un estado real.</td></tr>
+    <tr><td>11–16 s</td><td><code>11-entregas</code>, clic en Integrar</td><td class="vo">Tú decides qué entra.</td></tr>
+    <tr><td>16–20 s</td><td><code>17-inicio-claro</code> con la liga</td><td class="vo">Orquest AI. Código abierto. Manda tu PR.</td></tr>
+  </table>
+
+  <h2>Qué hay en promo/pen/</h2>
+  <table>
+    <tr><th>Archivo</th><th>Pantalla del diseño</th><th>Toma</th></tr>
+    <tr><td>01-inicio</td><td>Inicio: proyectos y agentes</td><td>2</td></tr>
+    <tr><td>02-inicio-sin-agentes</td><td>Inicio sin ninguna CLI lista</td><td>reserva</td></tr>
+    <tr><td>03-oficina-vacia</td><td>Oficina sin jefe</td><td>3</td></tr>
+    <tr><td>04-contratar-jefe</td><td>Contratar al jefe, con elección de personaje</td><td>3</td></tr>
+    <tr><td>05-plantilla</td><td>Plantilla: propuesta del jefe</td><td>4</td></tr>
+    <tr><td>06-oficina</td><td>Oficina con el equipo trabajando</td><td>5, 8</td></tr>
+    <tr><td>07-empleado-terminal</td><td>Panel del empleado, flotante, terminal</td><td>5</td></tr>
+    <tr><td>08-empleado-bitacora</td><td>Panel del empleado, dividido, bitácora</td><td>reserva</td></tr>
+    <tr><td>09-jefe-chat</td><td>Conversación con el jefe</td><td>7</td></tr>
+    <tr><td>10-tablero</td><td>Tablero por departamento</td><td>reserva</td></tr>
+    <tr><td>11-entregas</td><td>Entregas: bandeja con diff</td><td>6</td></tr>
+    <tr><td>12-entregas-conflicto</td><td>Entregas con error de conflicto</td><td>reserva</td></tr>
+    <tr><td>13-expedientes · 14-manuales</td><td>Expedientes y manuales de puesto</td><td>reserva</td></tr>
+    <tr><td>15-sprites-estados</td><td>Hoja de estados del personaje</td><td>7</td></tr>
+    <tr><td>16-oficina-claro · 17-inicio-claro</td><td>Tema claro</td><td>8, 9</td></tr>
+  </table>
+  <p class="src" style="margin-top:10px">Todas a 2560×1600. El video es 16:9 (1920×1080): cada pantalla se recorta arriba y abajo o se recorre.</p>
+
+  <h2>Decisiones que faltan</h2>
+  <ul>
+    <li><b>Oficina del diseño o la de la app.</b> Tomas 3, 5 y 8. Recomiendo grabar esas tres de la app real y usar el pen para los paneles, que sí coinciden.</li>
+    <li><b>Voz:</b> tuya, de alguien más o sintetizada.</li>
+    <li><b>Música:</b> hay que elegir una pieza con licencia libre y darle crédito.</li>
+    <li><b>Subtítulos:</b> quemados para redes, donde casi todo se ve sin sonido.</li>
+  </ul>
+</main>
+</body>
+</html>
