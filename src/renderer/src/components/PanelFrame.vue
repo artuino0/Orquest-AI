@@ -31,7 +31,7 @@ const studio = useStudio()
 <style scoped>
 .veil { position: absolute; inset: 0; background: var(--veil); display: flex; justify-content: center; padding: 16px; z-index: 5; }
 .frame { flex: 1; max-width: 1248px; min-height: 0; display: flex; flex-direction: column; }
-.frame.narrow { flex: none; width: 744px; max-width: 100%; align-self: center; height: min(624px, 100%); }
+.frame.narrow { flex: none; width: 744px; max-width: 100%; align-self: center; height: min(700px, 100%); }
 header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
 .titles { flex: 1; min-width: 0; }
 .title-pixel { color: var(--accent); }

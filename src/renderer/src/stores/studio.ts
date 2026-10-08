@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
+import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
 
 export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | null
 export type DrawerMode = 'float' | 'split'
@@ -57,6 +58,40 @@ export const useStudio = defineStore('studio', () => {
   const board = ref<StudioSnapshot | null>(null)
   const notices = ref<{ id: number; text: string }[]>([])
 
+  // ── Personajes: el del jefe lo eliges al contratarlo; los demás se reparten al llegar.
+  const bossKey = (path: string | null) => `orquest.jefe.${path ?? ''}`
+  const bossCharacter = ref(DEFAULT_BOSS)
+  /** Quién es qué personaje en este proyecto; no cambia aunque alguien se vaya. */
+  const cast = ref<Record<string, number>>({})
+  function loadBossCharacter(path: string) {
+    let saved = NaN
+    try {
+      saved = Number(localStorage.getItem(bossKey(path)))
+    } catch {
+      // Sin almacenamiento se queda el de siempre.
+    }
+    bossCharacter.value = CHARACTERS.includes(saved) ? saved : DEFAULT_BOSS
+    cast.value = {}
+  }
+  function setBossCharacter(n: number) {
+    bossCharacter.value = n
+    cast.value = {}
+    try {
+      localStorage.setItem(bossKey(board.value?.repo ?? repo.value), String(n))
+    } catch {
+      // Solo dura esta sesión.
+    }
+  }
+  function characterOf(id: string): number {
+    if (id === 'jefe') return bossCharacter.value
+    if (!cast.value[id]) {
+      const free = CAST_ORDER.filter((n) => n !== bossCharacter.value)
+      const used = new Set(Object.values(cast.value))
+      cast.value[id] = free.find((n) => !used.has(n)) ?? free[Object.keys(cast.value).length % free.length]
+    }
+    return cast.value[id]
+  }
+
   const usable = computed(() => clis.value.filter((c) => c.installed && c.session !== false))
   const canHire = computed(() => usable.value.length > 0 && !!repo.value)
   const selectedEmployee = computed(() => employees.value.find((e) => e.id === selected.value))
@@ -105,6 +140,7 @@ export const useStudio = defineStore('studio', () => {
       return
     }
     repo.value = path
+    loadBossCharacter(board.value.repo)
     // Se guarda la raíz del repo: es con la que el estudio recuerda el proyecto.
     const root = board.value.repo
     recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
@@ -179,6 +215,7 @@ export const useStudio = defineStore('studio', () => {
 
   return {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
+    bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }

@@ -996,6 +996,7 @@ function crearReloj() {
 
 // --- el jefe y su golfito: de vez en cuando, si nadie lo anda buscando ---
 setInterval(() => {
+  if (!hayJefe()) return; // sin jefe contratado no hay a quién mandar
   const boss = jefe();
   const golf = JUEGOS.find(j => j.jefe && !j.ocupado);
   if (!boss || !golf || boss.ocio || !boss.enSilla() || boss.pendientes > 0) return;

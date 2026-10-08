@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, Send, Target, Termina
 import { useStudio } from '../stores/studio'
 import type { ProviderId } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
-import CHAR3 from '../../../../assets/herdr-oficina/sprites/char3.png'
+import { CHARACTERS, charUrl } from '../characters'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
 const studio = useStudio()
@@ -102,6 +102,14 @@ const pending = computed(() => {
         </div>
       </div>
     </div>
+    <div class="field">
+      <span>Personaje <small>· así se verá en la oficina</small></span>
+      <div class="cast">
+        <button v-for="n in CHARACTERS" :key="n" type="button" :class="{ on: studio.bossCharacter === n }" :title="`Personaje ${n}`" @click="studio.setBossCharacter(n)">
+          <img :src="charUrl(n)" alt="" />
+        </button>
+      </div>
+    </div>
     <p v-if="!leaders.length" class="err">Ninguna CLI lista puede ser jefe todavía (Claude Code o Codex con sesión).</p>
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
     <template #footer>
@@ -138,7 +146,7 @@ const pending = computed(() => {
 
       <aside>
         <div class="card who-card">
-          <img :src="CHAR3" alt="" />
+          <img :src="charUrl(studio.bossCharacter)" alt="" />
           <div>
             <h3 class="title-pixel">{{ studio.nameOf('jefe') }}</h3>
             <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · esfuerzo {{ boss.effort }}</template></p>
@@ -180,6 +188,10 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .segments { display: flex; border: 2px solid var(--border); background: var(--bg); }
 .segments button { border: 0; background: none; padding: 9px 16px; font: 700 12px var(--font); color: var(--text-secondary); }
 .segments button.on { background: var(--accent); color: var(--on-accent); }
+.cast { display: flex; flex-wrap: wrap; gap: 6px; }
+.cast button { width: 60px; height: 62px; display: grid; place-items: center; padding: 0; background: var(--bg); border: 2px solid var(--border); }
+.cast button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--surface-2); }
+.cast img { height: 46px; image-rendering: pixelated; }
 .foot { flex: 1; font-size: 11px; color: var(--text-secondary); }
 .err { margin: 0; font-size: 12px; color: var(--st-block); }
 

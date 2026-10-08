@@ -9,6 +9,7 @@ import { Minus, Plus } from 'lucide-vue-next'
 import { officeEvents, officeState } from '../../../core/officefeed'
 import type { Task } from '../../../shared/ipc'
 import { useStudio } from '../stores/studio'
+import { spriteName } from '../characters'
 
 const studio = useStudio()
 const frame = ref<HTMLIFrameElement>()
@@ -29,7 +30,9 @@ function sendState() {
     tasks: studio.board?.tasks ?? [],
     hints: studio.board?.hints ?? {},
   })
-  send({ type: 'estado', ...state })
+  // Cada quien con su personaje: el del jefe lo eligió el usuario.
+  const sprites = Object.fromEntries(state.people.map((p) => [p.id, spriteName(studio.characterOf(p.id))]))
+  send({ type: 'estado', ...state, sprites })
 }
 
 function sendEvents() {
@@ -61,7 +64,7 @@ onBeforeUnmount(() => window.removeEventListener('message', onMessage))
 
 watch(() => studio.board?.tasks, sendEvents, { deep: true })
 watch(
-  () => [studio.employees.map((e) => `${e.id}:${e.state}:${studio.nameOf(e.id)}`).join(), JSON.stringify(studio.board?.hints), JSON.stringify(studio.board?.tasks.map((t) => [t.id, t.status, t.assignee]))],
+  () => [studio.employees.map((e) => `${e.id}:${e.state}:${studio.nameOf(e.id)}`).join(), JSON.stringify(studio.board?.hints), JSON.stringify(studio.board?.tasks.map((t) => [t.id, t.status, t.assignee])), studio.bossCharacter],
   sendState,
 )
 </script>
