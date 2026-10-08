@@ -605,8 +605,9 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   private office(id: string): Office {
-    const o = this.offices.get(id) ?? this.opts.manager.get(id)?.office
-    if (!o) throw new RuleError(`${id} no tiene oficina activa.`)
+    // Su oficina sigue en disco aunque su CLI esté cerrada: con la guardada se puede ver su diff e integrar su entrega.
+    const o = this.offices.get(id) ?? this.opts.manager.get(id)?.office ?? this.board.staff.find((m) => m.id === id)?.office
+    if (!o) throw new RuleError(`${this.nameOf(id)} no tiene oficina guardada: se contrató antes de que Orquest la recordara. Tráelo de vuelta desde Plantilla o pídele al jefe que lo levante de nuevo.`)
     return o
   }
 
