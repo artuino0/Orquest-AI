@@ -68,6 +68,13 @@ export const TOOLS: Record<string, ToolDef> = {
       tarea_id: z.string().optional().describe('Para modificar una tarea existente'),
     },
   },
+  decir_al_usuario: {
+    who: 'boss',
+    description: 'Le contesta o avisa algo al usuario. Él no ve tu terminal: solo lee lo que mandes con esta herramienta.',
+    input: {
+      mensaje: z.string(),
+    },
+  },
   hablar_con: {
     who: 'boss',
     description: 'Manda una instrucción o pregunta a un empleado y espera su respuesta.',

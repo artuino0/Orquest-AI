@@ -78,7 +78,7 @@ El modo creativo dibuja otra oficina, la de PixiJS, que hoy no es la que se ve: 
 
 ## Herramientas MCP
 
-Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
+Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
 
 ## Decisiones tomadas
 

@@ -60,7 +60,8 @@ async function send() {
 const boss = computed(() => studio.employees.find((e) => e.id === 'jefe'))
 const chat = computed(() =>
   (studio.board?.messages ?? [])
-    .filter((m) => m.from === 'jefe' || m.to === 'jefe')
+    // Lo que la app le teclea al jefe ([Orquest] …) no es conversación.
+    .filter((m) => m.from !== 'orquest' && (m.from === 'jefe' || m.to === 'jefe'))
     .map((m) => ({
       ...m,
       mine: m.from === 'usuario',
