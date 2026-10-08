@@ -36,6 +36,7 @@ const api: OrquestApi = {
   loadOffice: () => invoke('office:load'),
   saveOffice: (office) => invoke('office:save', office),
   onBoard: (cb) => listen('board:changed', cb),
+  installedTools: () => invoke('tools:list'),
   onNotice: (cb) => listen('notice', cb),
   windowControl: (action) => invoke('window:control', action),
   onWindowState: (cb) => listen('window:state', cb),

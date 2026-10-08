@@ -58,7 +58,7 @@ describe('aprobar una entrega sin cambios', () => {
     const sigue = b.assign({ assignee: 'hugo', title: 'Siguiente', description: '', deps: [prueba.id] })
     expect(sigue.status).toBe('waiting')
     b.start('ines')
-    b.deliver('ines', { at: 1, report: 'Todo pasa', screenshots: [] })
+    b.deliver('ines', { report: 'Todo pasa', screenshots: [] })
     b.review(prueba.id, 'approve')
     const released = b.closeEmpty(prueba.id)
     expect(b.task(prueba.id).status).toBe('done')

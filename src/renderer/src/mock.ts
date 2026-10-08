@@ -81,6 +81,13 @@ export function installMock(caso: string) {
     loadOffice: async () => null,
     saveOffice: async () => {},
     onBoard: nothing,
+    installedTools: async () => [
+      { name: 'playwright-cli', kind: 'skill', source: 'tuyas', description: 'Prueba la app en un navegador real y toma capturas.' },
+      { name: 'git-flow', kind: 'skill', source: 'tuyas', description: 'Flujo de corte y entrega.' },
+      { name: 'impeccable', kind: 'skill', source: 'tuyas', description: 'Diseño de interfaces cuidado.' },
+      { name: 'supabase', kind: 'skill', source: 'plugin supabase', description: 'Tablas, políticas y migraciones.' },
+      { name: 'Neon', kind: 'mcp', source: 'MCP tuyo' },
+    ],
     onNotice: nothing,
     windowControl: async () => {},
     onWindowState: nothing,

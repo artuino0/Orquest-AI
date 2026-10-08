@@ -4,6 +4,7 @@ import * as pty from 'node-pty'
 import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { detectAll, detectModels } from '../core/detect.js'
+import { listTools } from '../core/skills.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
@@ -141,6 +142,7 @@ handle('window:control', (action: 'minimize' | 'maximize' | 'close') => {
   else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
   else win?.close() // pasa por el corte de los agentes, como cerrar de cualquier otra forma
 })
+handle('tools:list', () => listTools(current?.snapshot().repo))
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))

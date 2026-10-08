@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Ban, Bell, Check, FileText, Save } from 'lucide-vue-next'
+import { Ban, Bell, Check, FileText, Plug, Save, Sparkles, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
-import type { DossierView, Manual, Role } from '../../../shared/ipc'
+import type { DossierView, InstalledTool, Manual, Role } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
 
 /**
@@ -101,6 +101,23 @@ const users = computed(() => {
   return `lo ${who.length === 1 ? 'usa' : 'usan'} ${who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} y ${who.at(-1)}`}`
 })
 
+// Skills y servidores MCP instalados: se eligen por puesto en vez de escribirlos de memoria.
+const tools = ref<InstalledTool[]>([])
+const toolQuery = ref('')
+onMounted(async () => (tools.value = await window.orquest.installedTools().catch(() => [])))
+const has = (name: string) => !!manual.value?.skills.includes(name)
+function toggleTool(name: string) {
+  if (!manual.value) return
+  manual.value.skills = has(name) ? manual.value.skills.filter((s) => s !== name) : [...manual.value.skills, name]
+}
+const offered = computed(() => {
+  const q = toolQuery.value.trim().toLowerCase()
+  const match = (t: InstalledTool) => !q || `${t.name} ${t.source} ${t.description ?? ''}`.toLowerCase().includes(q)
+  // Primero las ya elegidas; luego el resto, en orden.
+  return tools.value.filter(match).sort((a, b) => Number(has(b.name)) - Number(has(a.name)))
+})
+const toolOf = (name: string) => tools.value.find((t) => t.name === name)
+
 async function saveManual() {
   if (manual.value && (await studio.attempt(() => window.orquest.saveManual(JSON.parse(JSON.stringify(manual.value)))))) flash('manual')
 }
@@ -195,10 +212,27 @@ async function saveManual() {
             <label class="field"><span class="cap"><FileText /> Documentación <small>· una ruta por línea</small></span>
               <textarea :value="lines(manual.docs)" rows="2" placeholder="docs/convenciones.md" @change="manual.docs = split(($event.target as HTMLTextAreaElement).value)" />
             </label>
-            <label class="field"><span class="cap">Skills <small>· una por línea</small></span>
-              <textarea class="skills" :value="lines(manual.skills)" rows="2" @change="manual.skills = split(($event.target as HTMLTextAreaElement).value)" />
-            </label>
           </div>
+        </div>
+
+        <div class="field">
+          <span class="cap"><Sparkles /> Skills y herramientas <small>· {{ manual.skills.length }} {{ manual.skills.length === 1 ? 'elegida' : 'elegidas' }} de {{ tools.length }} instaladas</small></span>
+          <div v-if="manual.skills.length" class="chosen">
+            <button v-for="n in manual.skills" :key="n" class="tag" :class="{ missing: !toolOf(n) }" :title="toolOf(n) ? 'Quitar' : 'No está instalada en esta máquina · quitar'" @click="toggleTool(n)">
+              {{ n }}<X />
+            </button>
+          </div>
+          <input v-model="toolQuery" class="search" placeholder="Buscar: playwright, supabase, figma…" />
+          <ul class="tools">
+            <li v-if="!tools.length" class="dim">No encontré skills ni servidores MCP instalados en esta máquina.</li>
+            <li v-for="t in offered" :key="t.kind + t.name" :class="{ on: has(t.name) }" :title="t.description" @click="toggleTool(t.name)">
+              <i class="box"><Check /></i>
+              <Plug v-if="t.kind === 'mcp'" /><Sparkles v-else />
+              <b>{{ t.name }}</b>
+              <small>{{ t.source }}</small>
+              <span class="dim">{{ t.description }}</span>
+            </li>
+          </ul>
         </div>
 
         <span class="cap">Permisos</span>
@@ -270,7 +304,23 @@ async function saveManual() {
 .cap small { font-size: 10px; letter-spacing: 0.5px; text-transform: none; }
 textarea { width: 100%; font: 12px/1.6 var(--font); color: var(--text-primary); background: var(--bg); border: 2px solid var(--border); padding: 10px 12px; resize: vertical; outline: none; }
 textarea:focus { border-color: var(--accent); }
-.skills { color: var(--st-dep); }
+.chosen { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; font: 700 11px var(--font); color: var(--st-dep); background: var(--bg); border: 2px solid currentColor; }
+.tag svg { width: 10px; height: 10px; }
+.tag.missing { color: var(--text-secondary); border-style: dashed; }
+.search { width: 100%; font: 12px var(--font); color: var(--text-primary); background: var(--bg); border: 2px solid var(--border); padding: 8px 12px; outline: none; }
+.search:focus { border-color: var(--accent); }
+.tools { margin: 0; padding: 0; list-style: none; max-height: 190px; overflow: auto; background: var(--bg); border: 2px solid var(--border); }
+.tools li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; border-bottom: 2px solid var(--surface); cursor: pointer; white-space: nowrap; }
+.tools li:hover { background: var(--surface); }
+.tools li > svg { width: 12px; height: 12px; color: var(--st-dep); flex: none; }
+.tools small { font-size: 10px; color: var(--text-secondary); }
+.tools .dim { overflow: hidden; text-overflow: ellipsis; }
+.tools .box { width: 14px; height: 14px; display: grid; place-items: center; background: var(--surface); border: 2px solid var(--border-light); flex: none; }
+.tools .box svg { width: 10px; height: 10px; opacity: 0; color: var(--on-accent); stroke-width: 3; }
+.tools li.on .box { background: var(--accent); border-color: var(--border); }
+.tools li.on .box svg { opacity: 1; }
+.tools li.on b { color: var(--accent); }
 .cards { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 200px; }
 .card { background: var(--bg); border: 2px solid var(--border); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .card h3 { font-size: 16px; }
