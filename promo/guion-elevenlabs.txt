@@ -1,73 +1,105 @@
-GUION PARA ELEVENLABS (Eleven v3) · dos voces · unos 60 segundos
+GUION PARA ELEVENLABS (Eleven v3) · dos voces · 60 segundos
+
+Una línea = un clip de audio. Se genera cada una por separado y el silencio
+entre clips se pone en la edición del video, no en ElevenLabs.
 
 Cada voz lleva una sola etiqueta, siempre la misma:
   ELLA   = [casual]
   JHONNY = [friendly]
 
-"ELLA:" y "JHONNY:" solo dicen de quién es la línea: no se pegan, o se leerían
-en voz alta. En "Text to Dialogue" cada línea va con su voz, en este orden.
-Abajo vienen las mismas líneas separadas por voz, por si se generan aparte.
+De cada clip se pega solo la línea que empieza con el corchete.
+"Entra en" es el segundo del video donde empieza el clip (aproximado: se
+ajusta a lo que dure cada audio).
 
-────────────────────────────────────────
-DIÁLOGO EN ORDEN
-────────────────────────────────────────
+════════════════════════════════════════
+EN ORDEN
+════════════════════════════════════════
 
-ELLA: [casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
-
-ELLA: [casual] Esto es Orquest.
-
-ELLA: [casual] Hola, Jhonny.
-
-JHONNY: [friendly] Hola. ¿Qué necesitas?
-
-ELLA: [casual] Hagamos una tienda en línea.
-
-JHONNY: [friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
-
-JHONNY: [friendly] ¿Por dónde empezamos?
-
-ELLA: [casual] Comienza con el login.
-
-JHONNY: [friendly] Va. Ya lo repartí.
-
-JHONNY: [friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
-
-ELLA: [casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
-
-JHONNY: [friendly] Ya va de vuelta a su escritorio.
-
-ELLA: [casual] Orquest AI. El código está abierto.
-
-────────────────────────────────────────
-SOLO ELLA (voz 1)
-────────────────────────────────────────
-
+01 · ELLA · entra en 0:00
 [casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
 
+      silencio 0.5 s · las terminales caen dentro del edificio
+
+02 · ELLA · entra en 0:07
 [casual] Esto es Orquest.
 
+      silencio 1.5 s · Jhonny entra y se sienta
+
+03 · ELLA · entra en 0:10
 [casual] Hola, Jhonny.
 
-[casual] Hagamos una tienda en línea.
+      silencio 0.4 s
 
-[casual] Comienza con el login.
-
-[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
-
-[casual] Orquest AI. El código está abierto.
-
-────────────────────────────────────────
-SOLO JHONNY (voz 2)
-────────────────────────────────────────
-
+04 · JHONNY · entra en 0:12
 [friendly] Hola. ¿Qué necesitas?
 
+      silencio 0.5 s
+
+05 · ELLA · entra en 0:14
+[casual] Hagamos una tienda en línea.
+
+      silencio 1 s · el chat marca "pensando…"
+
+06 · JHONNY · entra en 0:17
 [friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
 
+      silencio 4 s · clic en Contratar; los cuatro entran y toman su cubículo
+
+07 · JHONNY · entra en 0:27
 [friendly] ¿Por dónde empezamos?
 
+      silencio 0.5 s
+
+08 · ELLA · entra en 0:29
+[casual] Comienza con el login.
+
+      silencio 1 s · el chat marca "planeando…"
+
+09 · JHONNY · entra en 0:32
 [friendly] Va. Ya lo repartí.
 
+      silencio 8 s · la jornada: teclean, impresora, llevan su hoja a Jhonny
+
+10 · JHONNY · entra en 0:42
 [friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
 
+      silencio 0.6 s · se abre el panel Entregas
+
+11 · ELLA · entra en 0:46
+[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
+
+      silencio 0.8 s · clic en Devolver
+
+12 · JHONNY · entra en 0:51
 [friendly] Ya va de vuelta a su escritorio.
+
+      silencio 2 s · la cámara se aleja; Pablo teclea solo
+
+13 · ELLA · entra en 0:55
+[casual] Orquest AI. El código está abierto.
+
+════════════════════════════════════════
+POR VOZ (para generar de corrido con cada voz; un clip por línea)
+════════════════════════════════════════
+
+ELLA
+
+01  [casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
+02  [casual] Esto es Orquest.
+03  [casual] Hola, Jhonny.
+05  [casual] Hagamos una tienda en línea.
+08  [casual] Comienza con el login.
+11  [casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
+13  [casual] Orquest AI. El código está abierto.
+
+JHONNY
+
+04  [friendly] Hola. ¿Qué necesitas?
+06  [friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
+07  [friendly] ¿Por dónde empezamos?
+09  [friendly] Va. Ya lo repartí.
+10  [friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
+12  [friendly] Ya va de vuelta a su escritorio.
+
+Sugerencia de nombres de archivo: 01-ella.mp3, 04-jhonny.mp3… así caen en
+orden en la línea de tiempo.
