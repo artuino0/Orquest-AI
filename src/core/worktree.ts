@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { appendFile, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
+import { RuleError } from './board.js'
 
 const run = promisify(execFile)
 
@@ -84,6 +85,11 @@ export async function officeDiff(office: Office, path: string): Promise<string> 
 
 /** Rama actual del repo principal: ahí se integran las entregas. */
 export async function currentBranch(repo: string): Promise<string> {
+  // Un repositorio recién creado no tiene HEAD: las oficinas (worktrees) necesitan un commit del que partir.
+  const born = await git(repo, 'rev-parse', '--verify', '--quiet', 'HEAD').then(() => true, () => false)
+  if (!born) {
+    throw new RuleError('Este repositorio todavía no tiene ningún commit. Haz el primero (por ejemplo `git add . && git commit -m "Inicio"`) y vuelve a contratar: cada empleado trabaja en una copia que parte de ahí.')
+  }
   return git(repo, 'rev-parse', '--abbrev-ref', 'HEAD')
 }
 
