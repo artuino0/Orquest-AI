@@ -526,6 +526,13 @@ export class Studio extends EventEmitter<StudioEvents> {
         return `${t.id} → ${t.assignee}: ${t.status === 'waiting' ? `esperando a ${b.openDeps(t).map((d) => d.id).join(', ')}` : t.status}.`
       }
 
+      case 'decir_al_usuario': {
+        const text = String(a.mensaje ?? '').trim()
+        if (!text) throw new RuleError('El mensaje va vacío.')
+        b.say(BOSS_ID, 'usuario', text)
+        this.changed()
+        return 'Entregado al usuario.'
+      }
       case 'hablar_con': {
         const to = b.member(String(a.empleado))
         if (!this.opts.manager.isLive(to.id)) throw new RuleError(`${to.id} ya no está en la oficina.`)
@@ -714,7 +721,7 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   sayToBoss(text: string) {
     this.board.say('usuario', BOSS_ID, text)
-    this.notify(BOSS_ID, `El usuario dice: ${text}`)
+    this.notify(BOSS_ID, `El usuario dice: ${text} (contéstale con decir_al_usuario; no ve tu terminal)`)
     this.changed()
   }
 
@@ -835,6 +842,7 @@ export const BOSS_TOOLS = new Set([
   'proponer_plantilla',
   'levantar_empleado',
   'asignar_tarea',
+  'decir_al_usuario',
   'hablar_con',
   'revisar_entrega',
   'mandar_a_qa',

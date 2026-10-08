@@ -226,6 +226,15 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
     expect(typed.get(ids.frontend)).toContain('ahora devuelve productos')
     expect(JSON.parse((await frontend.call('leer_tarea')).text).dependencias[0]).toMatchObject({ id: 'T1', estado: 'merged' })
 
+    // El usuario no ve la terminal del jefe: lo que le diga llega por su herramienta y queda en la conversación.
+    studio.sayToBoss('¿Cómo vamos?')
+    expect((await boss.call('decir_al_usuario', { mensaje: 'Falta el frontend.' })).text).toBe('Entregado al usuario.')
+    expect(studio.snapshot().messages.filter((m) => m.from !== 'orquest').slice(-2)).toMatchObject([
+      { from: 'usuario', to: 'jefe', text: '¿Cómo vamos?' },
+      { from: 'jefe', to: 'usuario', text: 'Falta el frontend.' },
+    ])
+    expect((await frontend.call('decir_al_usuario', { mensaje: 'hola' })).error).toBe(true)
+
     // El jefe pregunta y el empleado responde por su herramienta.
     const asking = boss.call('hablar_con', { empleado: ids.frontend, mensaje: '¿Cuánto te falta?' })
     await tick()
