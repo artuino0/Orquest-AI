@@ -5,6 +5,7 @@ import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { detectAll, detectModels } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
+import { listDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
@@ -74,6 +75,7 @@ const send = (channel: string, ...args: unknown[]) => win?.webContents.send(chan
 manager.on('data', (id, data) => send('employee:data', id, data))
 manager.on('state', (id, state) => send('employee:state', id, state))
 manager.on('hired', (e) => send('employee:hired', e))
+manager.on('activity', (id, activity) => send('employee:activity', id, activity))
 
 function studio(): Studio {
   if (!current) throw new Error('No hay proyecto abierto.')
@@ -142,6 +144,8 @@ handle('window:control', (action: 'minimize' | 'maximize' | 'close') => {
   else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
   else win?.close() // pasa por el corte de los agentes, como cerrar de cualquier otra forma
 })
+handle('documents:list', () => listDocuments(studio().snapshot().repo))
+handle('documents:read', (path: string) => readDocument(studio().snapshot().repo, path))
 handle('tools:list', () => listTools(current?.snapshot().repo))
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))

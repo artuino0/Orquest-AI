@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { listTools, skillHeader } from '../src/core/skills.js'
 
 const dirs: string[] = []
-afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
+// En Windows git puede tardar en soltar la carpeta: se reintenta en vez de tumbar la prueba.
+afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })))
 const temp = (name: string) => {
   const d = mkdtempSync(join(tmpdir(), name))
   dirs.push(d)

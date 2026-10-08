@@ -33,7 +33,7 @@ const PROPOSED: Slot[] = [
   { id: 's7', name: 'Iván', role: 'dba', provider: 'kimi', model: 'kimi-k2', effort: 'medium', reason: 'Barato para migraciones largas. Sin historial contigo en DBA.', status: 'proposed' },
   { id: 's8', name: 'Gus', role: 'infra', provider: 'grok', model: 'grok-4', effort: 'high', reason: 'Rápido en scripts de CI según el reporte semanal del mercado.', status: 'proposed' },
 ]
-const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa']
+const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
 const stats = (integradas: number, primera: number, rechazos: number, por: Record<string, [number, number]> = {}): DossierView['stats'] => ({
   entregas: integradas + rechazos, integradas, a_la_primera: primera, rechazos_qa: rechazos, regresadas: rechazos,
   aprobadas_a_la_primera: integradas ? Math.round((primera / integradas) * 100) : null,
@@ -94,6 +94,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   /** La primera vez que se integra algo, choca: para ver cómo sale un conflicto. */
   let conflictPending = true
   let seq = 0
+  const activityListeners = new Set<(id: string, a: { label: string; detail?: string; seconds?: number } | null) => void>()
+  const STEPS = [['Pensando'], ['Leyendo', 'src/api.ts'], ['Planeando'], ['Escribiendo', 'src/api.ts'], ['Ejecutando', 'npm test']] as const
   const listeners = { board: new Set<(s: StudioSnapshot) => void>(), state: new Set<(id: string, s: EmployeeState) => void>(), hired: new Set<(e: Employee) => void>() }
 
   const snapshot = (): StudioSnapshot => {
@@ -117,6 +119,17 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     if (!e || e.state === state) return
     e.state = state
     listeners.state.forEach((fn) => fn(id, state))
+    // Mientras trabaja, va cambiando lo que hace, como se vería en su terminal.
+    if (state === 'working') {
+      let i = 0
+      const tick = () => {
+        if (employees.find((x) => x.id === id)?.state !== 'working') return activityListeners.forEach((fn) => fn(id, null))
+        const [label, detail] = STEPS[i++ % STEPS.length]
+        activityListeners.forEach((fn) => fn(id, { label, detail, seconds: i * 4 }))
+        setTimeout(tick, 4000 * speed)
+      }
+      tick()
+    }
   }
   const hire = (id: string, role: string, provider: ProviderId, model?: string) => {
     const e: Employee = { id, provider, model, role, office: { path: `${MOCK_REPO}\\.orquest\\oficinas\\${id}`, branch: `orquest/${id}` }, state: 'idle', pid: 1000 + employees.length, warnings: [] }
@@ -244,5 +257,12 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     onBoard: on(listeners.board),
     onState: on(listeners.state),
     onHired: on(listeners.hired),
+    onActivity: on(activityListeners),
+    documents: async () => [
+      { path: 'docs/plan-fase-1.md', at: Date.now() - 120000, size: 1800, status: 'nuevo' },
+      { path: 'docs/decisiones.md', at: Date.now() - 3600000, size: 900, status: 'cambiado' },
+      { path: 'README.md', at: Date.now() - 86400000, size: 400 },
+    ],
+    documentText: async (path) => `# ${path}\n\n## Fase 1: catálogo y clientes\n\n1. Modelo de datos (Beto)\n2. API de productos (Lupita), depende de 1\n3. Lista de productos (Nico), depende de 2\n4. Pruebas de alta (Paty)\n\n## Riesgos\n\n- La migración asume email único.\n- Sin cobro en esta fase.\n`,
   }
 }

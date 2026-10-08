@@ -11,7 +11,7 @@
  */
 import type { ProviderId } from './providers.js'
 
-export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa'] as const
+export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno'] as const
 export type Role = (typeof ROLES)[number]
 
 export interface Dossier {
@@ -93,6 +93,8 @@ const DEFAULT_PROMPTS: Record<Role, string> = {
   dba: 'DBA: esquema, migraciones y consultas. Toda migración debe poder revertirse.',
   infra: 'Infra: build, CI, despliegue y configuración. No toques secretos reales.',
   qa: 'QA: pruebas la entrega de otro, no la corriges. Tu entrega dice si pasa o no (veredicto) con pasos para reproducir cada fallo.',
+  diseno:
+    'Diseño: pantallas, flujos y piezas visuales. Trabajas en el software de diseño que el usuario haya indicado (Pencil, Figma u otro), con su skill o su servidor MCP. Si nadie te ha dicho cuál usar, pregúntaselo al jefe antes de empezar. No escribes el código de la app: entregas el diseño y sus exportaciones para que frontend lo construya.',
 }
 
 const DEFAULT_DELIVERY: Record<Role, string> = {
@@ -102,6 +104,7 @@ const DEFAULT_DELIVERY: Record<Role, string> = {
   dba: 'Reporte: cambios de esquema, migración y cómo revertirla.',
   infra: 'Reporte: qué cambió en build o despliegue y cómo verificarlo.',
   qa: 'Veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.',
+  diseno: 'Reporte: qué diseñaste, con qué herramienta y en qué archivo quedó; las pantallas exportadas (PNG) guardadas en tu oficina y adjuntas como capturas; decisiones y lo que falta.',
 }
 
 export function defaultManual(role: Role): Manual {
@@ -112,7 +115,8 @@ export function defaultManual(role: Role): Manual {
     skills: [],
     permissions: { edit: true, allow: [...DEV_ALLOW], deny: [...DEV_DENY] },
     delivery: DEFAULT_DELIVERY[role],
-    requireScreenshots: false,
+    // Un diseño se entrega viéndose.
+    requireScreenshots: role === 'diseno',
   }
 }
 

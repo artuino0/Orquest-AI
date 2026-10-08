@@ -57,6 +57,9 @@ const api: OrquestApi = {
   resize: (id, cols, rows) => ipcRenderer.send('employee:resize', id, cols, rows),
   onData: (cb) => listen('employee:data', cb),
   onState: (cb) => listen('employee:state', cb),
+  onActivity: (cb) => listen('employee:activity', cb),
+  documents: () => invoke('documents:list'),
+  documentText: (path) => invoke('documents:read', path),
   onHired: (cb) => listen('employee:hired', cb),
 }
 

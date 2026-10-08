@@ -31,3 +31,7 @@ export function lookOf(e: Pick<Employee, 'id' | 'state'>, hints: StudioSnapshot[
 
 /** Cómo se le dice a cada nivel de esfuerzo. Cuáles hay depende de cada CLI (CliStatus.efforts). */
 export const EFFORT_LABEL: Record<string, string> = { low: 'Bajo', medium: 'Medio', high: 'Alto', xhigh: 'Muy alto', max: 'Máximo' }
+
+/** Cómo se escribe un puesto para la gente (los identificadores no llevan acentos ni eñes). */
+const ROLE_LABEL: Record<string, string> = { diseno: 'diseño', qa: 'QA', dba: 'DBA' }
+export const roleLabel = (role: string) => ROLE_LABEL[role.toLowerCase()] ?? role

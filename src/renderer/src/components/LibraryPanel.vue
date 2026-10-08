@@ -9,7 +9,7 @@ import PanelFrame from './PanelFrame.vue'
  * Expedientes (por proveedor y modelo) y manuales de puesto. Viven en el
  * estudio y se reusan entre proyectos; el jefe los lee al proponer.
  */
-const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa']
+const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
 const ROLE_NAME: Record<Role, [string, string]> = {
   desarrollo: ['Desarrollo', 'generalista'],
   backend: ['Backend', 'API y servicios'],
@@ -17,6 +17,7 @@ const ROLE_NAME: Record<Role, [string, string]> = {
   dba: ['DBA', 'esquema y migraciones'],
   infra: ['Infra', 'CI y despliegue'],
   qa: ['QA', 'veredictos'],
+  diseno: ['Diseño', 'Pencil, Figma u otro'],
 }
 type Row = DossierView & { allRoles: boolean }
 

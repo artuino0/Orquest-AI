@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
-import { EFFORT_LABEL, LOOK, lookOf } from '../status'
+import { EFFORT_LABEL, LOOK, lookOf, roleLabel } from '../status'
 import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
 
@@ -72,9 +72,21 @@ const staff = computed(() =>
     const e = studio.employees.find((x) => x.id === m.id)
     const look = LOOK[e ? lookOf(e, studio.board?.hints) : 'exited']
     const slot = studio.board?.slots.find((s) => s.employeeId === m.id)
-    return { ...m, look, out: !e, effort: slot?.effort ?? e?.effort, context: Math.round(studio.board?.context[m.id] ?? e?.context ?? 0) }
+    // De quien ya no está, el contexto es el que llevaba al irse.
+    const context = e ? studio.board?.context[m.id] ?? e.context : m.leftContext
+    return { ...m, look, out: !e, known: context !== undefined, context: Math.round(context ?? 0), effort: slot?.effort ?? e?.effort }
   }),
 )
+// Filtros de los ya contratados: por área (su puesto) y por estado.
+const area = ref('')
+const state = ref('')
+const areas = computed(() => [...new Set(staff.value.map((m) => m.role))])
+const states = computed(() => [...new Set(staff.value.filter((m) => showGone.value || !m.gone).map((m) => (m.gone ? 'Despedido' : m.look.label)))])
+// Los despedidos no salen si no se piden: ya no son parte de la plantilla.
+const showGone = ref(false)
+const goneCount = computed(() => staff.value.filter((m) => m.gone).length)
+const shownStaff = computed(() => staff.value.filter((m) => (showGone.value || !m.gone) && (!area.value || m.role === area.value) && (!state.value || (m.gone ? 'Despedido' : m.look.label) === state.value)))
+
 const subtitle = computed(() => {
   const n = rows.value.length
   return n ? `Propuesta de ${studio.nameOf('jefe')} · ${n} ${n === 1 ? 'puesto' : 'puestos'} por aprobar` : `${staff.value.length} en la plantilla`
@@ -92,7 +104,7 @@ const subtitle = computed(() => {
           <tr v-for="(r, i) in rows" :key="r.id ?? i" :class="rule(checks[i], r).kind">
             <td><label class="name"><input v-model="r.name" placeholder="se asigna solo" /><Pencil /></label></td>
             <td>
-              <select v-model="r.role" class="plain"><option v-for="d in DEPARTMENTS" :key="d">{{ d }}</option></select>
+              <select v-model="r.role" class="plain"><option v-for="d in DEPARTMENTS" :key="d" :value="d">{{ roleLabel(d) }}</option></select>
             </td>
             <td>
               <span class="pv"><i :style="{ background: `var(--pv-${r.provider})` }" />
@@ -142,15 +154,29 @@ const subtitle = computed(() => {
 
     <p v-if="studio.error && !rows.length" class="stop">{{ studio.error }}</p>
     <template v-if="staff.length">
-      <span class="cap">Ya contratados · {{ staff.length }}</span>
+      <div class="filters">
+        <span class="cap">Ya contratados · {{ shownStaff.length }}<template v-if="shownStaff.length !== staff.length"> de {{ staff.length }}</template></span>
+        <i class="gap" />
+        <span class="cap">Área</span>
+        <button :class="{ on: !area }" @click="area = ''">Todas</button>
+        <button v-for="a in areas" :key="a" :class="{ on: area === a }" @click="area = area === a ? '' : a">{{ roleLabel(a) }}</button>
+        <i class="gap" />
+        <span class="cap">Estado</span>
+        <button :class="{ on: !state }" @click="state = ''">Todos</button>
+        <button v-for="st in states" :key="st" :class="{ on: state === st }" @click="state = state === st ? '' : st">{{ st }}</button>
+        <template v-if="goneCount">
+          <i class="gap" />
+          <button :class="{ on: showGone }" @click="showGone = !showGone; if (!showGone && state === 'Despedido') state = ''">{{ showGone ? 'Ocultar' : 'Mostrar' }} despedidos · {{ goneCount }}</button>
+        </template>
+      </div>
       <table class="tbl">
         <thead>
           <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Estado</th><th>Contexto</th></tr>
         </thead>
         <tbody>
-          <tr v-for="m in staff" :key="m.id" :class="{ pick: !m.out, out: m.out }" @click="!m.out && studio.select(m.id)">
+          <tr v-for="m in shownStaff" :key="m.id" :class="{ pick: !m.out, out: m.out }" @click="!m.out && studio.select(m.id)">
             <td class="strong">{{ m.name }}</td>
-            <td>{{ m.role }}</td>
+            <td>{{ roleLabel(m.role) }}</td>
             <td><span class="pv"><i :style="{ background: `var(--pv-${m.provider})` }" />{{ cliName(m.provider) }}</span></td>
             <td class="dim">{{ m.model ?? '—' }}</td>
             <td>{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
@@ -158,7 +184,10 @@ const subtitle = computed(() => {
               <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? 'Despedido' : m.look.label }}</span>
               <button v-if="m.out && !m.gone" class="btn back" title="Su CLI se cerró: vuelve a abrirla en su misma oficina" @click.stop="studio.bringBack(m.id)">Traer de vuelta</button>
             </td>
-            <td><span class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%</span></td>
+            <td>
+              <span v-if="m.known" class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }" :title="m.gone ? 'Contexto usado cuando se fue' : 'Contexto usado'"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%<template v-if="m.gone"> al irse</template></span>
+              <span v-else class="dim">{{ m.gone ? 'sin dato al irse' : 'sin dato' }}</span>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -189,6 +218,10 @@ tr.no .chip, tr.no .rule p { color: var(--st-block); }
 .grow { flex: 1; }
 .stop { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--st-block); }
 .stop svg { width: 14px; height: 14px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filters .gap { width: 12px; }
+.filters button { padding: 4px 9px; font: 11px var(--font); color: var(--text-secondary); background: var(--bg); border: 2px solid var(--border); }
+.filters button.on { border-color: var(--accent); color: var(--text-primary); background: var(--surface-2); }
 .out td { color: var(--text-secondary); }
 .back { margin-left: 8px; padding: 3px 8px; font-size: 11px; }
 .pick { cursor: pointer; }

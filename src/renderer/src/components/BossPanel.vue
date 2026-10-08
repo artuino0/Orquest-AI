@@ -70,8 +70,9 @@ const chat = computed(() =>
     })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+const doing = computed(() => studio.doing.jefe)
 const log = ref<HTMLDivElement>()
-watch(() => chat.value.length, () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
+watch(() => [chat.value.length, boss.value?.state === 'working'], () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
 
 const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
 const context = computed(() => Math.round(studio.board?.context.jefe ?? boss.value?.context ?? 0))
@@ -177,6 +178,15 @@ const pending = computed(() => {
             <span class="who">{{ m.who }} · {{ hour(m.at) }}</span>
             <p>{{ m.text }}</p>
           </div>
+          <!-- Mientras trabaja: qué está haciendo ahora, leído de su terminal -->
+          <div v-if="boss?.state === 'working'" class="msg doing">
+            <span class="who">Jefe · ahora</span>
+            <p>
+              <b>{{ doing?.label ?? 'Trabajando' }}</b><i class="dots" />
+              <span v-if="doing?.detail" class="what">{{ doing.detail }}</span>
+              <span v-if="doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
+            </p>
+          </div>
         </div>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
@@ -257,6 +267,14 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .msg .who { font-size: 10px; font-weight: 700; color: var(--pv-claude); }
 .msg.mine .who { color: var(--text-secondary); }
 .msg p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+.msg.doing { border-left-style: dashed; background: none; }
+.msg.doing p { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.msg.doing b { color: var(--st-work); }
+.msg.doing .what { color: var(--text-secondary); word-break: break-all; }
+.msg.doing .secs { font-size: 10px; color: var(--text-secondary); }
+/* Tres puntos que se van encendiendo, en pasos: no un desvanecido. */
+.dots { display: inline-block; width: 18px; height: 4px; margin-left: -4px; background: radial-gradient(circle, var(--st-work) 0 1.5px, transparent 2px) 0 0 / 6px 4px repeat-x; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 -34% 0 0); } }
 .say { display: flex; gap: 8px; }
 .say input { flex: 1; }
 

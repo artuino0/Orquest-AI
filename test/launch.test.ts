@@ -8,7 +8,8 @@ const SCRIPT = `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b
 const EXE = `@ECHO off\r\nCALL :find_dp0\r\n"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe"   %*\r\n`
 
 const dirs: string[] = []
-afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
+// En Windows git puede tardar en soltar la carpeta: se reintenta en vez de tumbar la prueba.
+afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })))
 
 describe('lanzadores de npm en Windows', () => {
   it('se lee a qué programa apuntan', () => {

@@ -36,8 +36,8 @@ export function plan(): Plan {
 }
 
 /** Roles que el tablero y la contratación agrupan. En la oficina no son áreas: el rol lo trae cada quien. */
-export type Department = 'desarrollo' | 'backend' | 'frontend' | 'dba' | 'infra' | 'qa'
-export const DEPARTMENTS: Department[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa']
+export type Department = 'desarrollo' | 'backend' | 'frontend' | 'dba' | 'infra' | 'qa' | 'diseno'
+export const DEPARTMENTS: Department[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
 
 /** Rol → grupo del tablero. Uno que no conocemos va con Desarrollo. */
 export function departmentFor(role: string): Department {

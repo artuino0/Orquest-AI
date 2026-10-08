@@ -1,3 +1,4 @@
+import { describeActivity, type Activity } from './activity.js'
 import { Terminal } from '@xterm/headless'
 import type { ScreenPatterns } from './providers.js'
 
@@ -205,6 +206,11 @@ export class ScreenReader {
     if (this.working(recent)) return 'working'
     if (this.patterns.idle.some((r) => r.test(recent))) return 'idle'
     return undefined
+  }
+
+  /** Qué está haciendo, leído de la pantalla (ver core/activity). */
+  activity(): Activity {
+    return describeActivity(this.recent())
   }
 
   /** % de contexto usado que muestra la CLI, si lo muestra. */

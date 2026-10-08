@@ -108,6 +108,9 @@ export function installMock(caso: string) {
     resize: () => {},
     onData: nothing,
     onState: nothing,
+    onActivity: nothing,
+    documents: async () => [],
+    documentText: async () => '',
     onHired: nothing,
   }
   // Con ?proyecto hay además un proyecto de mentira que avanza solo.

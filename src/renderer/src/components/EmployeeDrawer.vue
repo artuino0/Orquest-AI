@@ -107,6 +107,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
           <span class="cap">Contexto</span>
           <span class="meter" :class="{ hot }"><i><b :style="{ width: `${context ?? 0}%` }" /></i>{{ context === undefined ? 'sin dato' : `${Math.round(context)}%` }}</span>
         </p>
+        <p v-if="e.state === 'working' && studio.doing[e.id]" class="now"><b>{{ studio.doing[e.id].label }}…</b> {{ studio.doing[e.id].detail }}</p>
         <p v-if="hot" class="over">Pasó el umbral de {{ burnoutAt }} %. Mándalo a Descanso para limpiar contexto.</p>
       </div>
       <div class="actions">
@@ -188,6 +189,8 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .dim { margin: 0; font-size: 11px; line-height: 1.6; color: var(--text-secondary); }
 .who .dim { margin-top: 6px; }
 .ctx { margin: 8px 0 0; display: flex; align-items: center; gap: 10px; }
+.now { margin: 6px 0 0; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.now b { color: var(--st-work); }
 .over { margin: 6px 0 0; font-size: 11px; color: var(--st-block); }
 .actions { display: grid; grid-template-columns: auto auto; gap: 6px; flex: none; }
 .tabs { display: flex; gap: 4px; padding: 10px 14px 0; border-bottom: 3px solid var(--border); background: var(--surface); }
