@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createReadStream } from 'node:fs'
 import { access, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
@@ -87,14 +88,39 @@ function versionOf(out: string): string | undefined {
   return /\d+\.\d+(\.\d+)?([-.+][\w.]+)?/.exec(line)?.[0] ?? line
 }
 
+/** Nombres que casan con `pattern` dentro de un archivo grande (el programa de una CLI), sin cargarlo entero. */
+function scanFile(file: string, pattern: RegExp): Promise<string[]> {
+  return new Promise((done) => {
+    const found = new Set<string>()
+    let tail = ''
+    createReadStream(file, { encoding: 'latin1', highWaterMark: 1 << 20 })
+      .on('data', (chunk) => {
+        const text = tail + chunk
+        for (const m of text.matchAll(pattern)) found.add(m[0])
+        tail = text.slice(-64) // un nombre puede quedar partido entre dos trozos
+      })
+      .on('end', () => done([...found]))
+      .on('error', () => done([]))
+  })
+}
+
 /** Qué modelos ofrece una CLI instalada, según su fuente (ver ModelSource). */
 async function modelsOf(p: ProviderAdapter, binary: string, home: string): Promise<string[]> {
   const found = [...(p.models.list ?? [])]
-  if (p.models.file) {
+  for (const f of p.models.files ?? []) {
     try {
-      found.push(...p.models.file.read(await readFile(join(home, p.models.file.path), 'utf8')))
+      found.push(...f.read(await readFile(join(home, f.path), 'utf8')))
     } catch {
-      // Sin archivo no hay modelo configurado.
+      // Sin ese archivo, esa fuente no dice nada.
+    }
+  }
+  if (p.models.scan) {
+    for (const file of p.models.scan.files(binary)) {
+      // Solo el programa de verdad (pesa megas); un lanzador de texto no trae nada.
+      const size = await stat(file).then((s) => s.size, () => 0)
+      if (size < 1 << 20) continue
+      found.push(...p.models.scan.read(await scanFile(file, p.models.scan.pattern)))
+      break
     }
   }
   if (p.models.command) {

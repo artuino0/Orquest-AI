@@ -5,6 +5,7 @@
  * específico de un proveedor vive aquí y en ningún otro lado.
  */
 
+import { dirname, join } from 'node:path'
 export type ProviderId =
   | 'claude'
   | 'codex'
@@ -30,8 +31,14 @@ export interface ModelSource {
   list?: string[]
   /** Comando que los lista. */
   command?: { args: string[]; read(stdout: string): string[] }
-  /** Archivo (relativo a $HOME) con el modelo configurado por defecto. */
-  file?: { path: string; read(text: string): string[] }
+  /**
+   * Para la CLI que no lista sus modelos: los nombres que trae su propio
+   * programa. `files` da dónde puede estar a partir del lanzador encontrado;
+   * `read` recibe los nombres hallados y deja los que se ofrecen.
+   */
+  scan?: { files(binary: string): string[]; pattern: RegExp; read(found: string[]): string[] }
+  /** Archivos de la CLI (relativos a $HOME) que dicen qué modelos hay: su lista guardada, su configuración. */
+  files?: { path: string; read(text: string): string[] }[]
 }
 
 /** Primera palabra de cada renglón, si parece un id de modelo (trae guion o diagonal). */
@@ -181,6 +188,34 @@ function generic(
   }
 }
 
+/** Los modelos que Codex muestra en su selector, de la lista que guarda en disco. */
+export function codexModels(text: string): string[] {
+  try {
+    const { models } = JSON.parse(text) as { models?: { slug?: string; visibility?: string }[] }
+    return (models ?? []).filter((m) => m.slug && m.visibility === 'list').map((m) => m.slug!)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * De los nombres que trae el programa de Claude Code, los vigentes: de la 4.5
+ * en adelante, lo más nuevo primero. Los anteriores siguen ahí por
+ * compatibilidad, pero ya no se ofrecen.
+ */
+export function claudeModels(found: string[]): string[] {
+  const FAMILIES = ['fable', 'opus', 'sonnet', 'haiku']
+  const parse = (id: string) => {
+    const [, family, major, minor] = /^claude-(\w+)-(\d)-(\d)$/.exec(id) ?? []
+    return { id, family, version: Number(major) * 10 + Number(minor) }
+  }
+  return [...new Set(found)]
+    .map(parse)
+    .filter((m) => m.family && m.version >= 45)
+    .sort((a, b) => b.version - a.version || FAMILIES.indexOf(a.family) - FAMILIES.indexOf(b.family))
+    .map((m) => m.id)
+}
+
 /** Para las CLIs genéricas que sí reciben esfuerzo: con qué bandera (según su `--help`). */
 function withEffort(name: string, flag: string): Partial<ProviderAdapter> {
   const efforts: Effort[] = ['low', 'medium', 'high']
@@ -216,7 +251,16 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     login: 'claude auth login',
     install: { command: 'npm install -g @anthropic-ai/claude-code', url: 'https://docs.claude.com/en/docs/claude-code/setup' },
     // Alias que la propia CLI resuelve al modelo más nuevo de cada familia (ver `claude --help`).
-    models: { list: ['fable', 'opus', 'sonnet', 'haiku'] },
+    // No tiene comando de listado: además de los alias, los nombres completos que trae su programa.
+    models: {
+      list: ['fable', 'opus', 'sonnet', 'haiku'],
+      scan: {
+        // Instalada con npm el lanzador es un .cmd y el programa va junto, en node_modules.
+        files: (binary) => [binary, join(dirname(binary), 'node_modules', '@anthropic-ai', 'claude-code', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude')],
+        pattern: /claude-(?:fable|opus|sonnet|haiku)-\d-\d(?![\d-])/g,
+        read: claudeModels,
+      },
+    },
     efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
     buildArgs(o) {
       const args: string[] = []
@@ -278,9 +322,15 @@ ${stderr}`
     },
     login: 'codex login',
     install: { command: 'npm install -g @openai/codex', url: 'https://developers.openai.com/codex/cli' },
-    // No tiene comando de listado: se ofrece el que tengas configurado por defecto.
-    models: { file: { path: '.codex/config.toml', read: (t) => [/^model\s*=\s*"([^"]+)"/m.exec(t)?.[1]].filter((m): m is string => !!m) } },
-    efforts: ['low', 'medium', 'high'],
+    // No tiene comando de listado, pero guarda la lista que le da su servidor; primero va el que tengas por defecto.
+    models: {
+      files: [
+        { path: '.codex/config.toml', read: (t) => [/^model\s*=\s*"([^"]+)"/m.exec(t)?.[1]].filter((m): m is string => !!m) },
+        { path: '.codex/models_cache.json', read: codexModels },
+      ],
+    },
+    // Los que admiten todos sus modelos visibles (algunos tienen además uno propio más alto).
+    efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('-m', o.model)
