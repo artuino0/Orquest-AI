@@ -61,17 +61,25 @@ async function loadJournal() {
 const captures = ref<(Capture & { url?: string })[]>([])
 const urls = new Map<string, string>()
 const zoomed = ref<string | null>(null)
+/** true mientras se busca por primera vez: para no decir "no hay" antes de saberlo. */
+const searching = ref(false)
+const withUrls = (list: Capture[]) => list.map((c) => ({ ...c, url: urls.get(`${c.path}@${c.at}`) }))
 async function loadCaptures() {
   const id = e.value.id
+  if (!captures.value.length) searching.value = true
   const list = await window.orquest.captures(id).catch(() => [])
+  if (id !== e.value.id) return
+  searching.value = false
+  // Primero la lista (cada una dice "Cargando…") y luego las imágenes, una por una.
+  captures.value = withUrls(list)
   for (const c of list) {
     const key = `${c.path}@${c.at}`
-    if (!urls.has(key)) {
-      const img = await window.orquest.capture(id, c.path).catch(() => null)
-      if (img) urls.set(key, URL.createObjectURL(new Blob([img.bytes as BlobPart], { type: img.type })))
-    }
+    if (urls.has(key)) continue
+    const img = await window.orquest.capture(id, c.path).catch(() => null)
+    if (img) urls.set(key, URL.createObjectURL(new Blob([img.bytes as BlobPart], { type: img.type })))
+    else urls.set(key, '')
+    if (id === e.value.id) captures.value = withUrls(list)
   }
-  if (id === e.value.id) captures.value = list.map((c) => ({ ...c, url: urls.get(`${c.path}@${c.at}`) }))
 }
 onBeforeUnmount(() => urls.forEach((u) => URL.revokeObjectURL(u)))
 
@@ -166,9 +174,11 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       </div>
 
       <div v-if="tab === 'capturas'" class="shots">
-        <p v-if="!captures.length" class="dim pad">Aún no hay capturas. Aquí aparecen las imágenes que deje en su oficina al probar la app.</p>
-        <figure v-for="c in captures" :key="c.path" @click="zoomed = c.url ?? null">
+        <p v-if="searching" class="dim pad">Buscando capturas en su oficina…</p>
+        <p v-else-if="!captures.length" class="dim pad">Aún no hay capturas. Aquí aparecen las imágenes que deje en su oficina al probar la app.</p>
+        <figure v-for="c in captures" :key="c.path" @click="zoomed = c.url || null">
           <img v-if="c.url" :src="c.url" :alt="c.path" />
+          <div v-else class="wait">{{ c.url === '' ? 'No se pudo abrir' : 'Cargando…' }}</div>
           <figcaption :title="c.path">{{ c.path.split('/').pop() }} <small>{{ time(c.at) }}</small></figcaption>
         </figure>
         <div v-if="zoomed" class="zoomed" @click.stop="zoomed = null"><img :src="zoomed" alt="" /></div>
@@ -238,6 +248,7 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .shots .pad { grid-column: 1 / -1; }
 .shots figure { margin: 0; background: var(--bg); border: 2px solid var(--border); cursor: zoom-in; }
 .shots figure img { display: block; width: 100%; height: 120px; object-fit: cover; object-position: top; background: var(--surface); }
+.shots .wait { height: 120px; display: grid; place-items: center; font-size: 11px; color: var(--text-secondary); background: var(--surface); }
 .shots figcaption { padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 2px solid var(--border); }
 .shots small { color: var(--text-secondary); }
 .zoomed { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: var(--veil); cursor: zoom-out; }

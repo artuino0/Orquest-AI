@@ -148,14 +148,20 @@ export const useStudio = defineStore('studio', () => {
     employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(root)))
   }
 
-  /** Al abrir un proyecto que quedó con gente: vuelven todos a su escritorio, o se decide que no. */
+  /**
+   * Al abrir un proyecto que quedó con gente se pregunta si se retoma. Decir
+   * "ahora no" no despide a nadie: el equipo sigue contratado con sus
+   * terminales cerradas, y se puede retomar después desde el aviso de la oficina.
+   */
   const resuming = ref(false)
+  const resumeAsked = ref(false)
   async function resumeProject(yes: boolean) {
+    resumeAsked.value = true
+    if (!yes) return
     resuming.value = true
-    await attempt(() => (yes ? window.orquest.resumeProject() : window.orquest.skipResume()))
+    await attempt(() => window.orquest.resumeProject())
     await loadEmployees()
     resuming.value = false
-    if (!yes) overlay.value = 'boss'
   }
 
   async function openProject(path: string) {
@@ -172,6 +178,7 @@ export const useStudio = defineStore('studio', () => {
     const root = board.value.repo
     recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
     saveRecents(recents.value)
+    resumeAsked.value = false
     await loadEmployees()
     screen.value = 'office'
     // Si quedó gente al cerrar, primero se pregunta si se retoma; si no hay jefe, a contratarlo.
@@ -251,7 +258,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
-    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeProject,
+    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })

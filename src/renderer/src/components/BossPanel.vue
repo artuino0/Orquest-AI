@@ -94,7 +94,16 @@ const pending = computed(() => {
 
 <template>
   <!-- Sin jefe: contratarlo -->
-  <PanelFrame v-if="!studio.bossOnline" title="Contratar al Jefe" subtitle="Todavía no hay jefe en este proyecto" narrow>
+  <PanelFrame v-if="!studio.bossOnline && studio.board?.resumable.length" title="Jefe" subtitle="Contratado, con su terminal cerrada" narrow>
+    <div class="blank">
+      <h2>Tu jefe y su equipo siguen contratados</h2>
+      <p>Sus terminales están cerradas: {{ studio.board.resumable.join(', ') }}. Al retomar, cada quien vuelve a su escritorio con su conversación y lee el corte que dejó.</p>
+      <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)">{{ studio.resuming ? 'Volviendo…' : 'Retomar actividades' }}</button>
+      <p v-if="studio.error" class="err">{{ studio.error }}</p>
+    </div>
+  </PanelFrame>
+
+  <PanelFrame v-else-if="!studio.bossOnline" title="Contratar al Jefe" subtitle="Todavía no hay jefe en este proyecto" narrow>
     <p class="lead">
       El jefe es tu único interlocutor: recibe el objetivo, propone la plantilla, reparte tareas y revisa las entregas
       antes de que lleguen a tu bandeja.
