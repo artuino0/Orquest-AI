@@ -1,63 +1,73 @@
-# Comercial de Orquest AI — guion y storyboard
+# Avance de Orquest AI — guion y storyboard
 
-**Para qué:** conseguir gente que ayude a desarrollar Orquest AI. El código es abierto; cualquiera puede mandar un PR.
+**Para qué:** que se sepa que Orquest AI existe y que quien lo vea se quede con la intriga y entre al repositorio. No explica el producto: eso lo hace el README.
 
-**Duración:** 45 segundos (versión corta de 20 s al final).
-**Formato:** horizontal 16:9 para YouTube y el README; se recorta a vertical 9:16 para redes, porque la acción siempre queda al centro.
-**Tono:** quien lo hizo, contándolo en primera persona a un colega. Sin eslóganes, sin preguntas retóricas, sin "ven" ni "descubre". Dice lo que hace y lo que le falta.
-**Idea central:** *me perdía entre terminales, así que hice esto; le falta mucho y por eso lo abro.*
+**Duración:** 30 segundos.
+**Formato:** vertical 9:16 primero (redes); horizontal 16:9 para YouTube y el README.
+**Voz:** ElevenLabs, modelo Eleven v3, con una sola etiqueta de habla (`[curious]`) repetida en cada bloque para que no cambie de registro. Texto listo para pegar: [`promo/guion-elevenlabs.txt`](../promo/guion-elevenlabs.txt).
 
-**Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/` (17 pantallas a 2560×1600). Este documento es el guion; aquel, toma por toma con su imagen.
+**Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/` (17 pantallas a 2560×1600).
 
-**Regla de producción:** todo lo que se ve en pantalla es la app corriendo de verdad. Nada de maquetas: cada animación de Orquest es un estado real, y el comercial tiene que cumplir lo mismo que promete.
+---
+
+## Cómo engancha
+
+| Recurso | Dónde |
+| --- | --- |
+| Afirmación rara y cierta en el primer segundo | "Contraté a cuatro inteligencias artificiales. Y les puse oficina." |
+| Lo visual antes que el nombre | La oficina aparece de golpe, sin título ni logotipo |
+| Ritmo de tres | "Tienen jefe. Tienen escritorio. Tienen hora del café." |
+| Detalle concreto y un poco absurdo | "Otro acaba de entregar... y se fue a jugar." |
+| Enseñar menos de lo que se podría | El diff y el clic en Integrar duran medio segundo |
+| Reencuadre | "Nada de lo que se mueve es adorno. Todo... está pasando." |
+| El nombre hasta el final | Segundo 24 |
+| Cabo suelto en vez de resumen | "Entra a ver qué hacen cuando nadie los mira." |
 
 ---
 
 ## Storyboard
 
-| # | Tiempo | Qué se ve | Qué se oye (voz) | Texto en pantalla |
-| --- | --- | --- | --- | --- |
-| 1 | 0–4 s | Pantalla negra. Aparecen, una por una, cuatro terminales apiladas con texto corriendo. Se enciman, tapan todo. | "Trabajo con varios agentes de código a la vez. Uno en cada terminal." | — |
-| 2 | 4–8 s | Las terminales se encogen de golpe y caen dentro de un edificio en píxel. Corte a la oficina vacía de Orquest: cubículos sin gente, la calle afuera, de noche. | "Y me perdía: ya no sabía quién estaba haciendo qué." | — |
-| 3 | 8–13 s | Panel "Contratar al Jefe". Se escribe el objetivo: *"Tienda en línea con catálogo y pagos"*. Se elige un personaje. Clic en **Contratar jefe**. El jefe entra caminando y se sienta en su mesa. | "Así que hice esto: una oficina. Hay un jefe, y a él le digo qué quiero." | **Orquest AI** |
-| 4 | 13–19 s | Panel Plantilla: tres puestos propuestos, cada uno con su proveedor (Claude Code, Codex, Antigravity) y el motivo. Clic en **Aprobar**. Los empleados entran por la puerta y cada uno toma su cubículo; las sillas se separan del escritorio. | "Él propone quién hace cada cosa y con qué agente. Yo digo sí o no." | — |
-| 5 | 19–26 s | La oficina trabajando. Globos sobre los escritorios: "Editando api.ts", "Corriendo pruebas". Uno levanta la mano (✋). Clic en él: se abre su terminal real con la pregunta de permiso. | "Nada de lo que se mueve es adorno. Si alguien teclea, está trabajando. Si levanta la mano, me está esperando a mí." | — |
-| 6 | 26–32 s | Un empleado termina (✅), va a la impresora, toma su hoja y camina a la mesa del jefe. Corte al panel Entregas: reporte, veredicto de QA y el diff. Clic en **Integrar**. | "Cuando terminan me traen su entrega, y yo decido si entra al proyecto." | — |
-| 7 | 32–37 s | Cámara lenta sobre los detalles: el reloj de la pared marcando la hora real, alguien jugando en la maquinita, el jefe en su golfito, el gato dormido, un taxi pasando por la calle. | "También descansan. Eso lo puse porque me dio risa." | — |
-| 8 | 37–42 s | La oficina completa, de día. Sin letreros grandes: solo la oficina y, abajo, con qué está probado. | "Le falta mucho. Solo lo he probado bien con dos agentes, y en Windows." | *Probado: Claude Code y Codex · Windows* |
-| 9 | 42–45 s | Los empleados voltean a la cámara. Uno saluda. Queda el logotipo y la liga. | "Por eso abro el código. Si te da curiosidad, ahí está. Yo reviso cada PR." | **github.com/artuino0/Orquest-AI** · Apache 2.0 |
-
----
-
-## Guion de voz completo
-
-> Trabajo con varios agentes de código a la vez. Uno en cada terminal.
-> Y me perdía: ya no sabía quién estaba haciendo qué.
->
-> Así que hice esto: una oficina. Hay un jefe, y a él le digo qué quiero.
-> Él propone quién hace cada cosa y con qué agente. Yo digo sí o no.
->
-> Nada de lo que se mueve es adorno. Si alguien teclea, está trabajando. Si levanta la mano, me está esperando a mí.
->
-> Cuando terminan me traen su entrega, y yo decido si entra al proyecto.
->
-> También descansan. Eso lo puse porque me dio risa.
->
-> Le falta mucho. Solo lo he probado bien con dos agentes, y en Windows.
-> Por eso abro el código. Si te da curiosidad, ahí está. Yo reviso cada PR.
-
-Unas 105 palabras. Dicho como se lo contarías a un colega: sin prisa y sin subir la voz al final de las frases.
-
----
-
-## Versión de 20 segundos (para redes)
-
 | # | Tiempo | Qué se ve | Voz |
 | --- | --- | --- | --- |
-| 1 | 0–4 s | Las terminales apiladas caen dentro del edificio de píxel. | "Trabajo con varios agentes de código y me perdía entre terminales." |
-| 2 | 4–11 s | La oficina en plena jornada: globos de actividad, una mano levantada, alguien llevando su entrega al jefe. | "Hice una oficina para verlos. Lo que se mueve, está pasando." |
-| 3 | 11–16 s | Panel Entregas, clic en **Integrar**. | "Me traen su entrega y yo decido." |
-| 4 | 16–20 s | Oficina completa, logotipo y liga. | "Le falta mucho. El código está abierto." |
+| 1 | 0–4 s | De golpe: personajes de píxel en sus cubículos, moviéndose. | "Contraté a cuatro inteligencias artificiales. Y les puse oficina." |
+| 2 | 4–9 s | Tres cortes secos: la oficina del jefe, una fila de escritorios, la cafetería. | "Tienen jefe. Tienen escritorio. Tienen hora del café." |
+| 3 | 9–15 s | Uno con el globo de aviso sobre la cabeza. Corte: otro frente a la maquinita. | "Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar." |
+| 4 | 15–19 s | Medio segundo de diff en verde y rojo y un clic en **Integrar**. | "Yo solo veo. Y decido qué entra." |
+| 5 | 19–24 s | Por primera vez la oficina entera; la cámara se aleja despacio. | "Nada de lo que se mueve es adorno. Todo... está pasando." |
+| 6 | 24–27 s | Fondo oscuro y el nombre en letra de píxel. | "Se llama Orquest AI. El código está abierto." |
+| 7 | 27–30 s | La fila de personajes mirando al frente; abajo, la liga del repositorio. | "Entra a ver qué hacen cuando nadie los mira." |
+
+Único texto en pantalla: **github.com/artuino0/Orquest-AI**, en la toma 7.
+
+---
+
+## Guion para ElevenLabs
+
+```
+[curious] Contraté a cuatro inteligencias artificiales. Y les puse oficina.
+
+[curious] Tienen jefe. Tienen escritorio. Tienen hora del café.
+
+[curious] Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar.
+
+[curious] Yo solo veo. Y decido qué entra.
+
+[curious] Nada de lo que se mueve es adorno. Todo... está pasando.
+
+[curious] Se llama Orquest AI. El código está abierto.
+
+[curious] Entra a ver qué hacen cuando nadie los mira.
+```
+
+68 palabras. Los puntos suspensivos marcan las dos pausas. Las etiquetas entre corchetes las interpreta Eleven v3; un modelo anterior las leería en voz alta.
+
+### Otros ganchos para probar
+
+Solo cambia la primera línea; sirve para publicar dos versiones y ver cuál retiene más.
+
+- `[curious] Hay una oficina donde nadie es humano. Y se trabaja.`
+- `[curious] Me fui a dormir. La oficina siguió trabajando.`
+- `[curious] Este de aquí acaba de pedirme permiso. No es una persona.`
 
 ---
 
@@ -76,7 +86,7 @@ Todo sale de la app, sin montar nada aparte:
 
 Para ensayar sin gastar una sola CLI sirve la vista previa: `npx vite src/renderer` y abrir `/preview.html?proyecto=1` (con `&rapido=1` todo va cinco veces más rápido y `&jefe=0` arranca sin jefe). Para la versión final conviene grabar una sesión real: se nota en las terminales.
 
-**Música:** chiptune suave, sin letra, que suba en la toma 5 y se abra en la 8. Licencia libre (CC0 o CC-BY con su crédito).
+**Música:** chiptune suave, sin letra, baja bajo la voz; se abre en la toma 5 y se corta en seco en la 6. Licencia libre (CC0 o CC-BY con su crédito).
 **Sonidos:** un clic por cada botón, un "ding" al integrar, pasos muy bajos cuando caminan.
 
 ---
@@ -85,9 +95,9 @@ Para ensayar sin gastar una sola CLI sirve la vista previa: `npx vite src/render
 
 Orquest AI está en desarrollo. Para no decepcionar a quien llegue por el video:
 
-- No decir que funciona con todas las CLIs por igual: hoy el camino completo está probado con Claude Code y Codex; las demás se conectan pero falta probarlas a fondo.
 - No mostrar funciones que aún no existen (uso por cuenta, reporte de mercado, modo móvil).
-- Decir claro que es temprano: eso es justo lo que invita a contribuir.
+- "Cuatro" son los agentes que ya se levantaron en la app: Claude Code, Codex, Antigravity y OpenCode. El avance no los nombra.
+- Lo que falta va en el README, para quien ya entró; el avance no lo dice.
 
 ## Qué pedirle a quien quiera ayudar
 
