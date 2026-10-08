@@ -1,13 +1,73 @@
-[curious] Contraté a cuatro inteligencias artificiales. Y les puse oficina.
+GUION PARA ELEVENLABS (Eleven v3) · dos voces · unos 60 segundos
 
-[curious] Tienen jefe. Tienen escritorio. Tienen hora del café.
+Cada voz lleva una sola etiqueta, siempre la misma:
+  ELLA   = [casual]
+  JHONNY = [friendly]
 
-[curious] Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar.
+"ELLA:" y "JHONNY:" solo dicen de quién es la línea: no se pegan, o se leerían
+en voz alta. En "Text to Dialogue" cada línea va con su voz, en este orden.
+Abajo vienen las mismas líneas separadas por voz, por si se generan aparte.
 
-[curious] Yo solo veo. Y decido qué entra.
+────────────────────────────────────────
+DIÁLOGO EN ORDEN
+────────────────────────────────────────
 
-[curious] Nada de lo que se mueve es adorno. Todo... está pasando.
+ELLA: [casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
 
-[curious] Se llama Orquest AI. El código está abierto.
+ELLA: [casual] Esto es Orquest.
 
-[curious] Entra a ver qué hacen cuando nadie los mira.
+ELLA: [casual] Hola, Jhonny.
+
+JHONNY: [friendly] Hola. ¿Qué necesitas?
+
+ELLA: [casual] Hagamos una tienda en línea.
+
+JHONNY: [friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
+
+JHONNY: [friendly] ¿Por dónde empezamos?
+
+ELLA: [casual] Comienza con el login.
+
+JHONNY: [friendly] Va. Ya lo repartí.
+
+JHONNY: [friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
+
+ELLA: [casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
+
+JHONNY: [friendly] Ya va de vuelta a su escritorio.
+
+ELLA: [casual] Orquest AI. El código está abierto.
+
+────────────────────────────────────────
+SOLO ELLA (voz 1)
+────────────────────────────────────────
+
+[casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
+
+[casual] Esto es Orquest.
+
+[casual] Hola, Jhonny.
+
+[casual] Hagamos una tienda en línea.
+
+[casual] Comienza con el login.
+
+[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
+
+[casual] Orquest AI. El código está abierto.
+
+────────────────────────────────────────
+SOLO JHONNY (voz 2)
+────────────────────────────────────────
+
+[friendly] Hola. ¿Qué necesitas?
+
+[friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
+
+[friendly] ¿Por dónde empezamos?
+
+[friendly] Va. Ya lo repartí.
+
+[friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
+
+[friendly] Ya va de vuelta a su escritorio.

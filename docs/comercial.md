@@ -1,27 +1,12 @@
-# Avance de Orquest AI — guion y storyboard
+# Comercial de Orquest AI — guion y storyboard
 
-**Para qué:** que se sepa que Orquest AI existe y que quien lo vea se quede con la intriga y entre al repositorio. No explica el producto: eso lo hace el README.
+**Para qué:** que se sepa que Orquest AI existe y dé ganas de entrar al repositorio.
 
-**Duración:** 30 segundos.
-**Formato:** vertical 9:16 primero (redes); horizontal 16:9 para YouTube y el README.
-**Voz:** ElevenLabs, modelo Eleven v3, con una sola etiqueta de habla (`[curious]`) repetida en cada bloque para que no cambie de registro. Texto listo para pegar: [`promo/guion-elevenlabs.txt`](../promo/guion-elevenlabs.txt).
+**Forma:** una conversación. Ella (la usuaria) le habla a Jhonny, el jefe, y la oficina hace lo que platican: de la idea a la entrega, con un error incluido.
+**Duración:** 60 segundos.
+**Voz:** ElevenLabs, modelo Eleven v3, dos voces con una sola etiqueta cada una: Ella `[casual]`, Jhonny `[friendly]`. Texto listo para pegar, en orden y separado por voz: [`promo/guion-elevenlabs.txt`](../promo/guion-elevenlabs.txt).
 
-**Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/` (17 pantallas a 2560×1600).
-
----
-
-## Cómo engancha
-
-| Recurso | Dónde |
-| --- | --- |
-| Afirmación rara y cierta en el primer segundo | "Contraté a cuatro inteligencias artificiales. Y les puse oficina." |
-| Lo visual antes que el nombre | La oficina aparece de golpe, sin título ni logotipo |
-| Ritmo de tres | "Tienen jefe. Tienen escritorio. Tienen hora del café." |
-| Detalle concreto y un poco absurdo | "Otro acaba de entregar... y se fue a jugar." |
-| Enseñar menos de lo que se podría | El diff y el clic en Integrar duran medio segundo |
-| Reencuadre | "Nada de lo que se mueve es adorno. Todo... está pasando." |
-| El nombre hasta el final | Segundo 24 |
-| Cabo suelto en vez de resumen | "Entra a ver qué hacen cuando nadie los mira." |
+**Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/`.
 
 ---
 
@@ -29,45 +14,23 @@
 
 | # | Tiempo | Qué se ve | Voz |
 | --- | --- | --- | --- |
-| 1 | 0–4 s | De golpe: personajes de píxel en sus cubículos, moviéndose. | "Contraté a cuatro inteligencias artificiales. Y les puse oficina." |
-| 2 | 4–9 s | Tres cortes secos: la oficina del jefe, una fila de escritorios, la cafetería. | "Tienen jefe. Tienen escritorio. Tienen hora del café." |
-| 3 | 9–15 s | Uno con el globo de aviso sobre la cabeza. Corte: otro frente a la maquinita. | "Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar." |
-| 4 | 15–19 s | Medio segundo de diff en verde y rojo y un clic en **Integrar**. | "Yo solo veo. Y decido qué entra." |
-| 5 | 19–24 s | Por primera vez la oficina entera; la cámara se aleja despacio. | "Nada de lo que se mueve es adorno. Todo... está pasando." |
-| 6 | 24–27 s | Fondo oscuro y el nombre en letra de píxel. | "Se llama Orquest AI. El código está abierto." |
-| 7 | 27–30 s | La fila de personajes mirando al frente; abajo, la liga del repositorio. | "Entra a ver qué hacen cuando nadie los mira." |
+| 1 | 0–7 s | Terminales que se enciman; caen tres recibos de suscripción. | **Ella:** "¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho." |
+| 2 | 7–10 s | Las terminales caen dentro del edificio. Oficina vacía y el nombre. | **Ella:** "Esto es Orquest." |
+| 3 | 10–17 s | Jhonny entra y se sienta. Chat: cada frase sale como burbuja mientras se oye. | **Ella:** "Hola, Jhonny." · **Jhonny:** "Hola. ¿Qué necesitas?" · **Ella:** "Hagamos una tienda en línea." |
+| 4 | 17–27 s | Una ficha por nombre: personaje, nombre, proveedor, modelo, esfuerzo y puesto. Luego los cuatro entran y toman su cubículo. | **Jhonny:** "Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario." |
+| 5 | 27–34 s | El chat marca "planeando…". Tablero: tres tarjetas; la de QA espera a las otras. | **Jhonny:** "¿Por dónde empezamos?" · **Ella:** "Comienza con el login." · **Jhonny:** "Va. Ya lo repartí." |
+| 6 | 34–42 s | Sin voz. Teclean, globos de actividad, pasan por la impresora y llevan su hoja a Jhonny. | — |
+| 7 | 42–54 s | Entregas: dos sellos verdes; en la tercera, veredicto de QA en rojo y clic en Devolver. Pablo regresa a su cubículo; Cinthya y Juan se van a la sala de juegos. | **Jhonny:** "Ya entregaron. Mario encontró un error en lo de Pablo." · **Ella:** "Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso." · **Jhonny:** "Ya va de vuelta a su escritorio." |
+| 8 | 54–60 s | La cámara se aleja: oficina entera, Pablo tecleando solo. Nombre y liga. | **Ella:** "Orquest AI. El código está abierto." |
 
-Único texto en pantalla: **github.com/artuino0/Orquest-AI**, en la toma 7.
+Fichas de la toma 4: Cinthya (Claude Code, backend), Juan (Codex, frontend), Pablo (Antigravity, frontend), Mario (OpenCode, QA). Modelo y esfuerzo se copian de lo que liste la app el día de grabar.
 
----
+## Antes de producir
 
-## Guion para ElevenLabs
-
-```
-[curious] Contraté a cuatro inteligencias artificiales. Y les puse oficina.
-
-[curious] Tienen jefe. Tienen escritorio. Tienen hora del café.
-
-[curious] Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar.
-
-[curious] Yo solo veo. Y decido qué entra.
-
-[curious] Nada de lo que se mueve es adorno. Todo... está pasando.
-
-[curious] Se llama Orquest AI. El código está abierto.
-
-[curious] Entra a ver qué hacen cuando nadie los mira.
-```
-
-68 palabras. Los puntos suspensivos marcan las dos pausas. Las etiquetas entre corchetes las interpreta Eleven v3; un modelo anterior las leería en voz alta.
-
-### Otros ganchos para probar
-
-Solo cambia la primera línea; sirve para publicar dos versiones y ver cuál retiene más.
-
-- `[curious] Hay una oficina donde nadie es humano. Y se trabaja.`
-- `[curious] Me fui a dormir. La oficina siguió trabajando.`
-- `[curious] Este de aquí acaba de pedirme permiso. No es una persona.`
+- La app pone nombres de su propia lista: para que salgan Jhonny, Cinthya, Juan, Pablo y Mario hay que grabar con esos nombres puestos.
+- "Devolver" es rechazar la entrega con comentario; el empleado vuelve a trabajar. El gesto de agachar la cabeza no existe todavía.
+- "Tres suscripciones" es un número de ejemplo.
+- Las tomas de oficina (6, 7 y 8) se graban de la app: en el diseño los personajes no se mueven.
 
 ---
 

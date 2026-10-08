@@ -3,28 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Orquest AI · Storyboard del avance</title>
+<title>Orquest AI · Storyboard</title>
 <style>
-  :root { --bg: #15121b; --surface: #221d2c; --surface-2: #2f2839; --border: #08070b; --text: #f4eadb; --dim: #a89db6; --accent: #f2b544; --blue: #4c9bf5; --green: #5fcb6b; }
+  :root { --bg: #15121b; --surface: #221d2c; --surface-2: #2f2839; --border: #08070b; --text: #f4eadb; --dim: #a89db6; --accent: #f2b544; --blue: #4c9bf5; --green: #5fcb6b; --red: #f0524f; --pink: #f08fc0; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace; }
   main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
   h1 { margin: 0; font-size: 30px; color: var(--accent); letter-spacing: 1px; }
   h2 { margin: 44px 0 14px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
   p { margin: 0 0 10px; }
-  .lead { color: var(--dim); max-width: 780px; }
+  .lead { color: var(--dim); max-width: 800px; }
   .facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
   .facts span { padding: 4px 10px; background: var(--surface); border: 2px solid var(--border); box-shadow: 2px 2px 0 #000a; font-size: 12px; }
   .facts b { color: var(--accent); }
-  .note { margin: 18px 0 0; padding: 12px 14px; background: #33280f; border: 2px solid var(--accent); font-size: 13px; }
+  .act { margin: 34px 0 12px; padding: 4px 10px; display: inline-block; background: var(--accent); color: #1b1408; font-weight: 700; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; }
   .scene { display: grid; grid-template-columns: 440px 1fr; gap: 18px; margin-bottom: 16px; padding: 14px; background: var(--surface); border: 3px solid var(--border); box-shadow: 4px 4px 0 #000a; align-items: start; }
   .shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; border: 2px solid var(--border); }
   .shot img { position: absolute; width: 100%; height: 100%; object-fit: cover; }
-  /* Acercamientos: la misma pantalla, encuadrada en un detalle. */
   .shot.z img { width: 300%; height: 300%; max-width: none; }
   .shot .tag { position: absolute; left: 6px; top: 6px; padding: 1px 6px; font-size: 10px; background: #000c; color: var(--accent); border: 1px solid var(--accent); z-index: 1; }
-  .shot.made { display: grid; place-items: center; background: #000; color: var(--accent); font-size: 26px; font-weight: 700; letter-spacing: 2px; }
+  .shot.made { display: grid; place-items: center; padding: 14px; color: var(--green); font-size: 11px; line-height: 1.5; }
+  .shot.made pre { margin: 0; white-space: pre-wrap; background: none; border: 0; padding: 0; }
+  .shot.name { color: var(--accent); font-size: 26px; font-weight: 700; letter-spacing: 2px; }
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .card { padding: 8px 10px; background: var(--surface-2); border: 2px solid var(--border); font-size: 11px; line-height: 1.5; }
+  .card b { display: block; font-size: 14px; color: var(--accent); }
+  .card i { font-style: normal; color: var(--dim); }
   .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
   .n { font-size: 22px; font-weight: 700; color: var(--accent); }
   .t { padding: 1px 8px; font-size: 11px; color: var(--blue); border: 2px solid currentColor; }
@@ -32,8 +37,8 @@
   dl { margin: 0; display: grid; grid-template-columns: 78px 1fr; gap: 4px 10px; font-size: 13px; }
   dt { color: var(--dim); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding-top: 3px; }
   dd { margin: 0; }
-  .vo { font-style: italic; }
-  .why { color: var(--green); font-size: 12px; }
+  .ella { color: var(--pink); } .jh { color: var(--blue); }
+  .ella::before { content: "ELLA  "; font-size: 10px; letter-spacing: 1px; } .jh::before { content: "JHONNY  "; font-size: 10px; letter-spacing: 1px; }
   .src { color: var(--dim); font-size: 12px; }
   pre { margin: 0; padding: 16px 18px; background: var(--surface); border-left: 4px solid var(--accent); white-space: pre-wrap; font: inherit; }
   table { width: 100%; border-collapse: collapse; background: var(--surface); border: 2px solid var(--border); font-size: 13px; }
@@ -46,144 +51,177 @@
 <body>
 <main>
   <h1>ORQUEST AI</h1>
-  <p class="lead">Avance de 30 segundos. No explica el producto: enseña que existe y deja con ganas de entrar a ver. Pantallas del diseño en Pencil, exportadas a <code>promo/pen/</code>.</p>
+  <p class="lead">Comercial en forma de conversación: ella le habla a Jhonny, el jefe, y la oficina hace lo que platican. Un minuto, de principio a fin de una tarea, con un error incluido.</p>
   <div class="facts">
-    <span><b>30 s</b> · vertical 9:16 primero, 16:9 después</span>
-    <span>Voz: <b>ElevenLabs v3</b>, una sola etiqueta: <b>[curious]</b></span>
-    <span>Objetivo: <b>que busquen el repo</b></span>
+    <span><b>60 s</b></span>
+    <span>Dos voces en ElevenLabs v3: Ella <b>[casual]</b> · Jhonny <b>[friendly]</b></span>
+    <span>Texto para pegar: <b>promo/guion-elevenlabs.txt</b></span>
   </div>
-  <p class="note"><b>Cómo engancha:</b> abre con una frase rara y cierta, enseña cosas sin explicarlas, no dice para qué sirve hasta el final y cierra con una pregunta que solo se contesta entrando. Cada toma dice qué recurso usa.</p>
 
-  <h2>Storyboard · 30 segundos</h2>
+  <div class="act">Acto 1 · El gancho</div>
 
   <section class="scene">
-    <div class="shot z"><img src="pen/06-oficina.png" alt="" style="left:-60%;top:-70%"><span class="tag">06-oficina · acercamiento</span></div>
+    <div class="shot made"><pre>$ claude ▌        $ codex ▌
+$ agy ▌           $ opencode ▌
+
+  cuatro terminales encimadas
+  + tres cobros: $20 · $20 · $20</pre></div>
     <div>
-      <div class="head"><span class="n">1</span><span class="t">0–4 s</span><h3>Gancho</h3></div>
+      <div class="head"><span class="n">1</span><span class="t">0–7 s</span><h3>El dolor</h3></div>
       <dl>
-        <dt>Se ve</dt><dd>De golpe, sin título ni logotipo: personajes de píxel en sus cubículos, moviéndose. Lo raro va en el primer cuadro.</dd>
-        <dt>Voz</dt><dd class="vo">Contraté a cuatro inteligencias artificiales. Y les puse oficina.</dd>
-        <dt>Recurso</dt><dd class="why">Afirmación extraña y cierta + lo visual antes que el nombre. Quien desliza se detiene porque no entiende qué está viendo.</dd>
+        <dt>Se ve</dt><dd>Terminales que se enciman hasta tapar la pantalla. Encima caen tres recibos de suscripción, uno por uno.</dd>
+        <dt>Voz</dt><dd class="ella">¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.</dd>
+        <dt>Origen</dt><dd class="src">No está en el pen: se arma con tipografía y los colores del diseño.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/03-oficina-vacia.png" alt=""><span class="tag">03-oficina-vacia</span></div>
+    <div>
+      <div class="head"><span class="n">2</span><span class="t">7–10 s</span><h3>El giro</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Las terminales se encogen y caen dentro del edificio. Queda la oficina, vacía, con el nombre encima.</dd>
+        <dt>Voz</dt><dd class="ella">Esto es Orquest.</dd>
+        <dt>Sonido</dt><dd>El ruido de teclas se corta en seco; entra la música.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <div class="act">Acto 2 · Conoce a Jhonny</div>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/09-jefe-chat.png" alt=""><span class="tag">09-jefe-chat</span></div>
+    <div>
+      <div class="head"><span class="n">3</span><span class="t">10–17 s</span><h3>El saludo</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Jhonny entra caminando y se sienta en su mesa de madera. Se abre el chat; cada frase aparece como burbuja al mismo tiempo que se oye.</dd>
+        <dt>Voz</dt><dd class="ella">Hola, Jhonny.</dd>
+        <dt></dt><dd class="jh">Hola. ¿Qué necesitas?</dd>
+        <dt></dt><dd class="ella">Hagamos una tienda en línea.</dd>
+        <dt>Detalle</dt><dd>Mientras ella habla, el chat marca «Jhonny · pensando…».</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="scene">
+    <div>
+      <div class="cards">
+        <div class="card"><b>Cinthya</b>Claude Code · opus<br>esfuerzo alto<br><i>→ Backend</i></div>
+        <div class="card"><b>Juan</b>Codex · su modelo<br>esfuerzo medio<br><i>→ Frontend</i></div>
+        <div class="card"><b>Pablo</b>Antigravity · su modelo<br>esfuerzo medio<br><i>→ Frontend</i></div>
+        <div class="card"><b>Mario</b>OpenCode · su modelo<br>esfuerzo alto<br><i>→ QA</i></div>
+      </div>
+      <div class="shot" style="margin-top:6px"><img src="pen/05-plantilla.png" alt=""><span class="tag">05-plantilla</span></div>
+    </div>
+    <div>
+      <div class="head"><span class="n">4</span><span class="t">17–27 s</span><h3>El equipo</h3></div>
+      <dl>
+        <dt>Se ve</dt><dd>Al decir cada nombre entra su ficha con un golpe: personaje, nombre, proveedor, modelo, esfuerzo y puesto. Después de la cuarta, los cuatro cruzan la puerta y cada uno camina a su cubículo; las sillas se separan del escritorio.</dd>
+        <dt>Voz</dt><dd class="jh">Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.</dd>
+        <dt>Ritmo</dt><dd>Una ficha por nombre, a tiempo con la voz. Es la toma que enseña que cada empleado es una IA distinta.</dd>
+        <dt>Origen</dt><dd class="src">Las fichas se arman con el estilo de la tabla de Plantilla. Modelo y esfuerzo se copian de lo que liste la app el día de grabar, no se inventan.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <div class="act">Acto 3 · A trabajar</div>
+
+  <section class="scene">
+    <div class="shot"><img src="pen/10-tablero.png" alt=""><span class="tag">10-tablero</span></div>
+    <div>
+      <div class="head"><span class="n">5</span><span class="t">27–34 s</span><h3>La orden y el plan</h3></div>
+      <dl>
+        <dt>Voz</dt><dd class="jh">¿Por dónde empezamos?</dd>
+        <dt></dt><dd class="ella">Comienza con el login.</dd>
+        <dt></dt><dd class="jh">Va. Ya lo repartí.</dd>
+        <dt>Se ve</dt><dd>El chat marca «planeando…». Corte al Tablero: aparecen tres tarjetas, una por área, y la de QA queda esperando a las otras.</dd>
       </dl>
     </div>
   </section>
 
   <section class="scene">
     <div class="pair">
-      <div class="shot z"><img src="pen/06-oficina.png" alt="" style="left:0%;top:-55%"><span class="tag">el jefe</span></div>
-      <div class="shot z"><img src="pen/06-oficina.png" alt="" style="left:-195%;top:-150%"><span class="tag">cafetería</span></div>
+      <div class="shot z"><img src="pen/06-oficina.png" alt="" style="left:-60%;top:-70%"><span class="tag">06-oficina · tecleando</span></div>
+      <div class="shot"><img src="pen/06-oficina.png" alt=""><span class="tag">06-oficina · completa</span></div>
     </div>
     <div>
-      <div class="head"><span class="n">2</span><span class="t">4–9 s</span><h3>Tres vistazos</h3></div>
+      <div class="head"><span class="n">6</span><span class="t">34–42 s</span><h3>La jornada</h3></div>
       <dl>
-        <dt>Se ve</dt><dd>Tres cortes secos, uno por frase: la oficina del jefe, una fila de escritorios, la cafetería.</dd>
-        <dt>Voz</dt><dd class="vo">Tienen jefe. Tienen escritorio. Tienen hora del café.</dd>
-        <dt>Recurso</dt><dd class="why">Ritmo de tres. Frases cortas que suenan a oficina normal aplicadas a algo que no lo es: la extrañeza crece sin explicar nada.</dd>
+        <dt>Se ve</dt><dd>Sin voz. Monitores encendidos, globos de lo que hace cada quien («Editando login.ts», «Corriendo pruebas»). Uno termina, pasa por la impresora, toma su hoja y la lleva a la mesa de Jhonny. Luego otro. Luego el tercero.</dd>
+        <dt>Sonido</dt><dd>Solo música y tecleo. Ocho segundos de respiro: aquí se ve el ambiente.</dd>
+        <dt>Origen</dt><dd class="src">Grabar de la app real: en el pen los personajes no se mueven.</dd>
       </dl>
     </div>
   </section>
+
+  <div class="act">Acto 4 · Uno falló</div>
 
   <section class="scene">
     <div class="pair">
-      <div class="shot z"><img src="pen/06-oficina.png" alt="" style="left:-40%;top:-75%"><span class="tag">mano levantada</span></div>
-      <div class="shot z"><img src="pen/15-sprites-estados.png" alt="" style="left:0%;top:-165%"><span class="tag">jugando</span></div>
+      <div class="shot"><img src="pen/11-entregas.png" alt=""><span class="tag">11-entregas</span></div>
+      <div class="shot"><img src="pen/12-entregas-conflicto.png" alt=""><span class="tag">12-entregas-conflicto</span></div>
     </div>
     <div>
-      <div class="head"><span class="n">3</span><span class="t">9–15 s</span><h3>Se portan como gente</h3></div>
+      <div class="head"><span class="n">7</span><span class="t">42–54 s</span><h3>Dos pasan, uno regresa</h3></div>
       <dl>
-        <dt>Se ve</dt><dd>Un personaje con el globo de aviso sobre la cabeza. Corte: otro, con el mando, frente a la maquinita.</dd>
-        <dt>Voz</dt><dd class="vo">Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar.</dd>
-        <dt>Recurso</dt><dd class="why">Detalle concreto y un poco absurdo. La pausa antes de «y se fue a jugar» es el momento que la gente repite al compartirlo.</dd>
+        <dt>Voz</dt><dd class="jh">Ya entregaron. Mario encontró un error en lo de Pablo.</dd>
+        <dt></dt><dd class="ella">Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.</dd>
+        <dt></dt><dd class="jh">Ya va de vuelta a su escritorio.</dd>
+        <dt>Se ve</dt><dd>Panel Entregas con tres filas. Clic, clic: dos sellos verdes. En la tercera, el veredicto de QA en rojo; clic en «Devolver». Corte a la oficina: Pablo agacha la cabeza, camina a su cubículo y vuelve a teclear. Cinthya y Juan se van a la sala de juegos.</dd>
+        <dt>Por qué</dt><dd>Es el momento que lo hace creíble: no todo sale bien, y quien decide es ella.</dd>
       </dl>
     </div>
   </section>
 
   <section class="scene">
-    <div class="shot"><img src="pen/11-entregas.png" alt=""><span class="tag">11-entregas</span></div>
+    <div class="shot made name">ORQUEST AI</div>
     <div>
-      <div class="head"><span class="n">4</span><span class="t">15–19 s</span><h3>Quién manda</h3></div>
+      <div class="head"><span class="n">8</span><span class="t">54–60 s</span><h3>Cierre</h3></div>
       <dl>
-        <dt>Se ve</dt><dd>Medio segundo de código en verde y rojo y un clic en «Integrar». No da tiempo de leer, y así debe ser.</dd>
-        <dt>Voz</dt><dd class="vo">Yo solo veo. Y decido qué entra.</dd>
-        <dt>Recurso</dt><dd class="why">Primera pista de que es una herramienta de trabajo y no un juego, sin decirlo. Se enseña menos de lo que se podría.</dd>
-      </dl>
-    </div>
-  </section>
-
-  <section class="scene">
-    <div class="shot"><img src="pen/06-oficina.png" alt=""><span class="tag">06-oficina · completa</span></div>
-    <div>
-      <div class="head"><span class="n">5</span><span class="t">19–24 s</span><h3>La vuelta</h3></div>
-      <dl>
-        <dt>Se ve</dt><dd>Por primera vez la oficina entera, con todos trabajando. La cámara se aleja despacio.</dd>
-        <dt>Voz</dt><dd class="vo">Nada de lo que se mueve es adorno. Todo... está pasando.</dd>
-        <dt>Recurso</dt><dd class="why">Reencuadre: lo que parecía caricatura resulta ser real. Es la frase que cambia cómo se entiende todo lo anterior.</dd>
-      </dl>
-    </div>
-  </section>
-
-  <section class="scene">
-    <div class="shot made">ORQUEST AI</div>
-    <div>
-      <div class="head"><span class="n">6</span><span class="t">24–27 s</span><h3>El nombre, hasta ahora</h3></div>
-      <dl>
-        <dt>Se ve</dt><dd>Fondo oscuro, el nombre en letra de píxel. Nada más.</dd>
-        <dt>Voz</dt><dd class="vo">Se llama Orquest AI. El código está abierto.</dd>
-        <dt>Recurso</dt><dd class="why">El nombre llega cuando ya hay curiosidad por saberlo. «Abierto» dice que se puede entrar hoy, sin pedir nada.</dd>
-      </dl>
-    </div>
-  </section>
-
-  <section class="scene">
-    <div class="shot z"><img src="pen/01-inicio.png" alt="" style="left:-5%;top:-5%"><span class="tag">01-inicio · personajes</span></div>
-    <div>
-      <div class="head"><span class="n">7</span><span class="t">27–30 s</span><h3>Cabo suelto</h3></div>
-      <dl>
-        <dt>Se ve</dt><dd>La fila de personajes mirando al frente. Abajo, chica, la dirección del repositorio.</dd>
-        <dt>Voz</dt><dd class="vo">Entra a ver qué hacen cuando nadie los mira.</dd>
+        <dt>Se ve</dt><dd>La cámara se aleja hasta ver la oficina entera, con Pablo tecleando solo. Funde a fondo oscuro con el nombre y la liga.</dd>
+        <dt>Voz</dt><dd class="ella">Orquest AI. El código está abierto.</dd>
         <dt>Texto</dt><dd><b style="color:var(--accent)">github.com/artuino0/Orquest-AI</b></dd>
-        <dt>Recurso</dt><dd class="why">Cierra con una pregunta abierta en vez de un resumen. La única forma de contestarla es ir al repo.</dd>
+        <dt>Créditos</dt><dd class="src">Arte: Pixel Office, de 2dPig.</dd>
       </dl>
     </div>
   </section>
 
   <h2>Guion para ElevenLabs</h2>
-  <pre>[curious] Contraté a cuatro inteligencias artificiales. Y les puse oficina.
+  <pre><span class="ella"></span>[casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
+<span class="ella"></span>[casual] Esto es Orquest.
+<span class="ella"></span>[casual] Hola, Jhonny.
+<span class="jh"></span>[friendly] Hola. ¿Qué necesitas?
+<span class="ella"></span>[casual] Hagamos una tienda en línea.
+<span class="jh"></span>[friendly] Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario.
+<span class="jh"></span>[friendly] ¿Por dónde empezamos?
+<span class="ella"></span>[casual] Comienza con el login.
+<span class="jh"></span>[friendly] Va. Ya lo repartí.
+<span class="jh"></span>[friendly] Ya entregaron. Mario encontró un error en lo de Pablo.
+<span class="ella"></span>[casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
+<span class="jh"></span>[friendly] Ya va de vuelta a su escritorio.
+<span class="ella"></span>[casual] Orquest AI. El código está abierto.</pre>
+  <p class="src" style="margin-top:10px">Una etiqueta por voz, siempre la misma. Los nombres ELLA y JHONNY no se pegan: solo dicen qué voz lleva la línea. El archivo <code>promo/guion-elevenlabs.txt</code> trae también las líneas separadas por voz.</p>
 
-[curious] Tienen jefe. Tienen escritorio. Tienen hora del café.
-
-[curious] Uno levanta la mano cuando me necesita. Otro acaba de entregar... y se fue a jugar.
-
-[curious] Yo solo veo. Y decido qué entra.
-
-[curious] Nada de lo que se mueve es adorno. Todo... está pasando.
-
-[curious] Se llama Orquest AI. El código está abierto.
-
-[curious] Entra a ver qué hacen cuando nadie los mira.</pre>
-  <p class="src" style="margin-top:10px">68 palabras, en <code>promo/guion-elevenlabs.txt</code> listo para pegar. Una sola etiqueta, la misma en cada bloque, para que la voz no cambie de registro. Las etiquetas entre corchetes las interpreta el modelo Eleven v3; con modelos anteriores se leerían en voz alta. Los puntos suspensivos marcan las dos pausas.</p>
-
-  <h2>Otros ganchos para probar</h2>
+  <h2>Tiempos</h2>
   <table>
-    <tr><th>Primera frase</th><th>Recurso</th></tr>
-    <tr><td class="vo">[curious] Hay una oficina donde nadie es humano. Y se trabaja.</td><td>Contradicción: «oficina» y «nadie humano» no deberían ir juntos.</td></tr>
-    <tr><td class="vo">[curious] Me fui a dormir. La oficina siguió trabajando.</td><td>Escena concreta y personal; deja la duda de quién se quedó.</td></tr>
-    <tr><td class="vo">[curious] Este de aquí acaba de pedirme permiso. No es una persona.</td><td>Señalar algo en pantalla y soltar el dato después.</td></tr>
+    <tr><th>Toma</th><th>Tiempo</th><th>Voz</th><th>Pantalla</th></tr>
+    <tr><td>1</td><td>0–7 s</td><td>Ella</td><td>Terminales y recibos (se arma)</td></tr>
+    <tr><td>2</td><td>7–10 s</td><td>Ella</td><td>03-oficina-vacia</td></tr>
+    <tr><td>3</td><td>10–17 s</td><td>Ella · Jhonny · Ella</td><td>09-jefe-chat</td></tr>
+    <tr><td>4</td><td>17–27 s</td><td>Jhonny</td><td>Fichas + 05-plantilla</td></tr>
+    <tr><td>5</td><td>27–34 s</td><td>Jhonny · Ella · Jhonny</td><td>09-jefe-chat → 10-tablero</td></tr>
+    <tr><td>6</td><td>34–42 s</td><td>—</td><td>Oficina en la app real</td></tr>
+    <tr><td>7</td><td>42–54 s</td><td>Jhonny · Ella · Jhonny</td><td>11-entregas → oficina</td></tr>
+    <tr><td>8</td><td>54–60 s</td><td>Ella</td><td>Oficina completa → nombre</td></tr>
   </table>
-  <p class="src" style="margin-top:10px">El resto del guion queda igual: solo cambia la primera línea. Sirve para publicar dos versiones y ver cuál retiene más.</p>
 
-  <h2>Lo que este avance no dice, a propósito</h2>
+  <h2>Antes de producir</h2>
   <ul>
-    <li>Qué es un orquestador, ni cómo se instala.</li>
-    <li>Con qué agentes funciona. «Cuatro» basta: son los que ya has levantado (Claude Code, Codex, Antigravity y OpenCode).</li>
-    <li>Qué le falta. Eso va en el README, para quien ya entró.</li>
-  </ul>
-
-  <h2>Pendiente antes de producir</h2>
-  <ul>
-    <li><b>La oficina del diseño no es la de la app</b> (cuartos rotulados contra seis cuartos con calle). En un avance pesa menos, porque nada se ve más de dos segundos, pero las tomas 1, 2, 3 y 5 quedarían mejor grabadas de la app real: ahí los personajes sí se mueven.</li>
-    <li><b>«Hora del café» y «se fue a jugar»</b> existen en la app, pero como ambiente al azar, no como estados reales. Chocan con «nada es adorno». O se cambia esa frase, o se quitan esas dos.</li>
-    <li><b>Voz de ElevenLabs:</b> falta elegir cuál.</li>
+    <li><b>Nombres en pantalla.</b> La app pone nombres de su propia lista; para que salgan Jhonny, Cinthya, Juan, Pablo y Mario hay que grabar con esos nombres puestos (en la vista previa se cambian en un archivo; en la app real habría que poder elegirlos).</li>
+    <li><b>«Devolver» una entrega</b> existe: es rechazar con comentario, y el empleado vuelve a trabajar. La reacción de agachar la cabeza no existe; sería un gesto nuevo o se resuelve con el globo.</li>
+    <li><b>«Tres suscripciones»</b> es un número que puse yo. Cámbialo al que quieras decir.</li>
+    <li><b>Tomas 6 y 7 (oficina)</b> se graban de la app, no del pen: ahí los personajes sí caminan.</li>
   </ul>
 </main>
 </body>
