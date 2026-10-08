@@ -74,6 +74,12 @@ export interface ConnectOptions {
   statusUrl?: string
 }
 
+export interface SessionCheck {
+  args: string[]
+  /** Lee la respuesta: hay sesión o no y, si lo dice, de qué cuenta. */
+  read(out: { stdout: string; stderr: string; code: number }): { ok: boolean; account?: string }
+}
+
 export interface ProviderAdapter {
   id: ProviderId
   name: string
@@ -85,6 +91,16 @@ export interface ProviderAdapter {
    * Vacío = no hay forma conocida de comprobarlo; se asume que sí.
    */
   sessionPaths: string[]
+  /**
+   * Cómo preguntarle a la propia CLI si hay sesión. Es mejor fuente que un
+   * archivo (que puede seguir ahí tras cerrar sesión); si el comando no corre,
+   * se cae a sessionPaths.
+   */
+  sessionCheck?: SessionCheck
+  /** Qué hacer para iniciar sesión, dicho para el usuario. */
+  login: string
+  /** Cómo se instala: comando si es uno solo y la página oficial. */
+  install: { command?: string; url: string }
   /** Argumentos para lanzar la CLI interactiva en su PTY. */
   buildArgs(opts: LaunchOptions): string[]
   /** Advertencias sobre opciones que este proveedor no sabe recibir. */
@@ -114,7 +130,9 @@ function generic(
   id: ProviderId,
   name: string,
   binaries: string[],
+  install: ProviderAdapter['install'],
   sessionPaths: string[] = [],
+  extra: Partial<ProviderAdapter> = {},
 ): ProviderAdapter {
   return {
     id,
@@ -122,6 +140,9 @@ function generic(
     binaries,
     versionArgs: ['--version'],
     sessionPaths,
+    // Sin comando de login conocido: la propia CLI lo pide al abrirla.
+    login: `abre ${binaries[0]} en una terminal y sigue su inicio de sesión`,
+    install,
     buildArgs: (o) => (o.model ? ['--model', o.model] : []),
     unsupported: (o) => [
       ...(o.effort ? [`${name} no recibe esfuerzo por argumento; se ignora`] : []),
@@ -129,6 +150,7 @@ function generic(
     ],
     screen: { working: [SPINNER, ESC_TO_INTERRUPT], blocked: PERMISSION, idle: [/^\s*>\s*$/m] },
     verified: false,
+    ...extra,
   }
 }
 
@@ -138,7 +160,21 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     name: 'Claude Code',
     binaries: ['claude'],
     versionArgs: ['--version'],
-    sessionPaths: ['.claude.json', '.claude/.credentials.json'],
+    sessionPaths: ['.claude/.credentials.json'],
+    sessionCheck: {
+      args: ['auth', 'status'],
+      // Contesta JSON: { loggedIn, email, subscriptionType, … }
+      read({ stdout }) {
+        try {
+          const s = JSON.parse(stdout) as { loggedIn?: boolean; email?: string; subscriptionType?: string }
+          return { ok: !!s.loggedIn, account: [s.email, s.subscriptionType].filter(Boolean).join(' · ') || undefined }
+        } catch {
+          return { ok: false }
+        }
+      },
+    },
+    login: 'claude auth login',
+    install: { command: 'npm install -g @anthropic-ai/claude-code', url: 'https://docs.claude.com/en/docs/claude-code/setup' },
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('--model', o.model)
@@ -187,6 +223,18 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     binaries: ['codex'],
     versionArgs: ['--version'],
     sessionPaths: ['.codex/auth.json'],
+    sessionCheck: {
+      args: ['login', 'status'],
+      // "Logged in using ChatGPT" / "Not logged in"
+      read: ({ stdout, stderr, code }) => {
+        const text = `${stdout}
+${stderr}`
+        const ok = code === 0 && /logged in/i.test(text) && !/not logged in/i.test(text)
+        return { ok, account: ok ? /using (.+)/i.exec(text)?.[1]?.trim() : undefined }
+      },
+    },
+    login: 'codex login',
+    install: { command: 'npm install -g @openai/codex', url: 'https://developers.openai.com/codex/cli' },
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('-m', o.model)
@@ -210,11 +258,22 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     verified: false,
   },
-  antigravity: generic('antigravity', 'Antigravity', ['antigravity', 'agy']),
-  opencode: generic('opencode', 'OpenCode', ['opencode'], ['.local/share/opencode/auth.json']),
-  commandcode: generic('commandcode', 'Command Code', ['commandcode', 'cmd-code']),
-  kimi: generic('kimi', 'Kimi', ['kimi']),
-  grok: generic('grok', 'Grok', ['grok']),
+  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }),
+  opencode: generic('opencode', 'OpenCode', ['opencode'], { command: 'npm install -g opencode-ai', url: 'https://opencode.ai' }, ['.local/share/opencode/auth.json'], {
+    sessionCheck: {
+      args: ['auth', 'list'],
+      // Lista las credenciales guardadas y termina con "N credentials".
+      read: ({ stdout, code }) => {
+        const n = Number(/(\d+)\s+credentials?/i.exec(stdout)?.[1] ?? 0)
+        return { ok: code === 0 && n > 0, account: n ? `${n} ${n === 1 ? 'credencial' : 'credenciales'}` : undefined }
+      },
+    },
+    login: 'opencode auth login',
+  }),
+  // El binario corto de Command Code es `cmd`, que en Windows es el intérprete del sistema: no se busca por ese nombre.
+  commandcode: generic('commandcode', 'Command Code', ['commandcode', 'command-code', 'cmd-code'], { url: 'https://commandcode.ai' }, ['.commandcode/auth.json']),
+  kimi: generic('kimi', 'Kimi', ['kimi', 'kimi-code'], { url: 'https://github.com/MoonshotAI/kimi-cli' }, ['.kimi/credentials']),
+  grok: generic('grok', 'Grok', ['grok'], { url: 'https://x.ai' }),
 }
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[]

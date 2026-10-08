@@ -3,3 +3,5 @@ out/
 dist/
 *.log
 .DS_Store
+# Referencias de packs ajenos: sirven para comparar estilo, no son del proyecto.
+/assets/*.png

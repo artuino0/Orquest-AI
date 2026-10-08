@@ -1,6 +1,6 @@
 # Orquest AI
 
-Orquestador de agentes de código hecho juego: una oficina en pixel art (isométrica, ver abajo) donde cada CLI de IA (Claude Code, Codex, Antigravity, OpenCode, Command Code, Kimi, Grok) es un empleado con nombre que trabaja en su propio git worktree. El usuario habla solo con el **jefe** (otro agente), que propone la plantilla, reparte tareas con dependencias y revisa entregas; el usuario aprueba la plantilla y cada integración. Cada animación es un estado real.
+Orquestador de agentes de código hecho juego: una oficina en pixel art (vista cenital 3/4, ver abajo) donde cada CLI de IA (Claude Code, Codex, Antigravity, OpenCode, Command Code, Kimi, Grok) es un empleado con nombre que trabaja en su propio git worktree. El usuario habla solo con el **jefe** (otro agente), que propone la plantilla, reparte tareas con dependencias y revisa entregas; el usuario aprueba la plantilla y cada integración. Cada animación es un estado real.
 
 - Plan del producto: `docs/plan.md` (fuente de verdad del alcance y las fases).
 - Estado y detalle por fase: `README.md`.
@@ -50,7 +50,18 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | `store.ts` | SQLite local: tablero por proyecto, expedientes, manuales, historial. |
 | `prompts.ts` | Prompt del jefe y del empleado (armado con su manual). |
 
-Renderer (`src/renderer/src/`): `world/layout.ts` (plano en casillas, escritorios estables, rutas por puertas y pasillos), `world/behavior.ts` (estado → lugar, pose, burbuja), `world/sprites.ts` (arte provisional por matrices), `world/scene.ts` (PixiJS, solo dibuja). Componentes Vue: Inicio, Oficina + HUD, Jefe, Plantilla, Tablero, Entregas, Expedientes/Manuales, panel del empleado (Terminal, Archivos, Capturas, Actividad, Tarea, Bitácora).
+Renderer (`src/renderer/src/world/`, lógica pura con pruebas en `test/world.test.ts` salvo `scene.ts` y `sprites.ts`):
+
+| Archivo | Qué hace |
+| --- | --- |
+| `map.ts` | La oficina como dato (`OfficeMap`): piso y muros por casilla de 48 px y muebles apoyados en casillas. Sin áreas: cualquier puesto sirve para cualquier rol. Catálogo de piezas (`PIECES`) y qué significa cada una para el juego (puesto de espaldas, de frente o de perfil a derecha o izquierda; escritorio del jefe, siempre de frente; mesa con sillas, maquinita, entrada, fila). `standSpot` da dónde pararse sin encimarse con nadie (`busy` marca el lugar de cada quien y las filas en que lo taparían). De ahí sale el plano (`buildPlan`), las rutas (casilla por casilla, sin atravesar muros ni muebles), la altura de cada muro (`wallHeight`: ventanal alto; pared baja si tiene piso detrás) y la revisión (`mapIssues`). Trae la oficina de ejemplo, chica y de planta abierta (22×20), con doce puestos de perfil en dos bloques (tres mirando a la derecha frente a tres mirando a la izquierda). |
+| `editor.ts` | Modo creativo: qué le hace cada herramienta al mapa (`applyTool` devuelve un mapa nuevo, para deshacer). |
+| `layout.ts` | Plano vivo: el del mapa actual. Reparte puestos sin mover a nadie ni compartir escritorio (quien no alcanza espera de pie), da el lugar de quien espera a otro y contesta dónde queda cada lugar. `DEPARTMENTS` son los roles que agrupan el tablero y la contratación, no áreas del mapa. |
+| `behavior.ts` | Estado → lugar, pose, burbuja. |
+| `sprites.ts` | Carga los PNG de `assets/sprites/generados`, personaje por empleado, cuadros de caminata. |
+| `scene.ts` | PixiJS, solo dibuja: pisos por tramos, muros con el kit de piezas (`tramo`, remates, `columna`, `poste`), muebles y personas ordenados por su base; mamparas de cubículo donde dos puestos se dan la cara; una pieza sin arte se salta sin tumbar la oficina; placa con insignia del proveedor, nombre y rol en una capa encima de todo; teclear y monitor animados. Encuadra solo donde hay piso. En modo creativo avisa en qué casilla anda el cursor y muestra lo que la herramienta va a hacer. |
+
+La oficina se dibuja desde la app (Oficina → "Editar oficina", `components/MapEditor.vue`) y se guarda sola en `<userData>/oficina.json` (`core/officefile.ts`, una por estudio; `stores/office.ts` lleva deshacer). `src/renderer/demo.html` abre la escena y el modo creativo con empleados de ejemplo sin abrir la app (`npx vite src/renderer`, luego `/demo.html`; ahí guarda en el navegador). Componentes Vue: Inicio, Oficina + HUD, Jefe, Plantilla, Tablero, Entregas, Expedientes/Manuales, panel del empleado (Terminal, Archivos, Capturas, Actividad, Tarea, Bitácora).
 
 ## Herramientas MCP
 
@@ -59,7 +70,7 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 ## Decisiones tomadas
 
 - Electron + Vue 3 + Pinia + Vite; **PixiJS** para el mapa (Vue lleva los paneles). CSP estricta: se importa `pixi.js/unsafe-eval`.
-- **Estilo del mundo: pixel art isométrico** (2:1), no vista cenital. El mapa actual es cenital provisional; pasar a isométrico solo toca `scene.ts` (proyección y orden de profundidad), no la lógica del mundo.
+- **Estilo del mundo: pixel art detallado en vista cenital 3/4**, no isométrico (el prompt de `docs/prompt-rediseno-pencil.md` quedó viejo en eso). Los sprites se generan y limpian con `assets/sprites/herramientas/`; la app usa los PNG sueltos de cada carpeta, no `hoja.png` ni `original.png`. El proveedor ya no va en la ropa: se ve en el subrayado del nombre.
 - CLI interactiva en PTY (como Orca), no modo headless.
 - Toda comunicación pasa por el jefe; los empleados no se hablan.
 - Integración: merge `--no-ff` a la rama actual del repo principal, solo con aprobación del usuario; al integrar se liberan las tareas que esperaban.
@@ -76,6 +87,8 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 - Claude respeta los permisos de `--settings`. `MultiEdit` ya no existe como herramienta.
 - Lecciones ya resueltas en el código: la TUI separa palabras con movimientos de cursor (por eso el emulador headless); el primer arranque muestra pantallas de tema/seguridad/confianza (cuentan como `blocked`); escribir antes de que la TUI termine de dibujar pierde el mensaje (por eso `atPrompt` y reintentos); con `statusLine` desaparece "? for shortcuts" (el idle se detecta por la caja de entrada `❯` entre líneas `───`); una CLI vieja que sale tras relanzar no debe marcar offline al nuevo.
 
+Las medidas para armar un puesto (dónde van silla, persona, monitor y mampara respecto a la casilla) vienen de las entregas de arte en `docs/tareas/*.entrega.md` y están como constantes al inicio de `scene.ts` (`BACK`, `FRONT`, `SIDE`, `PANEL`).
+
 ## Pendiente
 
 - Correr la app en Electron de verdad (nunca se pudo en el entorno donde se escribió) y ajustar lo que falle.
@@ -84,5 +97,5 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 - En Windows fallan tres pruebas desde antes del comando: `detect` (versión de un `.cmd`), `employees` (lanza un script como ejecutable) y `studio` (CRLF tras abortar un merge).
 - Límites de uso por cuenta (barra de energía, Cafetería con cuenta regresiva, turnos entre cuentas); la `statusLine` de Claude ya trae `rate_limits.five_hour`.
 - Reporte de mercado semanal (rankings + opinión) para la columna "En el mercado" de los expedientes.
-- Fase 4: mapa isométrico con el arte final (esperando diseño en Pencil). Fases 5 (lanzamiento abierto) y 6 (remoto móvil).
+- Fase 4: el mapa usa el arte final y el usuario dibuja su oficina en el modo creativo. Falta: conectar lo que ya entregó arte y no usa la app (escritorio en L, servidores, escritorios de lado, mesa de juntas con sillas), logos reales de proveedor en la insignia (hoy son dos letras), que las placas no se encimen entre sí, barra de energía, mover una pieza ya puesta sin borrarla, y probarlo dentro de Electron. Las tareas a otros agentes van en `docs/tareas/`. Fases 5 (lanzamiento abierto) y 6 (remoto móvil).
 - Al reabrir un proyecto el tablero vuelve pero los empleados no: el jefe los vuelve a levantar y su bitácora los pone al día.

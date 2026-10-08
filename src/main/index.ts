@@ -4,6 +4,7 @@ import * as pty from 'node-pty'
 import { RuleError } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { detectAll } from '../core/detect.js'
+import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
@@ -115,6 +116,10 @@ handle('library:saveManual', (m: Manual) => library.saveManual(m))
 handle('library:check', (slots: { provider: ProviderId; model?: string; role: string }[]) =>
   slots.map((x) => library.check(x.provider, x.model, x.role)),
 )
+
+const officePath = () => join(app.getPath('userData'), 'oficina.json')
+handle('office:load', () => readOffice(officePath()))
+handle('office:save', (office: unknown) => writeOffice(officePath(), office))
 
 handle('employee:fire', (id: string) => studio().fire(id))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
