@@ -15,7 +15,7 @@ const studio = useStudio()
 const frame = ref<HTMLIFrameElement>()
 /** La oficina avisa cuando ya puede recibir. */
 let ready = false
-/** A cuántas veces su tamaño se está viendo la oficina. */
+/** Zoom sobre la vista de entrada: 1× es la oficina llenando su marco. */
 const scale = ref(1)
 /** Tareas de la foto anterior, para saber qué cambió; null hasta ver la primera. */
 let before: Task[] | null = null
@@ -73,9 +73,9 @@ watch(
   <div class="pixel-office">
     <iframe ref="frame" src="oficina.html?fuente=app" title="Oficina" />
     <div class="zoom">
-      <button title="Alejar" @click="send({ type: 'zoom', delta: -0.5 })"><Minus /></button>
+      <button title="Alejar" @click="send({ type: 'zoom', delta: -0.25 })"><Minus /></button>
       <span>{{ scale }}×</span>
-      <button title="Acercar" @click="send({ type: 'zoom', delta: 0.5 })"><Plus /></button>
+      <button title="Acercar" @click="send({ type: 'zoom', delta: 0.25 })"><Plus /></button>
     </div>
   </div>
 </template>
@@ -86,5 +86,5 @@ iframe { width: 100%; height: 100%; border: 0; background: transparent; display:
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; background: var(--surface); border: 3px solid var(--border); box-shadow: 3px 3px 0 var(--shadow); }
 .zoom button { border: 0; background: none; padding: 6px 10px; display: grid; color: var(--text-primary); }
 .zoom svg { width: 12px; height: 12px; }
-.zoom span { min-width: 34px; text-align: center; font: 700 11px var(--font); border-inline: 2px solid var(--border); padding: 6px 4px; }
+.zoom span { min-width: 44px; text-align: center; font: 700 11px var(--font); border-inline: 2px solid var(--border); padding: 6px 4px; }
 </style>
