@@ -8,7 +8,7 @@
  *   /preview.html?proyecto=1&jefe=0       oficina vacía, sin jefe
  *   /preview.html?proyecto=1&rapido=1     todo cinco veces más rápido
  */
-import type { Employee, EmployeeState, OrquestApi, ProviderId, StudioSnapshot, Task } from '../../shared/ipc'
+import type { DossierView, Employee, EmployeeState, Manual, OrquestApi, ProviderId, Role, Slot, StudioSnapshot, Task } from '../../shared/ipc'
 
 export const MOCK_REPO = 'E:\\desarrollo\\tienda-en-linea'
 
@@ -27,6 +27,60 @@ const WORK: Record<string, [string, string, string][]> = {
   e5: [['Pipeline de despliegue', 'Pipeline en verde', 'Falla en producción'], ['Respaldos nocturnos', 'Respaldo y restauración probados', 'No restaura']],
 }
 
+// Lo que el jefe propone además de los ya contratados: una permitida, una con aviso y una prohibida.
+const PROPOSED: Slot[] = [
+  { id: 's6', name: 'Sofi', role: 'qa', provider: 'claude', model: 'opus', effort: 'high', reason: '92 % integradas a la primera cuando revisó QA contigo (11 de 12).', status: 'proposed' },
+  { id: 's7', name: 'Iván', role: 'dba', provider: 'kimi', model: 'kimi-k2', effort: 'medium', reason: 'Barato para migraciones largas. Sin historial contigo en DBA.', status: 'proposed' },
+  { id: 's8', name: 'Gus', role: 'infra', provider: 'grok', model: 'grok-4', effort: 'high', reason: 'Rápido en scripts de CI según el reporte semanal del mercado.', status: 'proposed' },
+]
+const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa']
+const stats = (integradas: number, primera: number, rechazos: number, por: Record<string, [number, number]> = {}): DossierView['stats'] => ({
+  entregas: integradas + rechazos, integradas, a_la_primera: primera, rechazos_qa: rechazos, regresadas: rechazos,
+  aprobadas_a_la_primera: integradas ? Math.round((primera / integradas) * 100) : null,
+  por_puesto: Object.fromEntries(Object.entries(por).map(([k, [i, a]]) => [k, { integradas: i, a_la_primera: a }])),
+})
+const DOSSIERS: DossierView[] = [
+  { provider: 'claude', model: '', allowedRoles: null, enforce: 'warn', notes: 'Va bien en todo. Caro para tareas chicas.', stats: stats(12, 11, 1, { backend: [6, 6], qa: [4, 4], frontend: [2, 1] }) },
+  { provider: 'claude', model: 'opus', allowedRoles: null, enforce: 'warn', notes: '', stats: stats(8, 8, 0, { backend: [5, 5], qa: [3, 3] }) },
+  { provider: 'codex', model: '', allowedRoles: null, enforce: 'warn', notes: '', stats: stats(16, 13, 3, { dba: [9, 8], backend: [7, 5] }) },
+  { provider: 'antigravity', model: '', allowedRoles: null, enforce: 'warn', notes: '', stats: stats(9, 7, 2, { frontend: [9, 7] }) },
+  { provider: 'opencode', model: '', allowedRoles: null, enforce: 'warn', notes: '', stats: stats(10, 7, 3, { backend: [10, 7] }) },
+  { provider: 'commandcode', model: '', allowedRoles: null, enforce: 'warn', notes: '', stats: stats(4, 3, 1, { desarrollo: [4, 3] }) },
+  { provider: 'kimi', model: '', allowedRoles: ['desarrollo', 'backend', 'frontend', 'infra', 'qa'], enforce: 'warn', notes: '', stats: stats(0, 0, 0) },
+  { provider: 'grok', model: '', allowedRoles: ['desarrollo', 'backend', 'frontend'], enforce: 'block', notes: 'Rompió el pipeline dos veces. No darle Infra ni QA hasta nuevo reporte. En Frontend va bien con tareas chicas.', stats: stats(12, 7, 5, { frontend: [5, 4], backend: [5, 3], desarrollo: [2, 1], infra: [4, 0] }) },
+]
+const MANUALS: Manual[] = ROLES.map((role) => ({
+  role,
+  prompt: `Eres ${role} en este estudio. Trabajas solo en tu oficina (worktree) y en tu rama. Sin dependencias nuevas sin permiso. Entrega con capturas.`,
+  docs: role === 'frontend' ? ['docs/diseno/tokens.md', 'docs/frontend/convenciones.md'] : ['docs/convenciones.md'],
+  skills: role === 'frontend' ? ['impeccable', 'playwright-cli'] : [],
+  permissions: { edit: true, allow: ['npm run dev', 'npm test'], deny: ['npm install', 'git push', 'rm -rf'] },
+  delivery: '1. Qué cambié y por qué\n2. Archivos tocados\n3. Cómo probarlo\n4. Riesgos o pendientes',
+  requireScreenshots: role === 'frontend' || role === 'qa',
+}))
+const DIFF = `diff --git a/scripts/seed.ts b/scripts/seed.ts
+index 3a1..9f2 100644
+--- a/scripts/seed.ts
++++ b/scripts/seed.ts
+@@ -1,8 +1,10 @@
+ import { db } from '../src/db'
+-const TOTAL = 10
++const TOTAL = 40
++const PREFIJO = 'seed_'
+
+ export async function seed() {
++  await db.cliente.deleteMany({ where: { rfc: { startsWith: PREFIJO } } })
+-  for (let i = 0; i < TOTAL; i++) crear(i)
++  for (let i = 0; i < TOTAL; i++) await crear(i, i % 4 === 0)
+ }
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -6,3 +6,4 @@
+   "test": "vitest",
++  "seed": "tsx scripts/seed.ts",
+`
+
 export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const speed = params.get('rapido') ? 0.2 : 1
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms * speed))
@@ -35,6 +89,10 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const employees: Employee[] = []
   const tasks: Task[] = []
   let bossOnline = false
+  let proposed = [...PROPOSED]
+  const messages: StudioSnapshot['messages'] = []
+  /** La primera vez que se integra algo, choca: para ver cómo sale un conflicto. */
+  let conflictPending = true
   let seq = 0
   const listeners = { board: new Set<(s: StudioSnapshot) => void>(), state: new Set<(id: string, s: EmployeeState) => void>(), hired: new Set<(e: Employee) => void>() }
 
@@ -46,10 +104,10 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     }
     return {
       repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline,
-      slots: PEOPLE.map((p, i) => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, status: 'hired', employeeId: p.id })),
+      slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
-      messages: [], seq: { task: seq, slot: PEOPLE.length },
+      messages, seq: { task: seq, slot: PEOPLE.length },
       hints, context: Object.fromEntries(employees.map((e, i) => [e.id, 20 + i * 11])), burnoutAt: 80,
     }
   }
@@ -98,20 +156,17 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
         task.history.push({ at: Date.now(), text: problem })
         publish()
       }
-      // Aprobada: espera en Entregas a que la integres (o se integra sola al rato).
+      // Aprobada: se queda en Entregas hasta que la integres o la regreses.
       task.status = 'approved'
+      task.qa = { at: Date.now(), report: 'Aprobado a la primera. Las pruebas nuevas pasan.', screenshots: [], verdict: 'pass' }
       publish()
-      await wait(25000)
-      if (task.status === 'approved') {
-        task.status = 'merged'
-        publish()
-      }
     }
   }
 
   function start() {
     bossOnline = true
     hire('jefe', 'jefe', 'claude', 'opus')
+    messages.push({ at: Date.now(), from: 'jefe', to: 'usuario', text: `Leí el repositorio. Propongo ${PEOPLE.length + PROPOSED.length} puestos; ${PROPOSED.length} nuevos esperan tu aprobación en Plantilla.` })
     PEOPLE.forEach((p, i) => setTimeout(() => {
       hire(p.id, p.role, p.provider, p.model)
       void cycle(p.id, 1000 + i * 4000)
@@ -135,9 +190,37 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     hireBoss: async () => {
       if (!bossOnline) start()
     },
-    sayToBoss: async () => {},
-    approveTemplate: async () => {},
+    sayToBoss: async (text) => {
+      messages.push({ at: Date.now(), from: 'usuario', to: 'jefe', text })
+      publish()
+      setTimeout(() => {
+        messages.push({ at: Date.now(), from: 'jefe', to: 'usuario', text: 'Hecho. Lo reparto entre el equipo y te aviso cuando haya entregas.' })
+        publish()
+      }, 2500 * speed)
+    },
+    approveTemplate: async () => {
+      proposed = []
+      publish()
+    },
+    checkSlots: async (slots) => slots.map((s) => {
+      const d = DOSSIERS.find((x) => x.provider === s.provider && !x.model)
+      if (!d || d.allowedRoles === null || d.allowedRoles.includes(s.role as Role)) return { ok: true }
+      const why = `El expediente de ${s.provider} no tiene ${s.role} marcado`
+      return d.enforce === 'block' ? { ok: false, reason: `${why}: está bloqueado.` } : { ok: true, warning: `${why}; el expediente solo avisa.` }
+    }),
+    library: async () => ({ dossiers: JSON.parse(JSON.stringify(DOSSIERS)), manuals: JSON.parse(JSON.stringify(MANUALS)) }),
+    saveDossier: async (d) => {
+      const at = DOSSIERS.findIndex((x) => x.provider === d.provider && x.model === d.model)
+      if (at >= 0) Object.assign(DOSSIERS[at], d)
+      else DOSSIERS.push({ ...d, stats: stats(0, 0, 0) })
+    },
+    saveManual: async (m) => void Object.assign(MANUALS.find((x) => x.role === m.role)!, m),
+    taskDiff: async () => DIFF,
     mergeTask: async (id) => {
+      if (conflictPending) {
+        conflictPending = false
+        throw new Error('Conflicto con main: CONFLICT (content) en scripts/seed.ts, 2 bloques.')
+      }
       find(id).status = 'merged'
       publish()
     },
