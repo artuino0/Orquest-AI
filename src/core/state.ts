@@ -9,6 +9,9 @@ import type { ScreenPatterns } from './providers.js'
  * - idle: terminó su turno y espera instrucción.
  * - exited: la CLI terminó.
  */
+/** Cuánto puede quedarse idéntico un indicador de "trabajando" antes de darlo por texto viejo. */
+const STALE_MS = 5000
+
 export type EmployeeState = 'starting' | 'working' | 'blocked' | 'idle' | 'exited'
 
 // eslint-disable-next-line no-control-regex
@@ -89,6 +92,9 @@ export class ScreenReader {
   private onChange?: (s: EmployeeState) => void
   private onContext?: (pct: number) => void
   private lastContext: number | undefined
+  /** Los renglones que parecen "trabajando" y desde cuándo no cambian. */
+  private workingText = ''
+  private workingSince = 0
 
   constructor(
     private patterns: ScreenPatterns,
@@ -166,18 +172,37 @@ export class ScreenReader {
   /** Se ve el prompt listo para recibir texto: ni trabajando ni preguntando nada. */
   promptVisible(): boolean {
     const recent = this.recent()
-    return (
-      this.patterns.idle.some((r) => r.test(recent)) &&
-      !this.patterns.blocked.some((r) => r.test(recent)) &&
-      !this.patterns.working.some((r) => r.test(recent))
-    )
+    return this.patterns.idle.some((r) => r.test(recent)) && !this.patterns.blocked.some((r) => r.test(recent)) && !this.working(recent)
+  }
+
+  /**
+   * ¿Se ve trabajando de verdad? Una CLI que trabaja anima su indicador: el
+   * renglón cambia a cada rato (cuadros, segundos, tokens). Si un renglón que
+   * parece indicador lleva `STALE_MS` idéntico, es texto que se quedó en
+   * pantalla (una respuesta con "· algo…", un aviso viejo) y no cuenta. Sin
+   * esto, el agente se quedaba "trabajando" para siempre y dejaban de
+   * entregársele los mensajes.
+   */
+  private working(recent: string): boolean {
+    const lines = recent.split('\n').filter((l) => this.patterns.working.some((r) => r.test(l)))
+    // Un patrón puede abarcar renglones: si ninguno suelto casa, se toma el bloque entero.
+    const text = lines.length ? lines.join('\n') : this.patterns.working.some((r) => r.test(recent)) ? recent : ''
+    if (!text) {
+      this.workingText = ''
+      return false
+    }
+    if (text !== this.workingText) {
+      this.workingText = text
+      this.workingSince = this.now()
+    }
+    return this.now() - this.workingSince < STALE_MS
   }
 
   current(): EmployeeState | undefined {
     if (this.hookState && this.now() - this.hookAt < this.hookTtlMs) return this.hookState
     const recent = this.recent()
     if (this.patterns.blocked.some((r) => r.test(recent))) return 'blocked'
-    if (this.patterns.working.some((r) => r.test(recent))) return 'working'
+    if (this.working(recent)) return 'working'
     if (this.patterns.idle.some((r) => r.test(recent))) return 'idle'
     return undefined
   }

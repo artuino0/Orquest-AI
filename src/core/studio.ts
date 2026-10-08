@@ -255,7 +255,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     const pause = this.opts.submitDelayMs ?? 700
     const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))
     const previous = this.sending.get(id) ?? Promise.resolve()
-    this.sending.set(id, previous.then(async () => {
+    // Un envío que falle no debe dejar mudos a los siguientes.
+    this.sending.set(id, previous.catch(() => {}).then(async () => {
       for (const msg of batch) {
         if (!this.opts.manager.isLive(id)) return
         this.opts.manager.write(id, msg)

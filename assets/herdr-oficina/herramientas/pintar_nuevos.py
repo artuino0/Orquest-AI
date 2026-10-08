@@ -1128,6 +1128,280 @@ for i in range(1, 9):
     seated = load(seated_name)
     save(f"char{i}-sentado-teclea", strip([seated, squash(seated, seated.height - 5)]))
 
+# ------------------------------------------------------------------------ calle
+# La calle que corre de arriba abajo a los lados del edificio: acera pegada al
+# edificio, bordillo, arroyo vial con su raya, vehículos que suben o bajan,
+# peatones y el mobiliario de la acera.
+def sidewalk(x, y):
+    """Losas de 24 x 12, cuatrapeadas, con su junta."""
+    row = y // 12
+    if y % 12 == 0 or (x + 12 * (row % 2)) % 24 == 0:
+        return "d"
+    return "w" if (x * 7 + y * 13) % 53 == 0 else "s"
+
+
+floor("piso-acera", sidewalk)
+floor("piso-asfalto", carpet("e", "k", "d", 7))
+
+# Raya central: un tramo pintado y el resto vacío, para que asome el asfalto.
+img = canvas(4, 24)
+box(img, 1, 5, 2, 18, "y")
+save("calle-raya", img)
+
+# Bordillo, de canto: la cara de arriba clara (con su junta cada 12), el
+# escalón y la sombra que echa sobre el asfalto. La acera queda a su izquierda.
+img = canvas(4, 24)
+for y in range(24):
+    for x, c in enumerate("wwdk"):
+        img.putpixel((x, y), P["s" if c == "w" and y % 12 == 11 else c])
+save("acera-bordillo", img)
+
+# Paso de cebra: una franja y su hueco; se repite a lo ancho del arroyo.
+img = canvas(8, 14)
+box(img, 0, 0, 3, 13, "w")
+save("calle-cebra", img)
+
+
+# Vehículos. A 45 grados se les ve lo de arriba y la cara que da hacia
+# nosotros: de la punta lejana a la cercana van la cubierta del fondo, el techo
+# (más claro y más angosto que la carrocería: es la cabina), el cristal que nos
+# mira (parabrisas si viene, medallón si se va; el otro no se ve), la cubierta
+# de adelante y la cara con sus luces. `bands` lo dice en ese orden: (qué, filas). Las llantas van aparte, para que al rebotar (`up`) la
+# carrocería suba un píxel y ellas se queden en el piso.
+VW = 24
+
+
+def vehicle(body, roof, dark, bands, front, up=0, sign=False, logo=None):
+    rows = 1 + sum(n for _, n in bands)
+    shell = canvas(VW, rows)
+    box(shell, 3, 0, VW - 4, 0, "k")
+    y = 1
+    glass_seen = 0
+    for kind, n in bands:
+        box(shell, 1, y, VW - 2, y + n - 1, "k")
+        box(shell, 2, y, VW - 3, y + n - 1, body)
+        if kind == "deck":
+            box(shell, 4, y, VW - 5, y, roof)  # brillo de la cara de arriba
+            if sign:  # franja de cuadros del taxi
+                for x in range(2, VW - 2, 2):
+                    shell.putpixel((x, y + n - 1), P["k"])
+        elif kind == "roof":
+            box(shell, 4, y, VW - 5, y + n - 1, dark)  # el costado de la cabina
+            box(shell, 5, y, VW - 6, y + n - 1, roof)
+            if sign:
+                box(shell, 8, y + n // 2 - 1, 15, y + n // 2 + 1, "k")
+                box(shell, 9, y + n // 2, 14, y + n // 2, "o")
+            if logo:
+                box(shell, 7, y + 5, 16, y + 10, logo)
+                box(shell, 9, y + 7, 14, y + 8, "w")
+        elif kind == "glass":
+            for i in range(n):  # se abre hacia abajo: baja inclinado desde el techo
+                x0 = 4 if i >= 2 else 5
+                box(shell, x0 - 1, y + i, VW - x0, y + i, dark)
+                box(shell, x0, y + i, VW - 1 - x0, y + i, "n")
+                for gx in range(x0, VW - x0):
+                    if (gx + y + i) % 7 == 0:
+                        shell.putpixel((gx, y + i), P["c"])
+            glass_seen += 1
+            if glass_seen == 1:  # a la altura del cristal van los espejos
+                dots(shell, "k", (0, y), (VW - 1, y))
+                dots(shell, dark, (0, y + 1), (VW - 1, y + 1))
+        elif kind == "face":
+            extra = n - 5  # las puertas traseras de la camioneta
+            if extra > 0:
+                box(shell, 4, y + 1, 9, y + extra - 1, "n")
+                box(shell, 14, y + 1, 19, y + extra - 1, "n")
+                box(shell, 11, y, 12, y + n - 3, dark)
+            fy = y + max(extra, 0)
+            lamp, glow = ("y", "w") if front else ("r", "o")
+            for x0 in (2, VW - 6):
+                box(shell, x0, fy + 1, x0 + 3, fy + 2, lamp)
+                box(shell, x0 + 1, fy + 1, x0 + 2, fy + 1, glow)
+            if front:  # parrilla
+                box(shell, 7, fy + 1, 16, fy + 2, "k")
+                for x in range(8, 16, 2):
+                    shell.putpixel((x, fy + 2), P["d"])
+            box(shell, 2, fy + 3, VW - 3, fy + 3, "s")  # defensa
+            box(shell, 10, fy + 3 if front else fy + 2, 13, fy + 3, "w")  # placa
+            box(shell, 2, fy + 4, VW - 3, fy + 4, "d")
+        y += n
+    for x in (1, VW - 2):  # esquinas de la punta lejana, redondeadas
+        shell.putpixel((x, 1), (0, 0, 0, 0))
+    dots(shell, "k", (2, 1), (VW - 3, 1), (2, 0), (VW - 3, 0))
+    img = canvas(VW, rows + 3)
+    for x0 in (2, VW - 6):  # llantas
+        box(img, x0, rows, x0 + 3, rows + 2, "k")
+        img.putpixel((x0 + 1, rows + 1), P["d"])
+    img.alpha_composite(shell, (0, 1 - up))
+    return img
+
+
+VEHICLES = {
+    # nombre: carrocería, techo, sombra, y lo que va de la punta lejana a la cercana
+    "auto-rojo": dict(body="r", roof="o", dark="p",
+                      frente=[("deck", 2), ("roof", 8), ("glass", 6), ("deck", 8), ("face", 5)],
+                      atras=[("deck", 4), ("roof", 8), ("glass", 5), ("deck", 6), ("face", 5)]),
+    "auto-azul": dict(body="b", roof="c", dark="n",  # compacto, sin cajuela
+                      frente=[("roof", 11), ("glass", 6), ("deck", 6), ("face", 5)],
+                      atras=[("deck", 3), ("roof", 11), ("glass", 6), ("deck", 1), ("face", 5)]),
+    "camioneta": dict(body="s", roof="w", dark="d", logo="g",  # van de reparto
+                      frente=[("roof", 23), ("glass", 6), ("deck", 3), ("face", 5)],
+                      atras=[("deck", 1), ("roof", 26), ("face", 9)]),
+    "taxi": dict(body="y", roof="w", dark="o", sign=True,
+                 frente=[("deck", 2), ("roof", 8), ("glass", 6), ("deck", 8), ("face", 5)],
+                 atras=[("deck", 4), ("roof", 8), ("glass", 5), ("deck", 6), ("face", 5)]),
+}
+for name, v in VEHICLES.items():
+    for view in ("frente", "atras"):
+        def paint(up):
+            return vehicle(v["body"], v["roof"], v["dark"], v[view], view == "frente", up,
+                           v.get("sign", False), v.get("logo"))
+        save(f"{name}-{view}", paint(0))
+        save(f"{name}-{view}-anim", strip([paint(0), paint(1)]))
+
+
+# Peatones: cuatro que no son empleados. Mismo cuerpo del pack (17 x 23), con
+# pelo y ropa de colores que ningún empleado usa, y cada uno con lo suyo:
+# mochila, portafolio, bastón, gorra con audífonos.
+# H pelo, S su brillo, Y piel, O su sombra, M ropa, D su sombra, L pantalón, Z zapato.
+PEDESTRIAN = [
+    "....kkkkkkkkk....", "..kkHHHHHHHHHkk..", ".kHHHSHHHHHHHHHk.", ".kHHHHHHHHHHHHHk.", ".kHHHHHHHHHHHHHk.",
+    ".kHHHHYYYYYYHHHk.", ".kHHYYYYYYYYYHHk.", ".kHYYYkYYYkYYYHk.", ".kHYOYkYYYkYOYHk.", ".kYYYYYYYYYYYYYk.",
+    "..kOYYYOOYYYYOk..", "...kkOYYYYYOkk...", "....kkkOOOOkk....", "...kkDDMMMMk.....", "...kDMMMMMMMYk...",
+    "...kMMDMMMMMYk...", "...kDYMMMMMMDk...", "....kOYMMMMDMk...", "....kkkkkkkkk....", "....kLk...kLk....",
+    "....kLk...kLk....", "...kZZk...kZZk...", "...kkkk...kkkk...",
+]
+CAP = ["....kkkkkkkkk....", "..kkHHHHHHHHHkk..", ".kHHHSHHHHHHHHHk.", ".kHHHHHHHHHHHHHk.", ".kHHHHHHHHHHHHHk.",
+       "kSSSSSSSSSSSSSSk.", "kkkkkkkkkkkkkkkk.", ".keYYYkYYYkYYYek.", ".keYOYkYYYkYOYek."]
+
+
+def pedestrian(name, rows, **tones):
+    return save(name, mat(rows, {k: P[v] for k, v in tones.items()}))
+
+
+def nape(name, skin, shade, hair):
+    """Pelo corto visto por detrás: de la fila 10 a la 12 va la nuca, en piel."""
+    front, img = load(name), load(name + "-atras")
+    for y in range(10, 13):
+        for x in range(img.width):
+            if img.getpixel((x, y)) == P[hair] and front.getpixel((x, y)) not in (P[hair], P["k"]):
+                img.putpixel((x, y), P[shade if y == 12 else skin])
+    return img
+
+
+# 1. Pelo verde azulado, playera morada y mochila.
+img = pedestrian("peaton1", PEDESTRIAN, H="t", S="g", Y="y", O="o", M="p", D="n", L="e", Z="w")
+dots(img, "o", (5, 14), (5, 15), (10, 14), (10, 15), (10, 16))  # tirantes
+img.save(SPRITES / "peaton1.png")
+back_view("peaton1", ("t", "g"), 13, logos=[(range(13, 18), "o", "p")], logo_x=(5, 10))
+img = nape("peaton1", "y", "o", "t")
+box(img, 5, 13, 11, 17, "r")  # la mochila
+box(img, 6, 13, 10, 13, "o")
+box(img, 7, 16, 9, 16, "p")
+img.save(SPRITES / "peaton1-atras.png")
+
+# 2. De traje, corbata roja y portafolio.
+img = pedestrian("peaton2", PEDESTRIAN, H="n", S="b", Y="o", O="r", M="e", D="k", L="e", Z="d")
+box(img, 7, 14, 9, 15, "w")
+dots(img, "r", (8, 14), (8, 15), (8, 16))
+box(img, 12, 17, 16, 20, "k")  # portafolio
+box(img, 13, 18, 15, 19, "o")
+img.save(SPRITES / "peaton2.png")
+back_view("peaton2", ("n", "b"), 13, logos=[(range(13, 18), "wr", "e")], logo_x=(6, 10))
+nape("peaton2", "o", "r", "n").save(SPRITES / "peaton2-atras.png")
+
+# 3. Persona mayor: pelo blanco, suéter rojo, falda y bastón.
+img = pedestrian("peaton3", PEDESTRIAN, H="w", S="s", Y="y", O="o", M="r", D="p", L="n", Z="e")
+for y in (19, 20):  # falda
+    box(img, 4, y, 12, y, "k")
+    box(img, 5, y, 11, y, "n")
+box(img, 14, 15, 14, 21, "o")  # bastón
+dots(img, "o", (13, 15))
+img.save(SPRITES / "peaton3.png")
+back_view("peaton3", ("w", "s"), 13)
+
+# 4. Gorra verde, audífonos y sudadera blanca.
+img = pedestrian("peaton4", CAP + PEDESTRIAN[9:], H="g", S="l", Y="o", O="r", M="w", D="s", L="n", Z="r")
+PHONES = [((0, 7), "k"), ((0, 8), "k"), ((16, 7), "k"), ((16, 8), "k"),
+          ((1, 7), "c"), ((1, 8), "c"), ((2, 7), "c"), ((2, 8), "c"),
+          ((14, 7), "c"), ((14, 8), "c"), ((15, 7), "c"), ((15, 8), "c")]
+for at, c in PHONES:
+    img.putpixel(at, P[c])
+img.save(SPRITES / "peaton4.png")
+back_view("peaton4", ("g", "l"), 7, lower=(7, 13, "e"))
+img = nape("peaton4", "o", "r", "e")
+for at, c in PHONES:
+    img.putpixel(at, P[c])
+img.save(SPRITES / "peaton4-atras.png")
+
+# Sus caminatas, con el mismo formato de hoja que las de los empleados.
+for i in range(1, 5):
+    for view, sheet in (("", "camina"), ("-atras", "atras-camina")):
+        walker = load(f"peaton{i}{view}")
+        top, left, right = leg_rows(walker)
+        low = squash(walker, top)
+        save(f"peaton{i}-{sheet}", strip([lift(walker, top, left), low, lift(walker, top, right), low]))
+
+
+# Mobiliario de la acera, cada pieza con su cara de arriba.
+save("buzon", mat([
+    ".kkkkkkkk.", "kcccccccck", "kcccccccck", "kbbbbbbbbk", "kbkkkkkkbk", "kbbbbbbbbk", "kbwwwwwwbk", "kbwsssswbk",
+    "kbbbbbbbbk", "kbbbbbbbbk", "knnnnnnnnk", ".kkkkkkkk.", "...kddk...", "...kddk...", "..kkddkk..", "..keeeek..",
+    "..kkkkkk..",
+]))
+save("hidrante", mat([
+    "...kkk...", "..koook..", ".kkrrrkk.", ".krrrrrk.", "kkrrwrrkk", "kprrwrrpk", "kkrrrrrkk", ".krrrrrk.",
+    ".krrrrrk.", ".kprrrpk.", "kkpppppkk", "kkkkkkkkk",
+]))
+
+# Farola: el farol arriba (tapa y cristal), el poste y su base. `farola-luz` es
+# del mismo tamaño y se encima de noche: el cristal encendido y su halo.
+LAMP_W, LAMP_H = 21, 40
+img = canvas(LAMP_W, LAMP_H)
+box(img, 9, 7, 11, 35, "e")
+box(img, 10, 7, 10, 35, "s")
+box(img, 7, 35, 13, 38, "k")
+box(img, 8, 35, 12, 35, "d")
+box(img, 8, 36, 12, 37, "e")
+box(img, 5, 0, 15, 6, "k")
+box(img, 6, 1, 14, 2, "d")
+box(img, 6, 1, 14, 1, "s")
+box(img, 6, 3, 14, 5, "s")
+box(img, 7, 3, 13, 3, "w")
+save("farola", img)
+img = canvas(LAMP_W, LAMP_H)
+for y in range(LAMP_H):
+    for x in range(LAMP_W):
+        d2 = (x - 10) ** 2 + (y - 5) ** 2
+        if d2 <= 100:
+            img.putpixel((x, y), P["y"][:3] + (120 if d2 <= 30 else 60,))
+box(img, 6, 3, 14, 5, "y")
+box(img, 7, 3, 13, 4, "w")
+save("farola-luz", img)
+
+# Árbol chico en su alcorque: copa redonda con la luz arriba a la izquierda.
+img = canvas(18, 28)
+box(img, 2, 23, 15, 27, "d")
+box(img, 3, 24, 14, 26, "p")
+dots(img, "e", (5, 25), (12, 24), (9, 26))
+box(img, 7, 16, 10, 25, "p")
+box(img, 8, 16, 8, 24, "r")
+for y in range(18):
+    for x in range(18):
+        d = ((x - 8.5) / 8.5) ** 2 + ((y - 8.5) / 8.5) ** 2
+        if d > 1:
+            continue
+        if d > 0.8:
+            c = "t"
+        elif (x - 6) ** 2 + (y - 5) ** 2 < 14 or (x * 5 + y * 3) % 11 == 0:
+            c = "l"
+        elif y > 11 and (x + y) % 3:
+            c = "t"
+        else:
+            c = "g"
+        img.putpixel((x, y), P[c])
+save("arbol-acera", img)
+
 print(len(written), "piezas en", SPRITES)
 for line in written:
     print(" ", line)

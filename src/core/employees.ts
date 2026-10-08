@@ -197,10 +197,16 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     entry.reader.feed(data)
 
     clearTimeout(entry.quietTimer)
-    entry.quietTimer = setTimeout(() => {
+    const recheck = () => {
       const s = entry.employee.state
-      if (s === 'working' || s === 'starting') this.setState(entry, entry.reader.current() ?? 'idle')
-    }, this.opts.quietMs ?? 4000)
+      if (s !== 'working' && s !== 'starting') return
+      const now = entry.reader.current() ?? 'idle'
+      this.setState(entry, now)
+      // Sigue viéndose trabajando sin que la pantalla se mueva: se vuelve a mirar hasta que
+      // el indicador se dé por viejo (ver ScreenReader.working).
+      if (now === 'working') entry.quietTimer = setTimeout(recheck, 1500)
+    }
+    entry.quietTimer = setTimeout(recheck, this.opts.quietMs ?? 4000)
   }
 
   private setState(entry: Live, state: EmployeeState) {
