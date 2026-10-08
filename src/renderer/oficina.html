@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orquest AI · oficina de píxel</title>
+<link rel="stylesheet" href="oficina/styles.css">
+<!-- las mismas fuentes del menú de la app -->
+<script type="module">
+  import '@fontsource/jetbrains-mono/400.css'
+  import '@fontsource/pixelify-sans/400.css'
+  import '@fontsource/pixelify-sans/700.css'
+</script>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🏢 Orquest AI · oficina de píxel (demo)</h1>
+  </header>
+
+  <main>
+    <div id="vista">
+      <div id="office-wrap">
+        <div id="office" aria-label="Oficina">
+        <!-- afuera: colores exactos según la hora -->
+        <canvas id="cielo"></canvas>
+        <div id="nubes"></div>
+        <canvas id="vidrios"></canvas>
+        <!-- adentro: un solo filtro según la hora -->
+        <div id="escena">
+          <img id="scene" alt="" draggable="false">
+          <div id="equipos"></div>
+          <div id="agents"></div>
+        </div>
+        <!-- luces (reloj, pantallas) y textos: sin filtro -->
+        <div id="luces"></div>
+          <div id="globos">
+            <div id="estado-conexion" class="estado-conexion"><span id="conn-led" class="dot off"></span><canvas id="conn-pixel" aria-label="Desconectado"></canvas></div>
+            <button id="cerrar-flotante" type="button" aria-label="Cerrar ventana"><canvas width="7" height="7"></canvas></button>
+          </div>
+        </div>
+      </div>
+
+      <aside id="sidebar">
+        <h2>Eventos en vivo</h2>
+        <div id="counters"></div>
+        <div id="chat-wrap">
+          <ul id="event-list" aria-live="polite"></ul>
+          <button id="nuevos-eventos" type="button" hidden>↓ <span>0</span> nuevos</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<!-- demo.js pone window.OFICINA; app.js dibuja lo que ella diga -->
+<script src="oficina/demo.js"></script>
+<script src="oficina/app.js"></script>
+</body>
+</html>

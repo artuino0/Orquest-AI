@@ -1,0 +1,523 @@
+{
+  "fuente": "assets/pixel-office/PixelOfficeAssets.aseprite",
+  "imagen": "assets/sprites/hoja.png",
+  "ancho": 256,
+  "alto": 400,
+  "sprites": {
+    "HOJASOLA": {
+      "x": 211,
+      "y": 271,
+      "w": 10,
+      "h": 6,
+      "archivo": "hojasola.png"
+    },
+    "SILLA6": {
+      "x": 71,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla6.png"
+    },
+    "SILLA5": {
+      "x": 58,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla5.png"
+    },
+    "SILLA4": {
+      "x": 45,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla4.png"
+    },
+    "SILLA3": {
+      "x": 32,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla3.png"
+    },
+    "SILLA2": {
+      "x": 19,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla2.png"
+    },
+    "SILLA1": {
+      "x": 6,
+      "y": 161,
+      "w": 11,
+      "h": 22,
+      "archivo": "silla1.png"
+    },
+    "PERRO": {
+      "x": 59,
+      "y": 266,
+      "w": 24,
+      "h": 11,
+      "archivo": "perro.png"
+    },
+    "GATO": {
+      "x": 65,
+      "y": 249,
+      "w": 16,
+      "h": 13,
+      "archivo": "gato.png"
+    },
+    "CALENDARIO": {
+      "x": 234,
+      "y": 201,
+      "w": 17,
+      "h": 11,
+      "archivo": "calendario.png"
+    },
+    "BANDERAINDIA": {
+      "x": 179,
+      "y": 214,
+      "w": 12,
+      "h": 9,
+      "archivo": "banderaindia.png"
+    },
+    "BANDERAUK": {
+      "x": 193,
+      "y": 214,
+      "w": 12,
+      "h": 9,
+      "archivo": "banderauk.png"
+    },
+    "BANDERAUSA": {
+      "x": 207,
+      "y": 214,
+      "w": 12,
+      "h": 9,
+      "archivo": "banderausa.png"
+    },
+    "CUADROAZUL": {
+      "x": 222,
+      "y": 214,
+      "w": 6,
+      "h": 8,
+      "archivo": "cuadroazul.png"
+    },
+    "CUADRONARANJA": {
+      "x": 230,
+      "y": 214,
+      "w": 6,
+      "h": 8,
+      "archivo": "cuadronaranja.png"
+    },
+    "CUADROPLAYA": {
+      "x": 239,
+      "y": 214,
+      "w": 11,
+      "h": 8,
+      "archivo": "cuadroplaya.png"
+    },
+    "CARPETAVERDE": {
+      "x": 211,
+      "y": 260,
+      "w": 11,
+      "h": 8,
+      "archivo": "carpetaverde.png"
+    },
+    "CARPETAAZUL": {
+      "x": 211,
+      "y": 249,
+      "w": 11,
+      "h": 8,
+      "archivo": "carpetaazul.png"
+    },
+    "CARPETAROJA": {
+      "x": 211,
+      "y": 239,
+      "w": 11,
+      "h": 8,
+      "archivo": "carpetaroja.png"
+    },
+    "REPORTE": {
+      "x": 183,
+      "y": 227,
+      "w": 6,
+      "h": 8,
+      "archivo": "reporte.png"
+    },
+    "BONCHE DE HOJAS": {
+      "x": 192,
+      "y": 227,
+      "w": 6,
+      "h": 9,
+      "archivo": "bonche-de-hojas.png"
+    },
+    "IMPRESORA1": {
+      "x": 200,
+      "y": 227,
+      "w": 9,
+      "h": 9,
+      "archivo": "impresora1.png"
+    },
+    "POSTICKS": {
+      "x": 217,
+      "y": 227,
+      "w": 6,
+      "h": 8,
+      "archivo": "posticks.png"
+    },
+    "TAZA DE CAFE": {
+      "x": 169,
+      "y": 215,
+      "w": 8,
+      "h": 7,
+      "archivo": "taza-de-cafe.png"
+    },
+    "CAFETERA": {
+      "x": 159,
+      "y": 211,
+      "w": 7,
+      "h": 11,
+      "archivo": "cafetera.png"
+    },
+    "GARRAFON DE AGUA": {
+      "x": 147,
+      "y": 260,
+      "w": 9,
+      "h": 17,
+      "archivo": "garrafon-de-agua.png"
+    },
+    "BASURA3": {
+      "x": 126,
+      "y": 263,
+      "w": 9,
+      "h": 14,
+      "archivo": "basura3.png"
+    },
+    "BASURA2": {
+      "x": 136,
+      "y": 263,
+      "w": 9,
+      "h": 14,
+      "archivo": "basura2.png"
+    },
+    "BASURA1": {
+      "x": 116,
+      "y": 263,
+      "w": 9,
+      "h": 14,
+      "archivo": "basura1.png"
+    },
+    "RELOJ": {
+      "x": 159,
+      "y": 228,
+      "w": 19,
+      "h": 6,
+      "archivo": "reloj.png"
+    },
+    "COMPUTADORA2": {
+      "x": 233,
+      "y": 248,
+      "w": 13,
+      "h": 23,
+      "archivo": "computadora2.png"
+    },
+    "COMPUTADORA1": {
+      "x": 233,
+      "y": 226,
+      "w": 15,
+      "h": 19,
+      "archivo": "computadora1.png"
+    },
+    "DIVIDER CUBICULO VERTICAL": {
+      "x": 207,
+      "y": 183,
+      "w": 4,
+      "h": 27,
+      "archivo": "divider-cubiculo-vertical.png"
+    },
+    "PLANT DECORATION": {
+      "x": 170,
+      "y": 185,
+      "w": 14,
+      "h": 19,
+      "archivo": "plant-decoration.png"
+    },
+    "COACH4": {
+      "x": 120,
+      "y": 241,
+      "w": 33,
+      "h": 16,
+      "archivo": "coach4.png"
+    },
+    "COACH3": {
+      "x": 120,
+      "y": 222,
+      "w": 33,
+      "h": 16,
+      "archivo": "coach3.png"
+    },
+    "COACH2": {
+      "x": 120,
+      "y": 203,
+      "w": 33,
+      "h": 16,
+      "archivo": "coach2.png"
+    },
+    "COACH1": {
+      "x": 119,
+      "y": 186,
+      "w": 33,
+      "h": 15,
+      "archivo": "coach1.png"
+    },
+    "LIBRERO ALV": {
+      "x": 184,
+      "y": 246,
+      "w": 24,
+      "h": 31,
+      "archivo": "librero-alv.png"
+    },
+    "VENDYMACHINE1": {
+      "x": 159,
+      "y": 243,
+      "w": 24,
+      "h": 34,
+      "archivo": "vendymachine1.png"
+    },
+    "DOOR": {
+      "x": 98,
+      "y": 240,
+      "w": 16,
+      "h": 31,
+      "archivo": "door.png"
+    },
+    "CHAR5": {
+      "x": 22,
+      "y": 252,
+      "w": 17,
+      "h": 23,
+      "archivo": "char5.png"
+    },
+    "CHAR4": {
+      "x": 3,
+      "y": 252,
+      "w": 17,
+      "h": 23,
+      "archivo": "char4.png"
+    },
+    "CHAR3": {
+      "x": 40,
+      "y": 227,
+      "w": 13,
+      "h": 21,
+      "archivo": "char3.png"
+    },
+    "CHAR2": {
+      "x": 19,
+      "y": 224,
+      "w": 19,
+      "h": 24,
+      "archivo": "char2.png"
+    },
+    "CHAR1": {
+      "x": 2,
+      "y": 225,
+      "w": 15,
+      "h": 23,
+      "archivo": "char1.png"
+    },
+    "DeskLeft": {
+      "x": 213,
+      "y": 183,
+      "w": 17,
+      "h": 19,
+      "archivo": "deskleft.png"
+    },
+    "Desk RIght": {
+      "x": 188,
+      "y": 183,
+      "w": 17,
+      "h": 19,
+      "archivo": "desk-right.png"
+    },
+    "TableLarge": {
+      "x": 115,
+      "y": 167,
+      "w": 40,
+      "h": 16,
+      "archivo": "tablelarge.png"
+    },
+    "ModuleDivider1": {
+      "x": 171,
+      "y": 164,
+      "w": 79,
+      "h": 17,
+      "archivo": "moduledivider1.png"
+    },
+    "TableSmall": {
+      "x": 85,
+      "y": 167,
+      "w": 26,
+      "h": 16,
+      "archivo": "tablesmall.png"
+    },
+    "Window Postick": {
+      "x": 88,
+      "y": 216,
+      "w": 26,
+      "h": 21,
+      "archivo": "window-postick.png"
+    },
+    "Window": {
+      "x": 59,
+      "y": 216,
+      "w": 26,
+      "h": 21,
+      "archivo": "window.png"
+    },
+    "Wall": {
+      "x": 84,
+      "y": 190,
+      "w": 26,
+      "h": 20,
+      "archivo": "wall.png"
+    },
+    "Floor": {
+      "x": 3,
+      "y": 188,
+      "w": 73,
+      "h": 24,
+      "archivo": "floor.png"
+    },
+    "SKY": {
+      "x": 0,
+      "y": 120,
+      "w": 256,
+      "h": 38,
+      "archivo": "sky.png"
+    },
+    "CHAR3 SENTADO": {
+      "x": 39,
+      "y": 278,
+      "w": 13,
+      "h": 21,
+      "archivo": "char3-sentado.png"
+    },
+    "CHAR2 SENTADO": {
+      "x": 19,
+      "y": 276,
+      "w": 19,
+      "h": 24,
+      "archivo": "char2-sentado.png"
+    },
+    "CHAR1SENTADO": {
+      "x": 2,
+      "y": 276,
+      "w": 15,
+      "h": 24,
+      "archivo": "char1sentado.png"
+    },
+    "CHAR4 SENTADO": {
+      "x": 3,
+      "y": 302,
+      "w": 17,
+      "h": 24,
+      "archivo": "char4-sentado.png"
+    },
+    "CHAR5 SENTADO": {
+      "x": 22,
+      "y": 302,
+      "w": 17,
+      "h": 24,
+      "archivo": "char5-sentado.png"
+    }
+  },
+  "fondo": {
+    "archivo": "fondo.png",
+    "muebles": "muebles.png",
+    "nubes": "nubes.png",
+    "vidrios": "vidrios.png",
+    "ancho": 256,
+    "alto": 224,
+    "mapa": "mapa.json",
+    "cielo": "#41a6f6",
+    "edificioY": 48,
+    "conVidrio": [
+      "Window (199,80)",
+      "Window (33,80)",
+      "Window Postick (33,80)",
+      "Window Postick (199,80)",
+      "DOOR (111,82)"
+    ],
+    "personajesBorrados": [
+      {
+        "nombre": "CHAR1",
+        "capa": "CHAR1",
+        "encontrado": true,
+        "x": 70,
+        "y": 101,
+        "espejo": true,
+        "coincidencia": 1
+      },
+      {
+        "nombre": "CHAR2",
+        "capa": "CHAR2",
+        "encontrado": true,
+        "x": 222,
+        "y": 135,
+        "espejo": false,
+        "coincidencia": 1
+      },
+      {
+        "nombre": "CHAR3",
+        "capa": "CHAR3 SENTADO",
+        "encontrado": true,
+        "x": 42,
+        "y": 167,
+        "espejo": false,
+        "coincidencia": 0.985
+      },
+      {
+        "nombre": "CHAR4",
+        "capa": "CHAR4",
+        "encontrado": true,
+        "x": 108,
+        "y": 169,
+        "espejo": false,
+        "coincidencia": 1
+      },
+      {
+        "nombre": "CHAR5",
+        "capa": "CHAR5",
+        "encontrado": true,
+        "x": 129,
+        "y": 169,
+        "espejo": true,
+        "coincidencia": 1
+      }
+    ],
+    "pixelesReparados": 405,
+    "mascotas": [
+      {
+        "nombre": "GATO",
+        "x": 137,
+        "y": 199,
+        "espejo": false
+      },
+      {
+        "nombre": "PERRO",
+        "x": 92,
+        "y": 208,
+        "espejo": false
+      }
+    ],
+    "reloj": {
+      "x": 117,
+      "y": 73,
+      "w": 19,
+      "h": 6,
+      "marco": "#1a1c2c",
+      "digito": "#b13e53"
+    }
+  }
+}

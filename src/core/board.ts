@@ -101,6 +101,20 @@ export interface BoardSnapshot {
   seq: { task: number; slot: number }
 }
 
+/** Lo que se dice de un proyecto en la lista de recientes, sin abrirlo. */
+export interface ProjectSummary {
+  /** Empleados contratados (sin contar al jefe). */
+  staff: number
+  /** Entregas que esperan la aprobación del usuario. */
+  pending: number
+  /** Ya tuvo jefe: tiene objetivo. */
+  started: boolean
+}
+
+export function summarize(b: BoardSnapshot): ProjectSummary {
+  return { staff: b.staff.length, pending: b.tasks.filter((t) => t.status === 'approved').length, started: !!b.goal }
+}
+
 /** Una regla rota. El motivo llega tal cual a quien llamó la herramienta. */
 export class RuleError extends Error {}
 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { BossRequest, CliStatus, Employee, EmployeeState, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
+import type { BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
 
 export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | null
@@ -14,17 +14,27 @@ export interface ActivityItem {
 
 const RECENTS_KEY = 'orquest.recents'
 
-function loadRecents(): string[] {
+/** Un proyecto abierto antes en esta máquina. */
+export interface Recent {
+  path: string
+  /** Cuándo se abrió por última vez; 0 si viene de una versión que no lo guardaba. */
+  at: number
+  /** Lo guardado del proyecto; undefined mientras se pregunta, null si no hay nada. */
+  summary?: ProjectSummary | null
+}
+
+function loadRecents(): Recent[] {
   try {
-    return JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]')
+    const saved = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as (string | Recent)[]
+    return saved.map((r) => (typeof r === 'string' ? { path: r, at: 0 } : { path: r.path, at: r.at }))
   } catch {
     return []
   }
 }
 
-function saveRecents(list: string[]) {
+function saveRecents(list: Recent[]) {
   try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(list))
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.map(({ path, at }) => ({ path, at }))))
   } catch {
     // Sin almacenamiento solo se pierden los recientes.
   }
@@ -36,7 +46,9 @@ export const useStudio = defineStore('studio', () => {
   const detecting = ref(false)
   const employees = ref<Employee[]>([])
   const repo = ref<string | null>(null)
-  const recents = ref<string[]>(loadRecents())
+  const recents = ref<Recent[]>(loadRecents())
+  /** Cuándo terminó la última revisión de CLIs. */
+  const checkedAt = ref<number | null>(null)
   const selected = ref<string | null>(null)
   const overlay = ref<Overlay>(null)
   const drawerMode = ref<DrawerMode>('float')
@@ -70,9 +82,18 @@ export const useStudio = defineStore('studio', () => {
     detecting.value = true
     try {
       clis.value = await window.orquest.detectClis()
+      checkedAt.value = Date.now()
     } finally {
       detecting.value = false
     }
+  }
+
+  /** Completa la lista de recientes con lo que hay guardado de cada uno. */
+  async function loadSummaries() {
+    const list = recents.value
+    if (!list.length) return
+    const got = await window.orquest.projectSummaries(list.map((r) => r.path)).catch(() => [])
+    recents.value = list.map((r, i) => ({ ...r, summary: got[i] ?? null }))
   }
 
   async function openProject(path: string) {
@@ -84,7 +105,9 @@ export const useStudio = defineStore('studio', () => {
       return
     }
     repo.value = path
-    recents.value = [path, ...recents.value.filter((r) => r !== path)].slice(0, 8)
+    // Se guarda la raíz del repo: es con la que el estudio recuerda el proyecto.
+    const root = board.value.repo
+    recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
     saveRecents(recents.value)
     employees.value = (await window.orquest.list()).filter((e) => e.office.path.startsWith(board.value!.repo))
     screen.value = 'office'
@@ -155,8 +178,8 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    screen, clis, detecting, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
+    screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest,
-    detect, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
+    detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })

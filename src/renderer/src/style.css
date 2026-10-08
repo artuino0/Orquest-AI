@@ -1,18 +1,86 @@
 :root {
-  --bg: #1b1a24;
-  --panel: #262433;
-  --line: #3a3750;
-  --text: #ece9f7;
-  --muted: #9a96b3;
-  --accent: #f2b84b;
-  --working: #4fc3f7;
-  --blocked: #ef5350;
-  --idle: #66bb6a;
-  --starting: #b39ddb;
+  /* Fichas del diseño (oirquestai.pen), tema oscuro. */
+  --font: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --font-pixel: 'Pixelify Sans', 'JetBrains Mono', monospace;
+  --bg: #15121b;
+  --surface: #221d2c;
+  --surface-2: #2f2839;
+  --border: #08070b;
+  --border-light: #4a4159;
+  --text-primary: #f4eadb;
+  --text-secondary: #a89db6;
+  --accent: #f2b544;
+  --st-work: #4c9bf5;
+  --st-block: #f0524f;
+  --st-idle: #5fcb6b;
+  --st-dep: #b58cf2;
+  --st-review: #f2b544;
+  --st-play: #35d0c0;
+  --st-arrive: #d9c2ff;
+  --pv-claude: #e8823a;
+  --pv-codex: #3f7fe8;
+  --pv-antigravity: #3fb86a;
+  --pv-opencode: #f1f1f1;
+  --pv-commandcode: #b79cf0;
+  --pv-kimi: #f58bb8;
+  --pv-grok: #8c8c96;
+  --ink: #08070b;
+  --term-bg: #08070b;
+  --veil: #0b0910d9;
+  --tint-danger: #3a1517;
+  --tint-ok: #12301a;
+  --tint-warn: #33280f;
+  --on-accent: #1a1206;
+  --on-danger: #1a0606;
+  --shadow: #000000aa;
+
+  /* Nombres de antes, para los paneles que aún no se pasan al diseño. */
+  --panel: var(--surface);
+  --line: var(--border-light);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --working: var(--st-work);
+  --blocked: var(--st-block);
+  --idle: var(--st-idle);
+  --starting: var(--st-arrive);
   --exited: #757575;
-  font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
-  color: var(--text);
+
+  font-family: var(--font);
+  color: var(--text-primary);
   background: var(--bg);
+}
+:root[data-theme='light'] {
+  --bg: #f4f4f4;
+  --surface: #e3eaef;
+  --surface-2: #cdd9e2;
+  --border: #1a1c2c;
+  --border-light: #94b0c2;
+  --text-primary: #1a1c2c;
+  --text-secondary: #566c86;
+  --accent: #3b5dc9;
+  --st-work: #41a6f6;
+  --st-block: #b13e53;
+  --st-idle: #257179;
+  --st-dep: #5d275d;
+  --st-review: #ef7d57;
+  --st-play: #38b764;
+  --st-arrive: #566c86;
+  --pv-claude: #ef7d57;
+  --pv-codex: #3b5dc9;
+  --pv-antigravity: #38b764;
+  --pv-opencode: #333c57;
+  --pv-commandcode: #5d275d;
+  --pv-kimi: #b13e53;
+  --pv-grok: #94b0c2;
+  --ink: #1a1c2c;
+  --term-bg: #f4f4f4;
+  --veil: #1a1c2c99;
+  --tint-danger: #b13e5326;
+  --tint-ok: #38b76426;
+  --tint-warn: #ffcd7559;
+  --on-accent: #f4f4f4;
+  --on-danger: #f4f4f4;
+  --shadow: #1a1c2c59;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -27,3 +95,42 @@ button { cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 8px; }
+
+/* ── Componentes del diseño ─────────────────────────────────────────────── */
+
+/* Botón: borde grueso y sombra dura, sin esquinas. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font: 700 12px var(--font);
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  box-shadow: 2px 2px 0 var(--shadow);
+  white-space: nowrap;
+}
+.btn svg { width: 14px; height: 14px; flex: none; }
+.btn:hover:not(:disabled) { border-color: var(--border); filter: brightness(1.12); }
+.btn:active:not(:disabled) { translate: 2px 2px; box-shadow: none; }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.danger { background: var(--st-block); color: var(--on-danger); }
+
+/* Etiqueta de estado: texto en mayúsculas dentro de un marco de su color. */
+.chip {
+  display: inline-block;
+  padding: 2px 7px;
+  font: 700 10px var(--font);
+  background: var(--bg);
+  border: 2px solid currentColor;
+  white-space: nowrap;
+}
+
+/* Panel: superficie con borde oscuro y sombra dura. */
+.panel {
+  background: var(--surface);
+  border: 3px solid var(--border);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.title-pixel { font: 700 20px/24px var(--font-pixel); color: var(--text-primary); margin: 0; text-transform: none; letter-spacing: 0; }

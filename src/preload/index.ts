@@ -19,6 +19,8 @@ async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
 const api: OrquestApi = {
   detectClis: () => invoke('clis:detect'),
   pickRepo: () => invoke('repo:pick'),
+  projectSummaries: (repos) => invoke('project:summaries', repos),
+  openExternal: (url) => invoke('shell:open', url),
   openProject: (repo) => invoke('project:open', repo),
   hireBoss: (req) => invoke('boss:hire', req),
   sayToBoss: (text) => invoke('boss:say', text),
