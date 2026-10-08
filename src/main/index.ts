@@ -5,6 +5,7 @@ import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { detectAll, detectModels } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
+import { listCaptures, readCapture } from '../core/captures.js'
 import { listDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
@@ -13,7 +14,7 @@ import { startMcpServer, type McpHandle } from '../core/mcp.js'
 import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { Studio } from '../core/studio.js'
-import { officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
+import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 
 const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
@@ -189,6 +190,18 @@ handle('employee:scrollback', (id: string) => manager.scrollback(id))
 handle('employee:changes', (id: string) => {
   const emp = manager.get(id)
   return emp ? officeChanges(emp.office) : []
+})
+handle('employee:captures', async (id: string) => {
+  const emp = manager.get(id)
+  if (!emp) return []
+  // También las que adjuntó al entregar, aunque estén en una carpeta que no se revisa.
+  const attached = current?.snapshot().tasks.filter((t) => t.assignee === id).flatMap((t) => [...(t.delivery?.screenshots ?? []), ...(t.qa?.screenshots ?? [])]) ?? []
+  return listCaptures(emp.office.path, attached, current ? await headOf(current.snapshot().repo).catch(() => undefined) : undefined)
+})
+handle('employee:capture', (id: string, path: string) => {
+  const emp = manager.get(id)
+  if (!emp) throw new RuleError('Ya no está en la oficina.')
+  return readCapture(emp.office.path, path)
 })
 handle('employee:diff', (id: string, path: string) => {
   const emp = manager.get(id)

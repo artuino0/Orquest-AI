@@ -5,6 +5,7 @@ import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
 import type { Activity } from '../core/activity.js'
+import type { Capture } from '../core/captures.js'
 import type { ProjectDocument } from '../core/documents.js'
 import type { InstalledTool } from '../core/skills.js'
 import type { EmployeeState } from '../core/state.js'
@@ -12,7 +13,7 @@ import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
-export type { Activity, InstalledTool, ProjectDocument }
+export type { Activity, Capture, InstalledTool, ProjectDocument }
 export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -87,6 +88,9 @@ export interface OrquestApi {
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>
   changes(id: string): Promise<FileChange[]>
+  /** Imágenes que dejó en su oficina al probar, lo más reciente primero. */
+  captures(id: string): Promise<Capture[]>
+  capture(id: string, path: string): Promise<{ bytes: Uint8Array; type: string }>
   diff(id: string, path: string): Promise<string>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>

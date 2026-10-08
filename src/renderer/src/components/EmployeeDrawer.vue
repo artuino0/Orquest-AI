@@ -5,7 +5,7 @@ import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
-import type { FileChange } from '../../../shared/ipc'
+import type { Capture, FileChange } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
 
 type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
@@ -57,6 +57,24 @@ const NOTE: Record<string, string> = { traspaso: 'lo escribe el agente', hechos:
 async function loadJournal() {
   journal.value = await window.orquest.journal(e.value.id)
 }
+// Capturas: las imágenes que dejó en su oficina. Se traen sus bytes y se pintan desde memoria.
+const captures = ref<(Capture & { url?: string })[]>([])
+const urls = new Map<string, string>()
+const zoomed = ref<string | null>(null)
+async function loadCaptures() {
+  const id = e.value.id
+  const list = await window.orquest.captures(id).catch(() => [])
+  for (const c of list) {
+    const key = `${c.path}@${c.at}`
+    if (!urls.has(key)) {
+      const img = await window.orquest.capture(id, c.path).catch(() => null)
+      if (img) urls.set(key, URL.createObjectURL(new Blob([img.bytes as BlobPart], { type: img.type })))
+    }
+  }
+  if (id === e.value.id) captures.value = list.map((c) => ({ ...c, url: urls.get(`${c.path}@${c.at}`) }))
+}
+onBeforeUnmount(() => urls.forEach((u) => URL.revokeObjectURL(u)))
+
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
 }
@@ -73,6 +91,10 @@ watch(
     if (t === 'archivos') {
       loadChanges()
       timer = setInterval(loadChanges, 3000)
+    }
+    if (t === 'capturas') {
+      loadCaptures()
+      timer = setInterval(loadCaptures, 4000)
     }
     if (t === 'bitacora') {
       loadJournal()
@@ -143,7 +165,14 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 </span></pre>
       </div>
 
-      <p v-if="tab === 'capturas'" class="dim pad">Aún no hay capturas. Aquí aparecen las que tome al probar la app.</p>
+      <div v-if="tab === 'capturas'" class="shots">
+        <p v-if="!captures.length" class="dim pad">Aún no hay capturas. Aquí aparecen las imágenes que deje en su oficina al probar la app.</p>
+        <figure v-for="c in captures" :key="c.path" @click="zoomed = c.url ?? null">
+          <img v-if="c.url" :src="c.url" :alt="c.path" />
+          <figcaption :title="c.path">{{ c.path.split('/').pop() }} <small>{{ time(c.at) }}</small></figcaption>
+        </figure>
+        <div v-if="zoomed" class="zoomed" @click.stop="zoomed = null"><img :src="zoomed" alt="" /></div>
+      </div>
 
       <ol v-if="tab === 'actividad'" class="timeline">
         <li v-if="!activity.length" class="dim">Sin actividad todavía.</li>
@@ -205,6 +234,14 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .say svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
 .say input { flex: 1; border: 0; background: none; padding: 10px 0; font: 12px var(--font); color: var(--text-primary); outline: none; }
 .pad { padding: 4px 0; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-content: start; }
+.shots .pad { grid-column: 1 / -1; }
+.shots figure { margin: 0; background: var(--bg); border: 2px solid var(--border); cursor: zoom-in; }
+.shots figure img { display: block; width: 100%; height: 120px; object-fit: cover; object-position: top; background: var(--surface); }
+.shots figcaption { padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 2px solid var(--border); }
+.shots small { color: var(--text-secondary); }
+.zoomed { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: var(--veil); cursor: zoom-out; }
+.zoomed img { max-width: 100%; max-height: 100%; border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); }
 .files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
 .files ul { list-style: none; margin: 0; padding: 6px; font-size: 12px; background: var(--bg); border: 2px solid var(--border); max-height: 180px; overflow: auto; }
 .files li { padding: 4px 8px; cursor: pointer; }
