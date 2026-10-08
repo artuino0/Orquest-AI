@@ -89,6 +89,7 @@ export function installMock(caso: string) {
     fire: todo('empleados'),
     rest: todo('empleados'),
     bringBack: todo('empleados'),
+    say: async () => {},
     journal: async () => '',
     list: async () => [],
     scrollback: async () => '',
