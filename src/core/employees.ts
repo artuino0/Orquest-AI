@@ -43,6 +43,8 @@ export interface HireRequest {
   env?: Record<string, string>
   /** Carpetas que van al frente de su PATH. */
   path?: string[]
+  /** Retomar su conversación anterior en vez de empezar una nueva (ver ProviderAdapter.sessions). */
+  session?: { id?: string; resume: boolean }
 }
 
 export interface Employee {
@@ -58,6 +60,10 @@ export interface Employee {
   exitCode?: number
   /** % de contexto usado, si se conoce. */
   context?: number
+  /** Id de su conversación en la CLI, si esta deja fijarlo: con él se retoma. */
+  sessionId?: string
+  /** true si arrancó retomando su conversación anterior. */
+  resumed?: boolean
 }
 
 export interface ManagerEvents {
@@ -116,8 +122,22 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       env[key] = [...req.path, env[key]].filter(Boolean).join(delimiter)
     }
 
+    // Conversación: nueva con id propio (para poder retomarla) o la de antes.
+    let sessionId: string | undefined
+    let resumed = false
+    let sessionArgs: string[] = []
+    const ses = adapter.sessions
+    if (ses && req.session?.resume && (req.session.id || !ses.start)) {
+      sessionArgs = ses.resume(req.session.id)
+      sessionId = req.session.id
+      resumed = true
+    } else if (ses?.start) {
+      sessionId = randomUUID()
+      sessionArgs = ses.start(sessionId)
+    }
+
     // En Windows no se puede lanzar el .cmd de npm en una terminal: se arranca lo que él arrancaría.
-    const command = await resolveLaunch(req.binary ? [req.binary] : adapter.binaries, [...adapter.buildArgs(launch), ...(req.extraArgs ?? [])], env[Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'])
+    const command = await resolveLaunch(req.binary ? [req.binary] : adapter.binaries, [...sessionArgs, ...adapter.buildArgs(launch), ...(req.extraArgs ?? [])], env[Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'])
     let pty: Pty
     try {
       pty = this.spawn(command.file, command.args, {
@@ -141,6 +161,8 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       state: 'starting',
       pid: pty.pid,
       warnings: adapter.unsupported(launch),
+      sessionId,
+      resumed,
     }
     const entry: Live = { employee, pty, reader: undefined as unknown as ScreenReader, buffer: '', lastDataAt: Date.now() }
     entry.reader = new ScreenReader(adapter.screen, {

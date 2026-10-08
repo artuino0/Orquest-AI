@@ -133,6 +133,13 @@ export interface ProviderAdapter {
   models: ModelSource
   /** Esfuerzos que recibe por argumento, de menor a mayor. Vacío = no recibe. */
   efforts: Effort[]
+  /**
+   * Cómo retoma su conversación al reabrir la app. `start` le fija el id al
+   * nacer (así se sabe cuál retomar); sin `start`, `resume` continúa la última
+   * de su carpeta, que para un empleado es la suya: cada quien tiene su oficina.
+   * Los argumentos van antes que los demás (en algunas es un subcomando).
+   */
+  sessions?: { start?(id: string): string[]; resume(id?: string): string[] }
   /** Argumentos para lanzar la CLI interactiva en su PTY. */
   buildArgs(opts: LaunchOptions): string[]
   /** Advertencias sobre opciones que este proveedor no sabe recibir. */
@@ -229,6 +236,9 @@ function withEffort(name: string, flag: string): Partial<ProviderAdapter> {
   }
 }
 
+/** Las que retoman con `--continue` la última conversación de su carpeta (según su `--help`). */
+const CONTINUE: NonNullable<ProviderAdapter['sessions']> = { resume: () => ['--continue'] }
+
 export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
   claude: {
     id: 'claude',
@@ -262,6 +272,7 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       },
     },
     efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    sessions: { start: (id) => ['--session-id', id], resume: (id) => (id ? ['--resume', id] : ['--continue']) },
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('--model', o.model)
@@ -331,6 +342,7 @@ ${stderr}`
     },
     // Los que admiten todos sus modelos visibles (algunos tienen además uno propio más alto).
     efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    sessions: { resume: () => ['resume', '--last'] },
     buildArgs(o) {
       const args: string[] = []
       if (o.model) args.push('-m', o.model)
@@ -362,6 +374,7 @@ ${stderr}`
   // `agy models` lista "id<tab>nombre"; el esfuerzo va en el propio id (…-high, …-low).
   antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/oauth_creds.json'], {
     models: { command: { args: ['models'], read: modelIds } },
+    sessions: CONTINUE,
   }),
   opencode: generic('opencode', 'OpenCode', ['opencode'], { command: 'npm install -g opencode-ai', url: 'https://opencode.ai' }, ['.local/share/opencode/auth.json'], {
     sessionCheck: {
@@ -374,14 +387,16 @@ ${stderr}`
     },
     login: 'opencode auth login',
     models: { command: { args: ['models'], read: modelIds } },
+    sessions: CONTINUE,
   }),
   // El binario corto de Command Code es `cmd`, que en Windows es el intérprete del sistema: no se busca por ese nombre.
   commandcode: generic('commandcode', 'Command Code', ['commandcode', 'command-code', 'cmd-code'], { url: 'https://commandcode.ai' }, ['.commandcode/auth.json'], {
     models: { command: { args: ['--list-models'], read: modelIds } },
     ...withEffort('Command Code', '--effort'),
+    sessions: CONTINUE,
   }),
   kimi: generic('kimi', 'Kimi', ['kimi', 'kimi-code'], { url: 'https://github.com/MoonshotAI/kimi-cli' }, ['.kimi/credentials']),
-  grok: generic('grok', 'Grok', ['grok'], { url: 'https://x.ai' }, [], withEffort('Grok', '--reasoning-effort')),
+  grok: generic('grok', 'Grok', ['grok'], { url: 'https://x.ai' }, [], { ...withEffort('Grok', '--reasoning-effort'), sessions: CONTINUE }),
 }
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[]

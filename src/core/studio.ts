@@ -5,9 +5,10 @@
  */
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
-import { Board, RuleError, type BoardSnapshot, type Slot, type Task } from './board.js'
+import { access } from 'node:fs/promises'
+import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import type { CliStatus } from './detect.js'
-import type { EmployeeManager, HireRequest } from './employees.js'
+import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
@@ -16,6 +17,8 @@ import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
 import { commitDelivery, currentBranch, deliveryDiff, mergeOffice, repoRoot, type Office } from './worktree.js'
+
+const exists = (path: string) => access(path).then(() => true, () => false)
 
 export type Caller = { kind: 'boss' } | { kind: 'employee'; id: string }
 
@@ -217,16 +220,24 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   /** Lanza (o relanza) la CLI de un agente con sus mensajes de arranque. */
-  private async launch(id: string, l: Launch, extra: string[] = []) {
+  private async launch(id: string, l: Launch, extra: string[] | ((emp: Employee) => string[]) = [], resume = false) {
     this.contextFloor.delete(id)
     const cli = this.opts.cli
+    // Retomar es seguir la conversación de antes; si no, nace una nueva (así vuelve de descansar, con el contexto limpio).
+    const session = resume ? { id: id === BOSS_ID ? this.board.boss?.sessionId : this.board.staff.find((m) => m.id === id)?.sessionId, resume: true } : undefined
+    const req = { ...l.req, session }
     // Toda terminal recibe el comando, también las que hablan MCP: su token la identifica igual.
-    const emp = await this.opts.manager.hire(cli ? { ...l.req, env: { ...l.req.env, ORQUEST_URL: cli.url(l.token) }, path: [cli.dir] } : l.req)
+    const emp = await this.opts.manager.hire(cli ? { ...req, env: { ...req.env, ORQUEST_URL: cli.url(l.token) }, path: [cli.dir] } : req)
     this.offices.set(id, emp.office)
     // De aquí en adelante, relanzar reusa la misma oficina.
     l.req = { ...l.req, office: emp.office }
     this.launches.set(id, l)
-    for (const m of [...l.intro(emp.office), ...extra]) this.notify(id, m)
+    // La conversación cambia cada vez que nace una nueva: se guarda la vigente.
+    if (id === BOSS_ID && this.board.boss) this.board.boss.sessionId = emp.sessionId
+    else this.board.returned(id, emp.sessionId)
+    // Quien retomó ya trae su manual en la conversación.
+    const intro = emp.resumed ? [] : l.intro(emp.office)
+    for (const m of [...intro, ...(typeof extra === 'function' ? extra(emp) : extra)]) this.notify(id, m)
     return emp
   }
 
@@ -248,6 +259,12 @@ export class Studio extends EventEmitter<StudioEvents> {
   /** Contrata al jefe: trabaja en el repo principal, sin worktree. */
   async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }) {
     if (this.bossOnline) throw new RuleError('El jefe ya está en su oficina.')
+    await this.launchBoss(req, false)
+    this.fact(BOSS_ID, `contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
+    this.changed()
+  }
+
+  private async launchBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }, resume: boolean) {
     const adapter = getProvider(req.provider)
     const channel = this.channel(req.provider)
     if (!channel) throw new RuleError(`${adapter.name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
@@ -258,7 +275,10 @@ export class Studio extends EventEmitter<StudioEvents> {
     const viaArg = takesSystemPrompt(adapter)
     const owner: JournalOwner = { id: BOSS_ID, name: 'Jefe', role: 'jefe', provider: req.provider, model: req.model }
     await this.journal.open(owner)
-    const resumed = this.board.tasks.length > 0
+    const previous = this.board.tasks.length > 0
+    const journal = this.journal.path(BOSS_ID)
+    // Para que `launch` sepa qué conversación retomar; si es nuevo, parte sin ninguna.
+    this.board.boss = { provider: req.provider, model: req.model, effort: req.effort, sessionId: resume ? this.board.boss?.sessionId : undefined }
     await this.launch(BOSS_ID, {
       token,
       owner,
@@ -275,25 +295,61 @@ export class Studio extends EventEmitter<StudioEvents> {
         extraArgs: this.connectArgs(req.provider, token, BOSS_PERMISSIONS),
       },
       intro: () => (viaArg ? [] : [prompt]),
-    }, [
-      resumed
-        ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${this.journal.path(BOSS_ID)}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.`
-        : 'Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.',
-    ])
-    this.fact(BOSS_ID, `contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
+    }, (emp) => [
+      emp.resumed
+        ? 'La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Sigue donde ibas (leer_proyecto).'
+        : resume
+          ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto).`
+          : previous
+            ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${journal}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.`
+            : 'Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.',
+    ], resume)
+  }
+
+  private resumedOnce = false
+  /**
+   * Al reabrir un proyecto: el jefe y quienes seguían contratados vuelven a su
+   * escritorio, cada uno retomando su conversación si su CLI sabe hacerlo.
+   * Quien no pueda volver se queda fuera y se avisa; no frena a los demás.
+   */
+  async resume(): Promise<void> {
+    if (this.resumedOnce) return
+    this.resumedOnce = true
+    const boss = this.board.boss
+    if (!boss || this.bossOnline) return
+    try {
+      await this.launchBoss({ ...boss, goal: this.board.goal }, true)
+      this.fact(BOSS_ID, 'volvió al reabrir la app')
+    } catch (err) {
+      this.emit('notice', `No se pudo retomar al jefe: ${(err as Error).message}`)
+      this.changed()
+      return
+    }
+    for (const m of this.board.staff) {
+      const slot = this.board.slots.find((s) => s.employeeId === m.id)
+      // Sin oficina guardada o sin su carpeta ya no hay a dónde volver.
+      if (m.gone || !slot || !m.office || !(await exists(m.office.path))) continue
+      try {
+        await this.hireSlot(slot, m)
+        this.fact(m.id, 'volvió al reabrir la app')
+      } catch (err) {
+        this.emit('notice', `No se pudo retomar a ${m.name}: ${(err as Error).message}`)
+      }
+    }
     this.changed()
   }
 
   /** Regla de expedientes para el tablero. */
   private rule = (s: { provider: ProviderId; model?: string; role: string }) => this.library.check(s.provider, s.model, s.role)
 
-  private async hireSlot(slot: Slot) {
+  /** Levanta a quien ocupa un puesto. Con `again`, es alguien que ya estaba y vuelve al reabrir la app. */
+  private async hireSlot(slot: Slot, again?: StaffMember) {
     // El expediente pudo cambiar desde que se aprobó.
     const check = this.rule(slot)
     if (!check.ok) throw new RuleError(check.reason)
     const adapter = getProvider(slot.provider)
     const manual = this.library.manual(slot.role)
-    const id = `${slug(slot.name)}-${slot.role}`
+    const id = again?.id ?? `${slug(slot.name)}-${slot.role}`
     const token = this.newToken({ kind: 'employee', id })
     this.known.add(id)
     const warnings: string[] = []
@@ -317,12 +373,18 @@ export class Studio extends EventEmitter<StudioEvents> {
         effort: slot.effort,
         role: slot.role,
         repo: this.root,
+        office: again?.office,
         binary: this.opts.binaries?.[slot.provider],
         extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
       },
       intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel)],
-    }, before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [])
-    this.board.hired(slot, { id, role: slot.role, provider: slot.provider })
+    }, (e) =>
+      again
+        ? [e.resumed ? 'La app se reabrió y retomaste tu sesión. Sigue donde ibas (leer_tarea).' : `La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
+        : before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [],
+    !!again)
+    if (again) return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
+    this.board.hired(slot, { id, role: slot.role, provider: slot.provider, effort: slot.effort, sessionId: emp.sessionId, office: emp.office })
     this.fact(id, `contratado como ${slot.role} (${slot.provider}${slot.model ? ` ${slot.model}` : ''})${before.length ? `; antes en el puesto: ${before.map((b) => b.split(':')[0]).join(', ')}` : ''}`)
     return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
   }
@@ -762,7 +824,9 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.fact(id, 'despedido; su bitácora queda para capacitar a quien ocupe el puesto')
     this.launches.delete(id)
     if (this.opts.manager.get(id)) await this.opts.manager.fire(id, this.root)
-    this.board.offline(id)
+    // Despedido no vuelve al reabrir la app.
+    if (id === BOSS_ID) this.board.boss = undefined
+    else this.board.dismiss(id)
     if (id !== BOSS_ID) this.notify(BOSS_ID, `El usuario despidió a ${this.nameOf(id)} (${id}). Reasigna sus tareas abiertas si hace falta; quien ocupe su puesto recibirá su bitácora.`)
     this.changed()
   }
