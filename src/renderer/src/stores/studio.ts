@@ -151,7 +151,9 @@ export const useStudio = defineStore('studio', () => {
     const root = board.value.repo
     recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
     saveRecents(recents.value)
-    employees.value = (await window.orquest.list()).filter((e) => e.office.path.startsWith(board.value!.repo))
+    // Git da la raíz con diagonales y las oficinas se arman con las del sistema: se comparan parejas.
+    const same = (p: string) => p.replace(/\/g, '/').toLowerCase()
+    employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(board.value!.repo)))
     screen.value = 'office'
     overlay.value = board.value.bossOnline ? null : 'boss'
   }
