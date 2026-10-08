@@ -198,7 +198,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => {
 </template>
 
 <style scoped>
-.office { height: 100vh; display: grid; grid-template-columns: 1fr; grid-template-rows: 48px 1fr; background: var(--bg); }
+.office { height: 100%; display: grid; grid-template-columns: 1fr; grid-template-rows: 48px 1fr; background: var(--bg); }
 .office.split { grid-template-columns: 1fr 1fr; }
 .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--surface); border-bottom: 3px solid var(--border); min-width: 0; }
 .repo { font: 700 16px var(--font-pixel); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }

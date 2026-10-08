@@ -82,6 +82,8 @@ export function installMock(caso: string) {
     saveOffice: async () => {},
     onBoard: nothing,
     onNotice: nothing,
+    windowControl: async () => {},
+    onWindowState: nothing,
     onClosing: nothing,
     closeNow: async () => {},
     resumeProject: async () => {},
