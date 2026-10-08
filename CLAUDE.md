@@ -91,7 +91,7 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 - Permisos de Claude Code por `--settings` JSON (`permissions.allow/deny`) para que reglas con espacios no se partan. Codex: solo sandbox `workspace-write` / `read-only`.
 - Contexto de Claude Code: `statusLine` configurada por Orquest que hace POST del JSON de estado (`context_window.used_percentage`) a `/estado/<token>` con `curl`. Otros proveedores: se lee de pantalla.
 - Burnout: al pasar `burnoutAt` (80%) y nunca a media tarea → `escribir_traspaso` → se cierra y relanza igual en su oficina → lee su bitácora. Solo se repite si el contexto subió 10 puntos desde que volvió (una sesión nueva arranca con ~15%).
-- Licencia: por decidir (MIT o Apache 2.0; arte CC0 o CC-BY).
+- Licencia: **Apache 2.0** (`LICENSE`, `NOTICE`). El repo es público y recibe Pull Requests; solo el autor aprueba (`.github/CODEOWNERS`, `CONTRIBUTING.md`). El arte parte del paquete Pixel Office de 2dPig (CC0) y se le da crédito en README, NOTICE y CONTRIBUTING. Las referencias a otros proyectos en `docs/plan.md` se quedan como están.
 
 ## Probado con CLIs reales (Claude Code) y lo que enseñó
 

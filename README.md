@@ -117,4 +117,15 @@ npm run typecheck
 5. Lanzamiento abierto.
 6. Remoto móvil.
 
-Licencia por decidir (MIT o Apache 2.0 para el código; CC0 o CC-BY para el arte).
+## Contribuir
+
+El código es abierto y se aceptan Pull Requests. Todo cambio entra por PR y lo revisa y aprueba el autor del proyecto. Cómo empezar, las reglas de la casa y en qué hace falta ayuda: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Créditos
+
+- **Arte de la oficina:** parte del paquete [Pixel Office](https://2dpig.itch.io/pixel-office) de **2dPig**, publicado como CC0. Gracias por compartirlo. Las piezas que no traía (personajes extra, poses, pisos, paredes, mobiliario, vehículos, la calle) se pintaron para este proyecto siguiendo su estilo y su paleta.
+- **Referencias de diseño:** las decisiones y de dónde salió cada idea están en [docs/plan.md](docs/plan.md).
+
+## Licencia
+
+[Apache 2.0](LICENSE). Los avisos de terceros están en [NOTICE](NOTICE).
