@@ -16,7 +16,7 @@ import { bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
-import { commitDelivery, currentBranch, deliveryDiff, mergeOffice, repoRoot, type Office } from './worktree.js'
+import { commitDelivery, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, repoRoot, type Office } from './worktree.js'
 
 /** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
 const SUBMIT_RETRY_MS = 1200
@@ -762,6 +762,13 @@ export class Studio extends EventEmitter<StudioEvents> {
         const t = b.review(String(a.tarea), decision === 'aprobar' ? 'approve' : 'return', a.notas ? String(a.notas) : '')
         if (t.status !== 'approved') this.record(t, 'returned', String(a.notas ?? ''))
         if (t.status === 'approved') {
+          // Sin cambios que integrar (una prueba, una revisión): se cierra aquí, no va a la bandeja.
+          if (t.delivery?.commit && (await nothingToMerge(this.root, t.delivery.commit))) {
+            const released = b.closeEmpty(t.id)
+            this.record(t, 'merged')
+            for (const r of released) this.notify(r.assignee, `Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) quedó cerrada. Su reporte: ${t.delivery.report ?? ''}. Tu tarea ${r.id} está lista; usa leer_tarea.`)
+            return `${t.id} aprobada y cerrada: no traía cambios que integrar, así que no pasa por la bandeja del usuario.${released.length ? ` Se liberó: ${released.map((r) => r.id).join(', ')}.` : ''}`
+          }
           this.emit('notice', `${t.id} (${t.title}) espera tu aprobación para integrarse. Ábrela en Entregas.`)
           return `${t.id} aprobada; queda en la bandeja del usuario para integrarse.`
         }
@@ -826,7 +833,7 @@ export class Studio extends EventEmitter<StudioEvents> {
           throw new RuleError(`El manual de ${member.role} pide capturas en la entrega. ${manual.delivery}`)
         }
         let diff: { commit?: string; diffStat?: string } = {}
-        if (t!.kind === 'work') diff = await commitDelivery(this.office(id), `${t!.id}: ${t!.title}`)
+        if (t!.kind === 'work') diff = await commitDelivery(this.office(id), `${t!.id}: ${t!.title}`, await headOf(this.root).catch(() => undefined))
         const verdict = a.veredicto === 'pasa' ? 'pass' : a.veredicto === 'no_pasa' ? 'fail' : undefined
         const { task, reviewed } = b.deliver(id, {
           report: String(a.reporte),
@@ -927,7 +934,7 @@ export class Studio extends EventEmitter<StudioEvents> {
   async diff(taskId: string): Promise<string> {
     const t = this.board.task(taskId)
     if (!t.delivery?.commit) return ''
-    return deliveryDiff(this.office(t.assignee), t.delivery.commit)
+    return deliveryDiff(this.office(t.assignee), t.delivery.commit, await headOf(this.root).catch(() => undefined))
   }
 
   // ── Vistas ───────────────────────────────────────────────────────────────

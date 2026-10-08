@@ -94,10 +94,24 @@ export async function currentBranch(repo: string): Promise<string> {
 }
 
 /**
- * Cierra la entrega: hace commit de todo lo pendiente en la oficina y devuelve
- * el commit y el resumen de cambios contra la base.
+ * Contra qué se mide una entrega: lo que tiene la rama y la principal todavía
+ * no. Si el empleado trajo la principal a su oficina (`git merge`), eso no
+ * cuenta como suyo. `main` es el commit actual de la rama principal; sin él
+ * (o si ya no existe) se mide contra el commit del que partió la oficina.
  */
-export async function commitDelivery(office: Office, message: string): Promise<{ commit: string; diffStat: string }> {
+async function sinceMain(office: Office, commit: string, main?: string): Promise<string | undefined> {
+  if (main) {
+    const fork = await git(office.path, 'merge-base', main, commit).catch(() => '')
+    if (fork) return fork
+  }
+  return office.base
+}
+
+/**
+ * Cierra la entrega: hace commit de todo lo pendiente en la oficina y devuelve
+ * el commit y el resumen de lo que esa rama le añadiría a la principal.
+ */
+export async function commitDelivery(office: Office, message: string, main?: string): Promise<{ commit: string; diffStat: string }> {
   await git(office.path, 'add', '-A')
   const pending = await git(office.path, 'status', '--porcelain')
   if (pending) {
@@ -106,13 +120,26 @@ export async function commitDelivery(office: Office, message: string): Promise<{
     })
   }
   const commit = await git(office.path, 'rev-parse', 'HEAD')
-  const diffStat = office.base ? await git(office.path, 'diff', '--stat', office.base, commit) : ''
+  const from = await sinceMain(office, commit, main)
+  const diffStat = from ? await git(office.path, 'diff', '--stat', from, commit) : ''
   return { commit, diffStat }
 }
 
-/** Diff completo de la entrega contra su base, para la bandeja. */
-export async function deliveryDiff(office: Office, commit: string): Promise<string> {
-  return office.base ? git(office.path, 'diff', office.base, commit) : ''
+/** Diff completo de la entrega (lo que añadiría a la principal), para la bandeja. */
+export async function deliveryDiff(office: Office, commit: string, main?: string): Promise<string> {
+  const from = await sinceMain(office, commit, main)
+  return from ? git(office.path, 'diff', from, commit) : ''
+}
+
+/** true si integrar esa entrega no cambiaría nada: la principal ya contiene todo lo que trae. */
+export async function nothingToMerge(repo: string, commit: string): Promise<boolean> {
+  const root = await repoRoot(repo)
+  return run('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], { cwd: root }).then(() => true, () => false)
+}
+
+/** Commit actual de la rama principal del repo. */
+export async function headOf(repo: string): Promise<string> {
+  return git(await repoRoot(repo), 'rev-parse', 'HEAD')
 }
 
 export type MergeResult = { ok: true; commit: string } | { ok: false; conflicts: string[]; reason: string }
