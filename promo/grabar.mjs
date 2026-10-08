@@ -59,6 +59,23 @@ const voz = await js('window.VOZ')
 const fin = Math.min(await js('window.FIN'), Number(process.argv[2]) || Infinity)
 
 await cmd('Emulation.setVirtualTimePolicy', { policy: 'pause' })
+// Las animaciones y transiciones de CSS no obedecen al reloj detenido: corren con
+// el tiempo real, y como cada cuadro tarda en tomarse, saldrían aceleradas. Se
+// frenan casi en seco (las de la página y las de cada oficina) y se les pone a
+// mano el tiempo que les toca en cada cuadro. No se pausan del todo: con todo
+// pausado Chrome deja de pintar y la foto se queda esperando.
+await js(`window.__cuadro = (t) => {
+  const inicio = (window.__inicio ??= new WeakMap())
+  const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => f.contentDocument).filter(Boolean)]
+  for (const d of docs) for (const a of d.getAnimations()) {
+    let s = inicio.get(a)
+    if (s === undefined) { s = t - (a.currentTime ?? 0); inicio.set(a, s); a.playbackRate = 0.0001 }
+    const fin = a.effect?.getComputedTiming().endTime ?? Infinity
+    if (t - s >= fin) a.finish()
+    else a.currentTime = t - s
+  }
+}`)
+await js('window.__cuadro(0)')
 await js('window.empezar()')
 const total = Math.round(fin * FPS)
 const began = Date.now()
@@ -66,6 +83,7 @@ for (let i = 0; i < total; i++) {
   const expired = new Promise((r) => (onBudget = r))
   await cmd('Emulation.setVirtualTimePolicy', { policy: 'advance', budget: 1000 / FPS })
   await expired
+  await js(`window.__cuadro(${((i + 1) * 1000) / FPS})`)
   const { data } = await cmd('Page.captureScreenshot', { format: 'jpeg', quality: 95 })
   writeFileSync(join(frames, `${String(i).padStart(5, '0')}.jpg`), Buffer.from(data, 'base64'))
   if (i % 300 === 299) console.log(`${((i + 1) / FPS).toFixed(0)} s de ${fin} (${((Date.now() - began) / 1000).toFixed(0)} s reales)`)
