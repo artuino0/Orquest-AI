@@ -314,3 +314,15 @@ html.flotante #cerrar-flotante { display: block; }
 .en-app #office-wrap { overflow: auto; }
 .en-app, .en-app body { background: transparent; }
 .en-app .char, .en-app .char-capa { pointer-events: auto; cursor: pointer; }
+
+/* Dentro de la app la oficina ocupa justo su marco: sin márgenes que la
+   desborden (salían barras de desplazamiento sin haber nada que recorrer).
+   Solo al acercar con el zoom más de lo que cabe se puede recorrer. */
+html.en-app, .en-app body { height: 100%; min-height: 0; overflow: hidden; }
+.en-app #app { height: 100vh; min-height: 0; }
+.en-app main { padding: 0; align-items: stretch; justify-content: flex-start; overflow: auto; }
+.en-app #vista { margin: auto; gap: 0; }
+.en-app #office-wrap { overflow: visible; }
+.en-app main::-webkit-scrollbar { width: 10px; height: 10px; }
+.en-app main::-webkit-scrollbar-thumb { background: #4a4159; border: 2px solid #15121b; }
+.en-app main::-webkit-scrollbar-track, .en-app main::-webkit-scrollbar-corner { background: #15121b; }
