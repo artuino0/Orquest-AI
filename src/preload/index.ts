@@ -43,6 +43,7 @@ const api: OrquestApi = {
   skipResume: () => invoke('project:skip-resume'),
   fire: (id) => invoke('employee:fire', id),
   rest: (id) => invoke('employee:rest', id),
+  say: (id, text) => invoke('employee:say', id, text),
   bringBack: (id) => invoke('employee:back', id),
   journal: (id) => invoke('employee:journal', id),
   list: () => invoke('employee:list'),

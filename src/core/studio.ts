@@ -18,6 +18,9 @@ import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
 import { commitDelivery, currentBranch, deliveryDiff, mergeOffice, repoRoot, type Office } from './worktree.js'
 
+/** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
+const SUBMIT_RETRY_MS = 1200
+
 /** Una CLI que se cierra antes de esto tras pedirle retomar, es que no tenía conversación que retomar. */
 const RESUME_GRACE_MS = 20_000
 
@@ -216,6 +219,17 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.flush(id)
   }
 
+  /** Lo que el usuario le escribe a alguien desde su panel: va a su terminal tal cual, con el mismo cuidado al enviar. */
+  say(id: string, text: string) {
+    const msg = oneLine(text)
+    if (!msg) return
+    if (!this.opts.manager.isLive(id)) throw new RuleError(`${this.nameOf(id)} no está en la oficina.`)
+    this.board.say('usuario', id, msg)
+    ;(this.queues.get(id) ?? this.queues.set(id, []).get(id)!).push(msg)
+    this.flush(id)
+    this.changed()
+  }
+
   private retries = new Map<string, ReturnType<typeof setInterval>>()
 
   private flush(id: string) {
@@ -251,7 +265,25 @@ export class Studio extends EventEmitter<StudioEvents> {
         // espera a que la pantalla deje de moverse. Con Codex real, a los 0.7 s aún no había acabado.
         while (pause > 0 && this.opts.manager.quietFor(id) < 500 && Date.now() - since < 20_000) await wait(100)
         if (!this.opts.manager.isLive(id)) return
-        this.opts.manager.write(id, '\r')
+        // El Enter puede no entrar a la primera (a Codex le pasa con textos largos: lo toma como un
+        // renglón más). Si la CLI no se puso a trabajar, se le da de nuevo, como haría una persona.
+        let working = false
+        const onState = (who: string, state: EmployeeState) => {
+          if (who === id && state === 'working') working = true
+        }
+        this.opts.manager.on('state', onState)
+        try {
+          this.opts.manager.write(id, '\r')
+          for (let tries = 0; pause > 0 && tries < 3; tries++) {
+            await wait(SUBMIT_RETRY_MS)
+            const state = this.opts.manager.get(id)?.state
+            // Trabajando, detenido en una pregunta o fuera: ya no hay Enter que dar.
+            if (working || state !== 'idle') break
+            this.opts.manager.write(id, '\r')
+          }
+        } finally {
+          this.opts.manager.off('state', onState)
+        }
         await wait(Math.min(pause, 300))
       }
     }))

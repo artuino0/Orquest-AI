@@ -87,11 +87,8 @@ onBeforeUnmount(() => clearInterval(timer))
 const message = ref('')
 function say() {
   if (!message.value.trim()) return
-  // Texto y, un momento después, Enter: juntos, algunas CLIs (Codex) lo toman como pegado y no envían.
-  const id = e.value.id
-  window.orquest.write(id, message.value)
-  // Mientras más largo, más tarda la CLI en recibirlo todo.
-  setTimeout(() => window.orquest.write(id, '\r'), 700 + message.value.length * 2)
+  // Lo envía el estudio: escribe, espera a que la CLI lo reciba y da Enter (otra vez si no entró).
+  void studio.attempt(() => window.orquest.say(e.value.id, message.value))
   message.value = ''
 }
 
