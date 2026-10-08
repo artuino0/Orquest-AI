@@ -1,3 +1,4 @@
+import { resolveLaunch } from './launch.js'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { delimiter } from 'node:path'
@@ -115,9 +116,11 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       env[key] = [...req.path, env[key]].filter(Boolean).join(delimiter)
     }
 
+    // En Windows no se puede lanzar el .cmd de npm en una terminal: se arranca lo que él arrancaría.
+    const command = await resolveLaunch(req.binary ? [req.binary] : adapter.binaries, [...adapter.buildArgs(launch), ...(req.extraArgs ?? [])], env[Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'])
     let pty: Pty
     try {
-      pty = this.spawn(req.binary ?? adapter.binaries[0], [...adapter.buildArgs(launch), ...(req.extraArgs ?? [])], {
+      pty = this.spawn(command.file, command.args, {
         cwd: office.path,
         cols: this.opts.cols ?? 120,
         rows: this.opts.rows ?? 32,
