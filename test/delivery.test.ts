@@ -7,7 +7,8 @@ import { Board } from '../src/core/board.js'
 import { commitDelivery, createOffice, deliveryDiff, headOf, nothingToMerge } from '../src/core/worktree.js'
 
 const dirs: string[] = []
-afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })))
+// En Windows git puede tardar en soltar la carpeta: se reintenta en vez de tumbar la prueba.
+afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })))
 
 function makeRepo() {
   const repo = mkdtempSync(join(tmpdir(), 'orquest-entrega-'))

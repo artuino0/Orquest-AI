@@ -89,6 +89,8 @@ export interface StaffMember {
   office?: { path: string; branch: string; base?: string }
   /** true si lo despidieron: ese ya no vuelve. */
   gone?: boolean
+  /** % de contexto que llevaba usado al irse, si se sabía. */
+  leftContext?: number
 }
 
 export interface Message {
@@ -257,9 +259,9 @@ export class Board {
   }
 
   /** Despedido: no vuelve aunque se reabra la app. */
-  dismiss(employeeId: string) {
+  dismiss(employeeId: string, context?: number) {
     const m = this.staff.find((s) => s.id === employeeId)
-    if (m) Object.assign(m, { online: false, gone: true })
+    if (m) Object.assign(m, { online: false, gone: true, leftContext: context })
   }
 
   offline(employeeId: string) {

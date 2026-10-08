@@ -4,13 +4,15 @@ import type { CliStatus } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
+import type { Activity } from '../core/activity.js'
+import type { ProjectDocument } from '../core/documents.js'
 import type { InstalledTool } from '../core/skills.js'
 import type { EmployeeState } from '../core/state.js'
 import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
-export type { InstalledTool }
+export type { Activity, InstalledTool, ProjectDocument }
 export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -92,5 +94,10 @@ export interface OrquestApi {
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void
   onState(cb: (id: string, state: EmployeeState) => void): () => void
+  /** Qué está haciendo quien trabaja (leído de su pantalla); null cuando para. */
+  onActivity(cb: (id: string, activity: Activity | null) => void): () => void
+  /** Planes, notas y demás documentos de texto del proyecto abierto, lo más reciente primero. */
+  documents(): Promise<ProjectDocument[]>
+  documentText(path: string): Promise<string>
   onHired(cb: (e: Employee) => void): () => void
 }

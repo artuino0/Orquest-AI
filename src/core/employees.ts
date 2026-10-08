@@ -1,3 +1,4 @@
+import type { Activity } from './activity.js'
 import { resolveLaunch } from './launch.js'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
@@ -72,6 +73,8 @@ export interface ManagerEvents {
   state: [id: string, state: EmployeeState]
   exit: [id: string, exitCode: number]
   context: [id: string, pct: number]
+  /** Qué hace quien está trabajando; null cuando deja de trabajar. */
+  activity: [id: string, activity: Activity | null]
 }
 
 interface Live {
@@ -80,6 +83,8 @@ interface Live {
   reader: ScreenReader
   buffer: string
   lastDataAt: number
+  activityTimer?: ReturnType<typeof setTimeout>
+  activityKey?: string
   quietTimer?: ReturnType<typeof setTimeout>
 }
 
@@ -195,6 +200,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     this.emit('data', entry.employee.id, data)
 
     entry.reader.feed(data)
+    this.tellActivity(entry)
 
     clearTimeout(entry.quietTimer)
     const recheck = () => {
@@ -209,10 +215,25 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     entry.quietTimer = setTimeout(recheck, this.opts.quietMs ?? 4000)
   }
 
+  /** Avisa qué está haciendo quien trabaja, sin repetir ni inundar: a lo más un aviso cada 400 ms. */
+  private tellActivity(entry: Live) {
+    if (entry.activityTimer) return
+    entry.activityTimer = setTimeout(() => {
+      entry.activityTimer = undefined
+      const now = entry.employee.state === 'working' ? entry.reader.activity() : null
+      // Los segundos cambian cada rato: no cuentan como novedad, solo qué hace y con qué.
+      const key = now ? `${now.label}|${now.detail ?? ''}` : ''
+      if (key === entry.activityKey) return
+      entry.activityKey = key
+      this.emit('activity', entry.employee.id, now)
+    }, 400)
+  }
+
   private setState(entry: Live, state: EmployeeState) {
     if (entry.employee.state === state || entry.employee.state === 'exited') return
     entry.employee.state = state
     this.emit('state', entry.employee.id, state)
+    this.tellActivity(entry)
   }
 
   list(): Employee[] {

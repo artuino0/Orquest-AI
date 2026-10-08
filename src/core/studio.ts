@@ -968,10 +968,12 @@ export class Studio extends EventEmitter<StudioEvents> {
   async fire(id: string) {
     this.fact(id, 'despedido; su bitácora queda para capacitar a quien ocupe el puesto')
     this.launches.delete(id)
+    // Con cuánto contexto usado se va: se ve después en Plantilla, entre los despedidos.
+    const context = this.opts.manager.get(id)?.context
     if (this.opts.manager.get(id)) await this.opts.manager.fire(id, this.root)
     // Despedido no vuelve al reabrir la app.
     if (id === BOSS_ID) this.board.boss = undefined
-    else this.board.dismiss(id)
+    else this.board.dismiss(id, context)
     if (id !== BOSS_ID) this.notify(BOSS_ID, `El usuario despidió a ${this.nameOf(id)} (${id}). Reasigna sus tareas abiertas si hace falta; quien ocupe su puesto recibirá su bitácora.`)
     this.changed()
   }

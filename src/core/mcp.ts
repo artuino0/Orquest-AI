@@ -15,7 +15,7 @@ import { EFFORTS } from './providers.js'
 import type { Caller, Studio } from './studio.js'
 
 const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 'kimi', 'grok'] as const
-const ROLES = 'desarrollo, backend, frontend, dba, infra o qa'
+const ROLES = 'desarrollo, backend, frontend, dba, infra, qa o diseno'
 
 interface ToolDef {
   who: Caller['kind'] | 'both'

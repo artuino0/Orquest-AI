@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
+import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
 
-export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | null
+export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | null
 export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {
@@ -57,6 +57,8 @@ export const useStudio = defineStore('studio', () => {
   const activity = ref<Record<string, ActivityItem[]>>({})
   const board = ref<StudioSnapshot | null>(null)
   const notices = ref<{ id: number; text: string }[]>([])
+  /** Qué está haciendo cada quien mientras trabaja (leído de su terminal). */
+  const doing = ref<Record<string, Activity>>({})
 
   // ── Personajes: el del jefe lo eliges al contratarlo; los demás se reparten al llegar.
   const bossKey = (path: string | null) => `orquest.jefe.${path ?? ''}`
@@ -232,6 +234,13 @@ export const useStudio = defineStore('studio', () => {
   })
   window.orquest.onBoard((b) => (board.value = b))
   window.orquest.onNotice(notice)
+  window.orquest.onActivity((id, a) => {
+    if (a) doing.value = { ...doing.value, [id]: a }
+    else if (doing.value[id]) {
+      const { [id]: _gone, ...rest } = doing.value
+      doing.value = rest
+    }
+  })
   window.orquest.onState((id, state) => {
     const e = employees.value.find((x) => x.id === id)
     if (!e) return
@@ -240,7 +249,7 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
+    screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
