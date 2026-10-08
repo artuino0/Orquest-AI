@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { AlertTriangle, Bell, Crown, FolderOpen, Inbox, Kanban, PencilRuler, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, Crown, FolderOpen, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
 import { OfficeScene } from '../world/scene'
@@ -152,8 +152,25 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library') => {
 
       <MapEditor v-if="editing && scene" :scene="scene" @close="editing = false" />
 
+      <!-- Quedó gente al cerrar la app: ¿se retoma? -->
+      <div v-if="studio.board?.resumable.length && !editing" class="empty-veil">
+        <section class="panel empty">
+          <img :src="CHAR1" alt="" />
+          <h1 class="title-pixel">¿Retomamos donde se quedaron?</h1>
+          <p>
+            Al cerrar estaban en la oficina: <b>{{ studio.board.resumable.join(', ') }}</b>. Cada quien vuelve a su escritorio,
+            retoma su conversación y lee el corte que dejó.
+          </p>
+          <p v-if="studio.error" class="bad">{{ studio.error }}</p>
+          <div class="choices">
+            <button class="btn" :disabled="studio.resuming" @click="studio.resumeProject(false)">Ahora no</button>
+            <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)"><RotateCcw /> {{ studio.resuming ? 'Volviendo…' : 'Retomar' }}</button>
+          </div>
+        </section>
+      </div>
+
       <!-- Oficina vacía: todavía no hay jefe -->
-      <div v-if="!studio.bossOnline && !studio.overlay && !editing" class="empty-veil">
+      <div v-else-if="!studio.bossOnline && !studio.overlay && !editing" class="empty-veil">
         <section class="panel empty">
           <img :src="CHAR1" alt="" />
           <h1 class="title-pixel">La oficina está vacía</h1>
@@ -200,6 +217,9 @@ nav .btn.icon { padding: 7px 9px; }
 .empty-veil { position: absolute; inset: 0; background: var(--veil); display: grid; place-items: center; padding: 16px; }
 .empty { width: 440px; max-width: 100%; padding: 24px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .empty img { width: 60px; height: 92px; object-fit: contain; image-rendering: pixelated; }
+.empty .choices { display: flex; gap: 10px; }
+.empty .bad { color: var(--st-block); }
+.empty p b { color: var(--text-primary); }
 .empty p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
 
 .alerts { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; max-width: min(520px, calc(100% - 28px)); z-index: 2; }

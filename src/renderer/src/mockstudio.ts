@@ -103,7 +103,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       if (tasks.some((t) => t.assignee === e.id && ['delivered', 'in_qa', 'approved'].includes(t.status))) hints[e.id] = { state: 'delivering' }
     }
     return {
-      repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline,
+      resumable: [], repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline,
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],

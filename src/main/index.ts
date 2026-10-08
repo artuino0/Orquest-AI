@@ -37,6 +37,28 @@ function createWindow() {
   })
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
+  win.on('close', (e) => {
+    if (closing === 'ya') return
+    e.preventDefault()
+    if (closing === 'esperando') return
+    void closeWithCuts()
+  })
+}
+
+/** Cuánto se espera a que los agentes dejen su corte antes de cerrar de todos modos. */
+const CUT_TIMEOUT_MS = 90_000
+let closing: 'no' | 'esperando' | 'ya' = 'no'
+let skipCuts: (() => void) | undefined
+
+/** Cerrar la ventana no mata a los agentes a media frase: primero cada uno deja su corte. */
+async function closeWithCuts() {
+  closing = 'esperando'
+  const progress = new Map<Studio, { asked: string[]; done: string[] }>()
+  const tell = () => send('app:closing', { asked: [...progress.values()].flatMap((p) => p.asked), done: [...progress.values()].flatMap((p) => p.done) })
+  const cuts = Promise.all([...studios.values()].map((s) => s.checkpoint(CUT_TIMEOUT_MS, (p) => (progress.set(s, p), tell())).catch(() => undefined)))
+  await Promise.race([cuts, new Promise<void>((resolve) => (skipCuts = resolve))])
+  closing = 'ya'
+  win?.close()
 }
 
 const send = (channel: string, ...args: unknown[]) => win?.webContents.send(channel, ...args)
@@ -101,10 +123,12 @@ handle('project:open', async (repo: string) => {
     studios.set(root, s)
   }
   current = s
-  // Quien seguía contratado vuelve a su escritorio retomando su conversación.
-  await s.resume()
+  // Si quedó gente al cerrar, la foto lo dice (resumable) y el usuario decide si se retoma.
   return s.snapshot()
 })
+handle('project:resume', () => studio().resume())
+handle('project:skip-resume', () => studio().skipResume())
+handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))
 handle('template:approve', (slots: SlotEdit[]) => void studio().approveTemplate(slots))

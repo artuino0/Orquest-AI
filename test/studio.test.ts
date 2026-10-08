@@ -80,6 +80,7 @@ async function setup(storePath = ':memory:') {
     mcpUrl: (t) => mcp!.url(t),
    
     replyTimeoutMs: 2000,
+    submitDelayMs: 0,
   }).init()
   studio = s
   return { repo, manager, studio: s, store }
@@ -117,7 +118,7 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
       const caller = s.caller(token)
       return caller && { studio: s, caller }
     })
-    s = await new Studio({ repo, manager, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), replyTimeoutMs: 2000 }).init()
+    s = await new Studio({ repo, manager, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), replyTimeoutMs: 2000, submitDelayMs: 0 }).init()
     studio = s
     const notices: string[] = []
     s.on('notice', (n) => notices.push(n))

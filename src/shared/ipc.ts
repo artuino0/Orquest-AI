@@ -42,6 +42,9 @@ export interface OrquestApi {
 
   // Proyecto, jefe y tablero.
   openProject(repo: string): Promise<StudioSnapshot>
+  /** Retoma a quienes estaban al cerrar (StudioSnapshot.resumable) o decide no hacerlo. */
+  resumeProject(): Promise<void>
+  skipResume(): Promise<void>
   hireBoss(req: BossRequest): Promise<void>
   sayToBoss(text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
@@ -60,6 +63,10 @@ export interface OrquestApi {
 
   onBoard(cb: (s: StudioSnapshot) => void): () => void
   onNotice(cb: (text: string) => void): () => void
+  /** La app se está cerrando y espera el corte de cada agente. */
+  onClosing(cb: (p: { asked: string[]; done: string[] }) => void): () => void
+  /** Cierra ya, sin esperar los cortes que falten. */
+  closeNow(): Promise<void>
 
   // Empleados vivos.
   fire(id: string): Promise<void>

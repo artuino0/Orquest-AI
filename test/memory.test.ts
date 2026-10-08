@@ -124,6 +124,7 @@ async function setup() {
     statusUrl: (t) => mcp!.statusUrl(t),
     burnoutAt: 80,
     handoffTimeoutMs: 3000,
+    submitDelayMs: 0,
   }).init()
   studio = s
   await s.hireBoss({ provider: 'claude', goal: 'x' })

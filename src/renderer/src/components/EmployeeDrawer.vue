@@ -87,7 +87,10 @@ onBeforeUnmount(() => clearInterval(timer))
 const message = ref('')
 function say() {
   if (!message.value.trim()) return
-  window.orquest.write(e.value.id, `${message.value}\r`)
+  // Texto y, un momento después, Enter: juntos, algunas CLIs (Codex) lo toman como pegado y no envían.
+  const id = e.value.id
+  window.orquest.write(id, message.value)
+  setTimeout(() => window.orquest.write(id, '\r'), 700)
   message.value = ''
 }
 

@@ -58,7 +58,7 @@ async function open(repo: string, library: Library) {
     const c = s.caller(t)
     return c && { studio: s, caller: c }
   })
-  s = await new Studio({ repo, manager, library, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t) }).init()
+  s = await new Studio({ repo, manager, library, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), submitDelayMs: 0 }).init()
   studios.push(s)
   await s.hireBoss({ provider: 'claude', goal: 'x' })
   const args = launched.get(BOSS_ID)!
