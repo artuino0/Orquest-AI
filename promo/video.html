@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <title>Orquest AI · video</title>
 <!--
-  El comercial como página: 1280×720, en tiempo real. La oficina es la de la app
-  (oficina.html?fuente=app), manejada desde aquí con los mismos mensajes que le
-  manda el panel. Necesita la vista previa corriendo: npx vite src/renderer
-  (puerto 5173). Se graba con promo/grabar.mjs; con ?ver=1 corre sola con audio.
+  El comercial como página, vertical para TikTok: 720×1280 (se graba a 1080×1920).
+  La oficina es la de la app (oficina.html?fuente=app), manejada desde aquí con
+  los mismos mensajes que le manda el panel. Necesita la vista previa corriendo:
+  npx vite src/renderer (puerto 5173). Se graba con promo/grabar.mjs.
+  Para verla con audio: http://localhost:5173/@fs/<ruta>/promo/video.html?ver=1 y un clic.
+
+  Zona segura de TikTok: nada importante en los 90 px de arriba, los 215 de abajo
+  ni los 80 de la derecha (ahí van sus botones y la descripción).
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
@@ -16,101 +20,101 @@
     --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace; --pixel: 'Pixelify Sans', 'JetBrains Mono', monospace; }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: #000; overflow: hidden; }
-  #stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--bg); color: var(--text); font: 15px/1.45 var(--mono); }
+  #stage { position: relative; width: 720px; height: 1280px; overflow: hidden; background: var(--bg); color: var(--text); font: 17px/1.45 var(--mono); }
   img.px { image-rendering: pixelated; }
 
   /* La oficina: tres copias (vacía, solo el jefe, todos) para cortar de una a otra sin esperar a que caminen. */
-  #cam { position: absolute; inset: 0; transform-origin: 0 0; transition: transform 1.2s cubic-bezier(.3,.1,.2,1); }
+  #cam { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; transition: transform 1.2s cubic-bezier(.3,.1,.2,1); }
   #cam iframe { position: absolute; inset: 0; width: 1280px; height: 720px; border: 0; background: var(--bg); }
   #cam.cut { transition: none; }
 
   /* Toma 1: terminales y recibos */
   #dolor { position: absolute; inset: 0; background: #050408; z-index: 20; transition: opacity .25s, transform .35s cubic-bezier(.6,0,.9,.4); }
   #dolor.fuera { opacity: 0; transform: scale(.05); }
-  .term { position: absolute; width: 470px; height: 270px; background: #08070b; border: 3px solid var(--line); box-shadow: 6px 6px 0 #000c; opacity: 0; transform: scale(.9) translateY(14px); transition: opacity .12s, transform .16s cubic-bezier(.2,1.6,.4,1); overflow: hidden; }
+  .term { position: absolute; width: 520px; height: 260px; background: #08070b; border: 3px solid var(--line); box-shadow: 6px 6px 0 #000c; opacity: 0; transform: scale(.9) translateY(14px); transition: opacity .12s, transform .16s cubic-bezier(.2,1.6,.4,1); overflow: hidden; }
   .term.on { opacity: 1; transform: none; }
-  .term header { padding: 3px 10px; background: var(--surface-2); border-bottom: 3px solid var(--border); font-size: 12px; color: var(--dim); }
-  .term pre { margin: 0; padding: 8px 10px; font: 11px/1.5 var(--mono); color: #7fd18a; white-space: pre; }
-  .term pre.corre { animation: corre 5s linear infinite; }
+  .term header { padding: 4px 12px; background: var(--surface-2); border-bottom: 3px solid var(--border); font-size: 14px; color: var(--dim); }
+  .term pre { margin: 0; padding: 8px 12px; font: 14px/1.5 var(--mono); color: #7fd18a; white-space: pre; }
+  .term pre.corre { animation: corre 6s linear infinite; }
   @keyframes corre { to { transform: translateY(-50%); } }
-  .recibo { position: absolute; width: 250px; padding: 12px 14px; background: #f4eadb; color: #1a1206; border: 3px solid var(--border); box-shadow: 6px 6px 0 #000c; font-size: 13px; opacity: 0; transform: translateY(-60px) rotate(var(--r)); transition: opacity .1s, transform .22s cubic-bezier(.3,1.5,.5,1); }
+  .recibo { position: absolute; z-index: 2; width: 290px; padding: 14px 16px; background: #f4eadb; color: #1a1206; border: 3px solid var(--border); box-shadow: 6px 6px 0 #000c; font-size: 16px; opacity: 0; transform: translateY(-60px) rotate(var(--r)); transition: opacity .1s, transform .22s cubic-bezier(.3,1.5,.5,1); }
   .recibo.on { opacity: 1; transform: rotate(var(--r)); }
-  .recibo b { display: block; font: 700 22px var(--pixel); }
-  .recibo .uso { margin-top: 8px; height: 10px; background: #c9bda9; border: 2px solid #1a1206; }
+  .recibo b { display: block; font: 700 30px var(--pixel); }
+  .recibo .uso { margin-top: 8px; height: 12px; background: #c9bda9; border: 2px solid #1a1206; }
   .recibo .uso i { display: block; height: 100%; width: 0; background: var(--red); transition: width .5s; }
   .recibo.usado .uso i { width: var(--u); }
-  .recibo small { display: block; margin-top: 4px; font-size: 11px; opacity: 0; transition: opacity .3s; }
+  .recibo small { display: block; margin-top: 4px; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity .3s; }
   .recibo.usado small { opacity: 1; }
 
   /* Nombre */
-  #titulo { position: absolute; inset: 0; z-index: 15; display: grid; place-items: center; align-content: center; gap: 14px; pointer-events: none; opacity: 0; transition: opacity .3s; }
+  #titulo { position: absolute; inset: 0; z-index: 15; display: grid; justify-items: center; align-content: start; gap: 16px; padding-top: 118px; pointer-events: none; opacity: 0; transition: opacity .3s; }
   #titulo.on { opacity: 1; }
-  #titulo.fondo { background: #0b0910e8; }
-  #titulo h1 { margin: 0; padding: 6px 26px 10px; font: 700 76px var(--pixel); letter-spacing: 3px; color: var(--accent); background: var(--border); border: 4px solid var(--accent); box-shadow: 8px 8px 0 #000a; }
-  #titulo p { margin: 0; padding: 4px 14px; font: 700 20px var(--mono); background: var(--border); opacity: 0; transition: opacity .4s; }
-  #titulo.liga p { opacity: 1; }
+  #titulo.fondo { background: #0b0910ee; align-content: center; padding: 0 0 120px; }
+  #titulo h1 { margin: 0; padding: 4px 24px 10px; font: 700 78px var(--pixel); letter-spacing: 3px; color: var(--accent); background: var(--border); border: 4px solid var(--accent); box-shadow: 8px 8px 0 #000a; }
+  #titulo p { margin: 0; padding: 6px 16px; font: 700 22px var(--mono); background: var(--border); display: none; }
+  #titulo.liga p { display: block; }
 
   /* Lo que se dice, como burbujas de chat */
-  #voz { position: absolute; left: 0; right: 0; bottom: 34px; z-index: 30; display: flex; justify-content: center; pointer-events: none; }
-  .dice { display: flex; align-items: center; gap: 12px; max-width: 900px; padding: 10px 18px 10px 12px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; font-size: 21px; opacity: 0; transform: translateY(12px); transition: opacity .12s, transform .14s; }
+  #voz { position: absolute; left: 30px; right: 30px; bottom: 236px; z-index: 30; display: flex; justify-content: center; pointer-events: none; }
+  .dice { display: flex; align-items: center; gap: 14px; max-width: 600px; padding: 12px 20px 12px 14px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; font-size: 25px; line-height: 1.3; opacity: 0; transform: translateY(12px); transition: opacity .12s, transform .14s; }
   .dice.on { opacity: 1; transform: none; }
   .dice.ella { background: var(--accent); color: #1a1206; }
-  .dice .cara { flex: none; width: 46px; height: 46px; overflow: hidden; background: var(--surface-2); border: 3px solid var(--border); }
-  .dice .cara img { width: 52px; margin: 2px 0 0 -3px; }
-  .dice b { display: block; font: 700 12px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; opacity: .7; }
+  .dice .cara { flex: none; width: 58px; height: 58px; overflow: hidden; background: var(--surface-2); border: 3px solid var(--border); }
+  .dice .cara img { width: 66px; margin: 2px 0 0 -4px; }
+  .dice b { display: block; font: 700 13px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; opacity: .7; }
 
-  /* Fichas del equipo */
-  #fichas { position: absolute; left: 0; right: 0; top: 30px; z-index: 25; display: flex; justify-content: center; gap: 14px; pointer-events: none; }
-  .ficha { width: 196px; padding: 12px 12px 10px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; text-align: center; opacity: 0; transform: translateY(26px) scale(.9); transition: opacity .1s, transform .2s cubic-bezier(.2,1.7,.4,1); }
+  /* Fichas del equipo, dos por fila */
+  #fichas { position: absolute; left: 0; right: 0; top: 100px; z-index: 25; display: grid; grid-template-columns: 280px 280px; justify-content: center; gap: 14px; pointer-events: none; }
+  .ficha { padding: 12px 14px; background: var(--surface); border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; text-align: center; opacity: 0; transform: translateY(26px) scale(.9); transition: opacity .1s, transform .2s cubic-bezier(.2,1.7,.4,1); }
   .ficha.on { opacity: 1; transform: none; }
   .ficha.fuera { opacity: 0; transform: translateY(-20px); transition: opacity .2s, transform .2s; }
-  .ficha .retrato { height: 96px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
+  .ficha .retrato { height: 92px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
   .ficha .retrato img { height: 84px; }
-  .ficha h3 { margin: 8px 0 2px; font: 700 26px var(--pixel); color: var(--accent); }
-  .ficha .prov { display: inline-block; padding: 0 8px; font-size: 12px; font-weight: 700; color: #08070b; }
-  .ficha dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; text-align: left; font-size: 12px; }
+  .ficha h3 { margin: 6px 0 2px; font: 700 32px var(--pixel); color: var(--accent); line-height: 1.1; }
+  .ficha .prov { display: inline-block; padding: 0 10px; font-size: 16px; font-weight: 700; color: #08070b; }
+  .ficha dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; text-align: left; font-size: 15px; }
   .ficha dt { color: var(--dim); } .ficha dd { margin: 0; text-align: right; }
-  .ficha .puesto { margin-top: 8px; padding: 2px 0; font: 700 13px var(--mono); letter-spacing: 1px; text-transform: uppercase; background: var(--border); color: var(--green); }
-  #contratar { position: absolute; left: 50%; top: 340px; z-index: 25; transform: translateX(-50%) translateY(10px); padding: 8px 22px; font: 700 18px var(--mono); background: var(--accent); color: #1a1206; border: 3px solid var(--border); box-shadow: 4px 4px 0 #000a; opacity: 0; transition: opacity .15s, transform .15s; }
+  .ficha .puesto { margin-top: 8px; padding: 2px 0; font: 700 16px var(--mono); letter-spacing: 1px; text-transform: uppercase; background: var(--border); color: var(--green); }
+  #contratar { position: absolute; left: 50%; top: 668px; z-index: 25; transform: translateX(-50%) translateY(10px); padding: 10px 28px; font: 700 24px var(--mono); white-space: nowrap; background: var(--accent); color: #1a1206; border: 3px solid var(--border); box-shadow: 5px 5px 0 #000a; opacity: 0; transition: opacity .15s, transform .15s; }
   #contratar.on { opacity: 1; transform: translateX(-50%); }
-  #contratar.clic { transform: translateX(-50%) translate(4px, 4px); box-shadow: none; filter: brightness(1.25); }
-  #cursor { position: absolute; z-index: 40; left: 900px; top: 640px; width: 0; height: 0; border-left: 14px solid var(--text); border-bottom: 14px solid transparent; filter: drop-shadow(2px 2px 0 #000); opacity: 0; transition: left .5s cubic-bezier(.3,0,.2,1), top .5s cubic-bezier(.3,0,.2,1), opacity .15s; }
+  #contratar.clic { transform: translateX(-50%) translate(5px, 5px); box-shadow: none; filter: brightness(1.25); }
+  #cursor { position: absolute; z-index: 40; left: 560px; top: 900px; width: 0; height: 0; border-left: 20px solid var(--text); border-bottom: 20px solid transparent; filter: drop-shadow(2px 2px 0 #000); opacity: 0; transition: left .5s cubic-bezier(.3,0,.2,1), top .5s cubic-bezier(.3,0,.2,1), opacity .15s; }
   #cursor.on { opacity: 1; }
 
   /* Tarjetas del tablero */
-  #tablero { position: absolute; right: 26px; top: 96px; z-index: 25; width: 330px; display: grid; gap: 8px; pointer-events: none; }
-  .tarea { padding: 8px 12px; background: var(--surface); border: 3px solid var(--border); border-left: 8px solid var(--c); box-shadow: 4px 4px 0 #000a; font-size: 14px; opacity: 0; transform: translateX(40px); transition: opacity .12s, transform .18s cubic-bezier(.2,1.5,.4,1); }
+  #tablero { position: absolute; left: 40px; right: 40px; top: 100px; z-index: 25; display: grid; gap: 8px; pointer-events: none; }
+  .tarea { padding: 8px 14px; background: var(--surface); border: 3px solid var(--border); border-left: 10px solid var(--c); box-shadow: 4px 4px 0 #000a; font-size: 20px; opacity: 0; transform: translateX(40px); transition: opacity .12s, transform .18s cubic-bezier(.2,1.5,.4,1); }
   .tarea.on { opacity: 1; transform: none; }
   .tarea.fuera { opacity: 0; transform: translateX(40px); }
-  .tarea b { color: var(--accent); } .tarea small { display: block; color: var(--dim); font-size: 12px; }
+  .tarea b { color: var(--accent); } .tarea small { display: block; color: var(--dim); font-size: 15px; }
 
   /* Entregas */
-  #entregas { position: absolute; right: 26px; top: 70px; z-index: 25; width: 520px; background: var(--surface); border: 3px solid var(--border); box-shadow: 6px 6px 0 #000a; opacity: 0; transform: translateX(60px); transition: opacity .15s, transform .22s; pointer-events: none; }
+  #entregas { position: absolute; left: 30px; right: 30px; top: 96px; z-index: 25; background: var(--surface); border: 3px solid var(--border); box-shadow: 6px 6px 0 #000a; opacity: 0; transform: translateY(-40px); transition: opacity .15s, transform .22s; pointer-events: none; }
   #entregas.on { opacity: 1; transform: none; }
-  #entregas h2 { margin: 0; padding: 8px 14px; font: 700 20px var(--pixel); background: var(--surface-2); border-bottom: 3px solid var(--border); }
-  .fila { position: relative; display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 10px 14px; border-bottom: 3px solid var(--border); }
-  .fila .retrato { width: 46px; height: 60px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
-  .fila .retrato img { height: 50px; }
-  .fila h3 { margin: 0; font: 700 18px var(--pixel); } .fila h3 small { font: 12px var(--mono); color: var(--dim); }
-  .fila pre { margin: 4px 0 0; font: 11px/1.45 var(--mono); }
+  #entregas h2 { margin: 0; padding: 8px 16px; font: 700 26px var(--pixel); background: var(--surface-2); border-bottom: 3px solid var(--border); }
+  .fila { position: relative; display: grid; grid-template-columns: 56px 1fr; gap: 14px; padding: 12px 16px; border-bottom: 3px solid var(--border); }
+  .fila .retrato { width: 56px; height: 72px; display: grid; place-items: center; background: var(--surface-2); border: 3px solid var(--border); }
+  .fila .retrato img { height: 62px; }
+  .fila h3 { margin: 0; font: 700 24px var(--pixel); } .fila h3 small { font: 14px var(--mono); color: var(--dim); }
+  .fila pre { margin: 4px 0 0; font: 13px/1.45 var(--mono); }
   .fila .mas { color: var(--green); } .fila .menos { color: var(--red); }
-  .fila .qa { margin-top: 4px; font-size: 12px; color: var(--green); }
+  .fila .qa { margin-top: 4px; font-size: 15px; color: var(--green); }
   .fila.error .qa { color: var(--red); font-weight: 700; }
   .fila.error { background: #3a1517; }
-  .sello { position: absolute; right: 14px; top: 16px; padding: 2px 12px; font: 700 20px var(--pixel); letter-spacing: 1px; border: 4px solid currentColor; transform: rotate(-7deg) scale(2.4); opacity: 0; transition: opacity .08s, transform .16s cubic-bezier(.3,1.6,.5,1); background: var(--surface); }
+  .sello { position: absolute; right: 18px; top: 10px; padding: 2px 14px; font: 700 26px var(--pixel); letter-spacing: 1px; border: 4px solid currentColor; transform: rotate(-7deg) scale(2.4); opacity: 0; transition: opacity .08s, transform .16s cubic-bezier(.3,1.6,.5,1); background: var(--surface); }
   .sello.on { opacity: 1; transform: rotate(-7deg); }
   .sello.ok { color: var(--green); } .sello.no { color: var(--red); }
 
-  #negro { position: absolute; inset: 0; z-index: 90; background: #000; transition: opacity .3s; }
-  #negro.fuera { opacity: 0; pointer-events: none; }
+  #negro { position: absolute; inset: 0; z-index: 90; background: #000; }
+  #negro.fuera { display: none; }
 </style>
 </head>
 <body>
 <div id="stage">
   <div id="cam" class="cut">
-    <iframe id="oTodos" data-src="oficina"></iframe>
-    <iframe id="oJefe" data-src="oficina"></iframe>
-    <iframe id="oVacia" data-src="oficina"></iframe>
+    <iframe id="oTodos"></iframe>
+    <iframe id="oJefe"></iframe>
+    <iframe id="oVacia"></iframe>
   </div>
 
   <div id="dolor"></div>
@@ -125,7 +129,7 @@
 </div>
 
 <script>
-const ORIGEN = 'http://localhost:5173'
+const ORIGEN = location.protocol.startsWith('http') ? location.origin : 'http://localhost:5173'
 const $ = (id) => document.getElementById(id)
 const sprite = (n) => `${ORIGEN}/sprites/char${n}.png`
 
@@ -184,16 +188,18 @@ addEventListener('message', (e) => {
   mandar(f.id, { type: 'estado', ...estados[f.id], sprites })
   listas++
 })
+// quieto=1: sin golfito ni descansos al azar, para que cada quien esté donde la toma lo espera.
 for (const f of document.querySelectorAll('#cam iframe')) f.src = `${ORIGEN}/oficina.html?fuente=app&quieto=1`
 const mostrar = (cual) => { for (const f of document.querySelectorAll('#cam iframe')) f.style.zIndex = f.id === cual ? 2 : 1 }
-/** Cámara: centra (x, y) de la oficina con ese acercamiento. */
-const camara = (x, y, z, corte = false) => {
+/** Cámara: pone el punto (x, y) de la oficina a la altura `cy` del cuadro, centrado, con ese acercamiento. */
+const camara = (x, y, z, cy, corte = false) => {
   const cam = $('cam')
   cam.classList.toggle('cut', corte)
-  cam.style.transform = `translate(${640 - x * z}px, ${360 - y * z}px) scale(${z})`
+  cam.style.transform = `translate(${360 - x * z}px, ${cy - y * z}px) scale(${z})`
   if (corte) void cam.offsetWidth
 }
-const GENERAL = [640, 360, 1], CUARTO_JEFE = [262, 330, 2.9], CUBICULOS = [520, 345, 2.5], MEDIA = [560, 350, 1.6]
+const GENERAL = [425, 380, 1.3, 700], JEFE_CERCA = [262, 330, 2.9, 640], JEFE_ABAJO = [262, 330, 2.9, 830]
+const CUBICULOS = [520, 360, 2.9, 600], MEDIA = [385, 350, 1.78, 623], REVISION = [520, 360, 2.2, 760]
 
 // ── Piezas ─────────────────────────────────────────────────────────────────
 function decir(quien, texto, dura) {
@@ -201,15 +207,15 @@ function decir(quien, texto, dura) {
   const jh = quien === 'jhonny'
   voz.innerHTML = `<div class="dice ${jh ? 'jhonny' : 'ella'}"><div class="cara"><img class="px" src="${sprite(jh ? JEFE.char : ELLA_CHAR)}"></div><div><b>${jh ? 'Jhonny · jefe' : 'Tú'}</b>${texto}</div></div>`
   const d = voz.firstChild
-  requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add('on')))
+  setTimeout(() => d.classList.add('on'), 30)
   setTimeout(() => d.classList.remove('on'), dura * 1000 + 250)
 }
 
 const LOGS = ['$ claude\n> Editando src/auth/login.ts…\n  ✓ 14 líneas\n> npm test\n  PASS auth.test.ts\n> ¿Permitir Bash(git push)?', '$ codex\n• Reading package.json\n• Thinking…\n• Apply patch? [y/n]\n• Running tsc --noEmit\n  error TS2345', '$ agy\nGemini · planning…\n  1. scaffold\n  2. routes\n  3. tests\nWaiting for approval…', '$ opencode\n> build ./web\n  vite v6 building…\n  ✓ 212 modules\n> /compact\n  context 87%']
 function armarDolor() {
-  const pos = [[70, 50], [420, 150], [130, 330], [640, 300]]
+  const pos = [[30, 110], [170, 290], [40, 480], [160, 670]]
   $('dolor').innerHTML = LOGS.map((l, i) => `<div class="term" style="left:${pos[i][0]}px;top:${pos[i][1]}px"><header>${l.split('\n')[0].slice(2)} — terminal ${i + 1}</header><pre class="corre">${(l + '\n').repeat(8)}</pre></div>`).join('')
-    + [[820, 60, -5, 9], [900, 230, 4, 6], [800, 400, -3, 12]].map(([x, y, r, u], i) => `<div class="recibo" style="left:${x}px;top:${y}px;--r:${r}deg;--u:${u}%"><b>$20 / mes</b>Suscripción de IA #${i + 1}<div class="uso"><i></i></div><small>uso este mes: ${u}%</small></div>`).join('')
+    + [[350, 170, -5, 9], [50, 420, 4, 6], [330, 640, -3, 12]].map(([x, y, r, u], i) => `<div class="recibo" style="left:${x}px;top:${y}px;--r:${r}deg;--u:${u}%"><b>$20 / mes</b>Suscripción de IA #${i + 1}<div class="uso"><i></i></div><small>uso este mes: ${u}%</small></div>`).join('')
 }
 function armarFichas() {
   $('fichas').innerHTML = EQUIPO.map((p) => `<div class="ficha" id="f-${p.id}"><div class="retrato"><img class="px" src="${sprite(p.char)}"></div><h3>${p.name}</h3><span class="prov" style="background:${p.color}">${p.prov}</span><dl><dt>modelo</dt><dd>${p.model}</dd><dt>esfuerzo</dt><dd>${p.effort}</dd></dl><div class="puesto">→ ${p.puesto}</div></div>`).join('')
@@ -221,7 +227,7 @@ function armarTablero() {
 const ENTREGAS = [
   ['cinthya', 'T1 · API de acceso', '<span class="mas">+ export async function login(user, pass)</span>\n<span class="mas">+   return sign(session, SECRET)</span>', 'QA: 6 de 6 pruebas pasan'],
   ['juan', 'T2 · Pantalla de login', '<span class="menos">- &lt;form&gt;</span>\n<span class="mas">+ &lt;form @submit.prevent="entrar"&gt;</span>', 'QA: se ve bien en móvil y escritorio'],
-  ['pablo', 'T3 · Validación', '<span class="mas">+ if (pass.length &gt; 0) aceptar()</span>\n<span class="menos">- if (pass.length &gt;= 8) aceptar()</span>', 'QA: acepta contraseñas de 1 carácter'],
+  ['pablo', 'T3 · Validación', '<span class="menos">- if (pass.length &gt;= 8) aceptar()</span>\n<span class="mas">+ if (pass.length &gt; 0) aceptar()</span>', 'QA: acepta contraseñas de 1 carácter'],
 ]
 function armarEntregas() {
   $('entregas').insertAdjacentHTML('beforeend', ENTREGAS.map(([id, t, diff, qa]) => { const p = EQUIPO.find((p) => p.id === id); return `<div class="fila" id="e-${id}"><div class="retrato"><img class="px" src="${sprite(p.char)}"></div><div><h3>${p.name} <small>${t}</small></h3><pre>${diff}</pre><div class="qa">${qa}</div></div><div class="sello"></div></div>` }).join(''))
@@ -245,11 +251,11 @@ en(7.35, () => { mostrar('oVacia'); camara(...GENERAL, true); $('dolor').classLi
 en(7.7, () => on('#titulo'))
 en(9.6, () => off('#titulo'))
 // 3 · El saludo (9.9–14.6): corte al jefe ya sentado
-en(9.85, () => { mostrar('oJefe'); camara(...CUARTO_JEFE, true) })
-en(14.3, () => camara(262, 262, 2.9)) // baja al jefe para que las fichas no lo tapen
+en(9.85, () => { mostrar('oJefe'); camara(...JEFE_CERCA, true) })
+en(14.2, () => camara(...JEFE_ABAJO)) // baja al jefe para que las fichas no lo tapen
 // 4 · El equipo (14.9–19.1): una ficha por nombre, al tiempo de la voz
 ;[1.55, 2.4, 3.0, 3.6].forEach((d, i) => en(14.9 + d, () => on(`#f-${EQUIPO[i].id}`)))
-en(19.2, () => { on('#contratar'); cursor(690, 366) })
+en(19.2, () => { on('#contratar'); cursor(400, 700) })
 en(19.9, () => on('#contratar', 'clic'))
 // 4b · Ya contratados (20.2–23.0): corte a los cuatro en su cubículo
 en(20.2, () => {
@@ -262,15 +268,16 @@ en(23.0, () => { camara(...MEDIA); oficina('oTodos', {}, {}) })
 en(26.1, () => oficina('oTodos', {}, { jefe: { emoji: '📋', text: 'Repartiendo', task: 'login' } }))
 ;[26.2, 26.5, 26.8, 27.1].forEach((t, i) => en(t, () => document.querySelectorAll('.tarea')[i].classList.add('on')))
 // 6 · La jornada (27.7–33.3): sentados, cada quien con su globo
-en(27.7, () => {
+en(27.9, () => {
   camara(...CUBICULOS)
   oficina('oTodos', { jefe: 'idle', mario: 'idle' }, { cinthya: { emoji: '⌨️', text: 'API', task: 'T1' }, juan: { emoji: '🎨', text: 'Vista', task: 'T2' }, pablo: { emoji: '🧩', text: 'Validación', task: 'T3' } })
 })
 en(28.4, () => on('.tarea', 'fuera'))
 en(30.2, () => oficina('oTodos', {}, { cinthya: { emoji: '🧪', text: 'Pruebas', task: 'T1' }, juan: { emoji: '📱', text: 'En móvil', task: 'T2' }, pablo: { emoji: '🧪', text: 'Pruebas', task: 'T3' } }))
+// Sin estado "done": ese los manda caminando con el jefe, y la toma los quiere sentados.
 en(31.6, () => oficina('oTodos', { mario: 'working' }, { cinthya: { emoji: '✅', text: 'Listo', task: 'T1' }, juan: { emoji: '✅', text: 'Listo', task: 'T2' }, pablo: { emoji: '✅', text: 'Listo', task: 'T3' }, mario: { emoji: '🔍', text: 'Probando', task: 'T4' } }))
 // 7 · Dos pasan, uno regresa (33.4–43.9)
-en(33.2, () => { camara(430, 350, 1.55); on('#entregas') })
+en(33.2, () => { camara(...REVISION); on('#entregas') })
 en(35.3, () => on('#e-pablo', 'error'))
 en(37.5, () => sello('cinthya', true))
 en(39.0, () => sello('juan', true))
@@ -283,7 +290,7 @@ en(42.2, () => {
   evento('oTodos', 'pablo', 'revision', 'Devuelta: acepta contraseñas de 1 carácter', { verdict: 'rechazada' })
 })
 // 8 · Cierre (44–50.5)
-en(44.0, () => { $('cam').style.transitionDuration = '3s'; camara(...GENERAL) })
+en(44.0, () => { $('cam').style.transitionDuration = '2.6s'; camara(...GENERAL) })
 en(46.5, () => on('#titulo', 'fondo'))
 en(46.6, () => on('#titulo'))
 en(47.6, () => on('#titulo', 'liga'))
@@ -297,7 +304,6 @@ window.empezar = (conAudio = false) => {
   $('negro').classList.add('fuera')
   for (const [t, fn] of T) setTimeout(fn, t * 1000)
   if (conAudio) for (const [t, , archivo] of VOZ) setTimeout(() => new Audio(`audio/${archivo}.mp3`).play(), t * 1000)
-  return performance.now()
 }
 // ?ver=1: corre sola con audio al primer clic (el navegador no deja sonar sin un gesto).
 if (new URLSearchParams(location.search).has('ver')) addEventListener('click', () => window.empezar(true), { once: true })
