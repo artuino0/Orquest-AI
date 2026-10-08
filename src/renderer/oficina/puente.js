@@ -8,10 +8,8 @@ import escena from '../../../assets/herdr-oficina/escena/escena.json'
 import mapa from '../../../assets/herdr-oficina/escena/mapa.json'
 
 const JEFE = 'jefe'
-// Un personaje del pack por empleado, en el orden en que llegan. El 3 es del jefe.
-const CUERPOS = ['CHAR4', 'CHAR2', 'CHAR1', 'CHAR5', 'CHAR6', 'CHAR7', 'CHAR8']
+// El personaje de cada quien lo decide el panel (el del jefe lo elige el usuario al contratarlo).
 const agentes = { [JEFE]: { nombre: 'Jefe', sprite: 'CHAR3', role: 'Jefe', model: '', isBoss: true } }
-let llegados = 0
 
 const oyentes = new Set()
 const avisar = (msg) => oyentes.forEach((fn) => fn(msg))
@@ -20,10 +18,10 @@ const estadoDe = {}
 let agents = []
 let actividades = {}
 
-function recibirEstado({ people, activities }) {
+function recibirEstado({ people, activities, sprites = {} }) {
   for (const p of people) {
-    agentes[p.id] ??= { sprite: p.isBoss ? 'CHAR3' : CUERPOS[llegados++ % CUERPOS.length], isBoss: p.isBoss }
-    Object.assign(agentes[p.id], { nombre: p.name, role: p.role, model: p.model || p.provider })
+    agentes[p.id] ??= { isBoss: p.isBoss }
+    Object.assign(agentes[p.id], { nombre: p.name, role: p.role, model: p.model || p.provider, sprite: sprites[p.id] || agentes[p.id].sprite || 'CHAR1' })
     if (estadoDe[p.id] !== p.status) {
       estadoDe[p.id] = p.status
       seq[p.id] = (seq[p.id] || 0) + 1

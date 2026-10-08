@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { LOOK, lookOf } from '../status'
+import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
 import type { FileChange } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
@@ -16,22 +17,13 @@ const TABS: [Tab, string][] = [
   ['tarea', 'Tarea'],
   ['bitacora', 'Bitácora'],
 ]
-// El mismo reparto de personajes que hace la oficina: el 3 es del jefe, los demás por orden de llegada.
-const CHARS = import.meta.glob<string>('../../../../assets/herdr-oficina/sprites/char?.png', { eager: true, query: '?url', import: 'default' })
-const BODIES = [4, 2, 1, 5, 6, 7, 8]
-const char = (n: number) => CHARS[`../../../../assets/herdr-oficina/sprites/char${n}.png`]
-
 const studio = useStudio()
 const e = computed(() => studio.selectedEmployee!)
 const tab = ref<Tab>('terminal')
 const changes = ref<FileChange[]>([])
 const openFile = ref<string | null>(null)
 const diff = ref('')
-const avatar = computed(() => {
-  if (e.value.id === 'jefe') return char(3)
-  const order = studio.employees.filter((x) => x.id !== 'jefe').findIndex((x) => x.id === e.value.id)
-  return char(BODIES[Math.max(0, order) % BODIES.length])
-})
+const avatar = computed(() => charUrl(studio.characterOf(e.value.id)))
 const cli = computed(() => studio.clis.find((c) => c.id === e.value.provider)?.name ?? e.value.provider)
 const EFFORT: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto' }
 const look = computed(() => LOOK[lookOf(e.value, studio.board?.hints)])

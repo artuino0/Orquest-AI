@@ -49,6 +49,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | `cli.ts` | Canal por comando para CLIs sin MCP: lee los campos de `orquest <herramienta> --campo valor` contra el esquema de la herramienta e instala el comando (lanzadores `.cmd` y POSIX). El comando es `src/cli/orquest.mjs`, sin dependencias; el servidor lo atiende en `/cli/<token>`. |
 | `store.ts` | SQLite local: tablero por proyecto, expedientes, manuales, historial. |
 | `prompts.ts` | Prompt del jefe y del empleado (armado con su manual). |
+| `officefeed.ts` | Lo que la oficina de píxel necesita del estudio, en su idioma: quién está y en qué anda (`officeState`) y qué pasó entre dos fotos del tablero (`officeEvents`: asignada, reporte, revisión). Puro, sin Node: lo importa el panel. |
 
 Renderer (`src/renderer/src/world/`, lógica pura con pruebas en `test/world.test.ts` salvo `scene.ts` y `sprites.ts`):
 
@@ -61,7 +62,19 @@ Renderer (`src/renderer/src/world/`, lógica pura con pruebas en `test/world.tes
 | `sprites.ts` | Carga los PNG de `assets/sprites/generados`, personaje por empleado, cuadros de caminata. |
 | `scene.ts` | PixiJS, solo dibuja: pisos por tramos, muros con el kit de piezas (`tramo`, remates, `columna`, `poste`), muebles y personas ordenados por su base; mamparas de cubículo donde dos puestos se dan la cara; una pieza sin arte se salta sin tumbar la oficina; placa con insignia del proveedor, nombre y rol en una capa encima de todo; teclear y monitor animados. Encuadra solo donde hay piso. En modo creativo avisa en qué casilla anda el cursor y muestra lo que la herramienta va a hacer. |
 
-La oficina se dibuja desde la app (Oficina → "Editar oficina", `components/MapEditor.vue`) y se guarda sola en `<userData>/oficina.json` (`core/officefile.ts`, una por estudio; `stores/office.ts` lleva deshacer). `src/renderer/demo.html` abre la escena y el modo creativo con empleados de ejemplo sin abrir la app (`npx vite src/renderer`, luego `/demo.html`; ahí guarda en el navegador). Componentes Vue: Inicio, Oficina + HUD, Jefe, Plantilla, Tablero, Entregas, Expedientes/Manuales, panel del empleado (Terminal, Archivos, Capturas, Actividad, Tarea, Bitácora).
+**La oficina que se ve es la de píxel** (`src/renderer/oficina.html` + `src/renderer/oficina/`), no la escena de PixiJS, que quedó solo para el modo creativo:
+
+| Archivo | Qué hace |
+| --- | --- |
+| `assets/herdr-oficina/herramientas/armar_oficina.py` | Describe la oficina (pisos, paredes, divisiones, muebles, puestos, juegos, salida) y genera `assets/herdr-oficina/escena/` (`fondo.png`, `muebles.png`, `vidrios.png`, `mapa.json`, `escena.json`). Mover un mueble es cambiar una línea y volver a correrlo; revisa que todo el piso se alcance caminando. |
+| `oficina/app.js` | El motor (JS plano, DOM y CSS): rutas A* por `mapa.json`, personajes con hojas de cuadros (caminar por dirección, teclear, esperar), tapas que ocultan a quien pasa por detrás, globos y emojis en píxel, reloj y cielo según la hora, descansos (café, juegos, impresora). Solo responde a lo que le manda `window.OFICINA.fuente`. |
+| `oficina/inicio.js` | Elige la fuente: `puente.js` dentro de la app (`?fuente=app`), `demo.js` suelta en el navegador. |
+| `oficina/puente.js` | Recibe por `postMessage` lo que manda `components/PixelOffice.vue` (ya traducido por `core/officefeed`) y se lo da a `app.js`. De regreso: a quién se le hizo clic y la escala. |
+| `oficina/demo.js` | Jornada de mentira con doce empleados (`?rapido=1`, `?empleados=9`, `?despide=sofi`, `?hora=22:10`, `?escala=2`). |
+
+Los paneles siguen el diseño de Pencil (`oirquestai.pen`): fichas de color en `style.css` (tema oscuro y claro, `theme.ts` + `ThemeToggle.vue`), marco común `PanelFrame.vue`, estados en `status.ts`. `src/renderer/preview.html` abre la app entera en el navegador con un estudio de mentira (`mock.ts`); con `?proyecto=1` entra a un proyecto que avanza solo (`mockstudio.ts`; `&jefe=0` oficina vacía, `&rapido=1`).
+
+El modo creativo dibuja otra oficina, la de PixiJS, que hoy no es la que se ve: desde la app (Oficina → botón de regla y lápiz, `components/MapEditor.vue`) y se guarda sola en `<userData>/oficina.json` (`core/officefile.ts`, una por estudio; `stores/office.ts` lleva deshacer). `src/renderer/demo.html` abre la escena y el modo creativo con empleados de ejemplo sin abrir la app (`npx vite src/renderer`, luego `/demo.html`; ahí guarda en el navegador). Componentes Vue: Inicio, Oficina + HUD, Jefe, Plantilla, Tablero, Entregas, Expedientes/Manuales, panel del empleado (Terminal, Archivos, Capturas, Actividad, Tarea, Bitácora).
 
 ## Herramientas MCP
 
@@ -97,5 +110,9 @@ Las medidas para armar un puesto (dónde van silla, persona, monitor y mampara r
 - En Windows fallan tres pruebas desde antes del comando: `detect` (versión de un `.cmd`), `employees` (lanza un script como ejecutable) y `studio` (CRLF tras abortar un merge).
 - Límites de uso por cuenta (barra de energía, Cafetería con cuenta regresiva, turnos entre cuentas); la `statusLine` de Claude ya trae `rate_limits.five_hour`.
 - Reporte de mercado semanal (rankings + opinión) para la columna "En el mercado" de los expedientes.
-- Fase 4: el mapa usa el arte final y el usuario dibuja su oficina en el modo creativo. Falta: conectar lo que ya entregó arte y no usa la app (escritorio en L, servidores, escritorios de lado, mesa de juntas con sillas), logos reales de proveedor en la insignia (hoy son dos letras), que las placas no se encimen entre sí, barra de energía, mover una pieza ya puesta sin borrarla, y probarlo dentro de Electron. Las tareas a otros agentes van en `docs/tareas/`. Fases 5 (lanzamiento abierto) y 6 (remoto móvil).
+- La oficina de píxel y los paneles nuevos solo se han visto en el navegador (vista previa): falta correrlos dentro de Electron. La oficina va en un `<iframe>` con su propia CSP (deja imágenes `data:`).
+- El modo creativo no edita la oficina de píxel (esa se arma con `armar_oficina.py`). Falta decidir si se une.
+- La oficina de píxel tiene doce puestos y el del jefe; el empleado trece espera de pie junto a la cafetera. Los descansos (café, juegos, impresora) son ambiente al azar, no estados reales; el descanso real por contexto lleno sale como "en espera".
+- En Expedientes, "En el mercado" está vacío hasta que exista el reporte semanal. En el panel del empleado, Capturas no muestra nada todavía.
+- Fase 4 (escena de PixiJS, modo creativo): el mapa usa el arte anterior y el usuario dibuja su oficina. Falta: conectar lo que ya entregó arte y no usa la app (escritorio en L, servidores, escritorios de lado, mesa de juntas con sillas), logos reales de proveedor en la insignia (hoy son dos letras), que las placas no se encimen entre sí, barra de energía, mover una pieza ya puesta sin borrarla, y probarlo dentro de Electron. Las tareas a otros agentes van en `docs/tareas/`. Fases 5 (lanzamiento abierto) y 6 (remoto móvil).
 - Al reabrir un proyecto el tablero vuelve pero los empleados no: el jefe los vuelve a levantar y su bitácora los pone al día.
