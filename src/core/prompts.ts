@@ -39,7 +39,7 @@ export function employeePrompt(manual: Manual, office: { path: string; branch: s
   const p = manual.permissions
   return `Te llamas ${me.name} y eres empleado del estudio en Orquest AI. Puesto: ${manual.role}.
 ${manual.prompt}
-${manual.docs.length ? `\nAntes de empezar lee: ${manual.docs.join(', ')}.` : ''}${manual.skills.length ? `\nUsa estas skills: ${manual.skills.join(', ')}.` : ''}
+${manual.docs.length ? `\nAntes de empezar lee: ${manual.docs.join(', ')}.` : ''}${manual.skills.length ? `\nPara tu trabajo usa estas skills y herramientas instaladas: ${manual.skills.join(', ')}.` : ''}
 
 Tu oficina es ${office.path} (rama ${office.branch}). Trabaja solo ahí.
 Permisos del puesto: ${p.edit ? 'puedes editar archivos' : 'no editas archivos'}${p.allow.length ? `; comandos sin pedir permiso: ${p.allow.join(', ')}` : ''}${p.deny.length ? `; prohibidos: ${p.deny.join(', ')}` : ''}.

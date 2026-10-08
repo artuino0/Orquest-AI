@@ -4,11 +4,13 @@ import type { CliStatus } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
+import type { InstalledTool } from '../core/skills.js'
 import type { EmployeeState } from '../core/state.js'
 import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
+export type { InstalledTool }
 export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -55,6 +57,8 @@ export interface OrquestApi {
   library(): Promise<LibraryView>
   saveDossier(d: Dossier): Promise<void>
   saveManual(m: Manual): Promise<void>
+  /** Skills y servidores MCP instalados en esta máquina (y en el proyecto abierto), para elegir en cada manual. */
+  installedTools(): Promise<InstalledTool[]>
   checkSlots(slots: { provider: ProviderId; model?: string; role: string }[]): Promise<Check[]>
 
   // Oficina dibujada en el modo creativo: una por estudio. El renderer sabe qué significa.
