@@ -195,7 +195,7 @@ nav .btn.on { background: var(--accent); color: var(--on-accent); }
 nav .btn.icon { padding: 7px 9px; }
 .badge { position: absolute; top: -7px; right: -7px; min-width: 16px; padding: 0 4px; font: 700 10px/16px var(--font); text-align: center; background: var(--st-block); color: var(--on-danger); border: 2px solid var(--border); }
 
-.stage { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
+.stage { grid-row: 2; grid-column: 1; position: relative; overflow: hidden; min-width: 0; min-height: 0; }
 .map { position: absolute; inset: 0; }
 .empty-veil { position: absolute; inset: 0; background: var(--veil); display: grid; place-items: center; padding: 16px; }
 .empty { width: 440px; max-width: 100%; padding: 24px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }

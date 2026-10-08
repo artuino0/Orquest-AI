@@ -237,6 +237,10 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       publish()
     },
     rest: async () => {},
+    scrollback: async (id) => `\x1b[32m${id}@oficina\x1b[0m ~/worktrees/${id} (orquest/${id})\r\n$ claude --resume\r\n\x1b[37m●\x1b[0m Leyendo src/components/AltaForm.tsx\r\n\x1b[32m●\x1b[0m Edité AltaForm.tsx  (+48 -12)\r\n\x1b[33m●\x1b[0m Corriendo pruebas: 14 pasan · 1 falla (validación de RFC)\r\n\x1b[37m●\x1b[0m Necesito validar el esquema con zod.\r\n$ `,
+    journal: async () => '## Traspaso\n- Endpoint POST /sesiones listo; falta refresh token.\n- La migración 0042 asume que usuarios.email es único: confirmar con DBA.\n- Siguiente paso: pruebas de expiración con reloj falso.\n\n## Hechos\n- Contratada por el jefe (oficina be-12).\n- Entregó BE-11 → QA aprobó → integrada a la primera.\n- Contexto al 82 % → descansó → contexto 9 %.\n',
+    changes: async () => [{ path: 'scripts/seed.ts', status: 'M' }, { path: 'package.json', status: 'M' }] as never,
+    diff: async () => DIFF,
     onBoard: on(listeners.board),
     onState: on(listeners.state),
     onHired: on(listeners.hired),

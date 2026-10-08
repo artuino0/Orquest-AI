@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
-import { LOOKS } from '../world/behavior'
-import { PROVIDER_COLOR } from '../world/sprites'
+import { LOOK, lookOf } from '../status'
 import TerminalView from './TerminalView.vue'
 import type { FileChange } from '../../../shared/ipc'
-import { TASK_STATUS } from './taskLabels'
+import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
 
 type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
 const TABS: [Tab, string][] = [
@@ -16,6 +16,10 @@ const TABS: [Tab, string][] = [
   ['tarea', 'Tarea'],
   ['bitacora', 'Bitácora'],
 ]
+// El mismo reparto de personajes que hace la oficina: el 3 es del jefe, los demás por orden de llegada.
+const CHARS = import.meta.glob<string>('../../../../assets/herdr-oficina/sprites/char?.png', { eager: true, query: '?url', import: 'default' })
+const BODIES = [4, 2, 1, 5, 6, 7, 8]
+const char = (n: number) => CHARS[`../../../../assets/herdr-oficina/sprites/char${n}.png`]
 
 const studio = useStudio()
 const e = computed(() => studio.selectedEmployee!)
@@ -23,33 +27,45 @@ const tab = ref<Tab>('terminal')
 const changes = ref<FileChange[]>([])
 const openFile = ref<string | null>(null)
 const diff = ref('')
-const color = computed(() => '#' + (PROVIDER_COLOR[e.value.provider] ?? 0x9e9e9e).toString(16).padStart(6, '0'))
+const avatar = computed(() => {
+  if (e.value.id === 'jefe') return char(3)
+  const order = studio.employees.filter((x) => x.id !== 'jefe').findIndex((x) => x.id === e.value.id)
+  return char(BODIES[Math.max(0, order) % BODIES.length])
+})
+const cli = computed(() => studio.clis.find((c) => c.id === e.value.provider)?.name ?? e.value.provider)
+const EFFORT: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto' }
+const look = computed(() => LOOK[lookOf(e.value, studio.board?.hints)])
 const activity = computed(() => {
   const mine = (studio.activity[e.value.id] ?? []).map((a) => ({ ...a }))
   // Lo que dijo y le dijeron por Orquest también es actividad.
   const said = (studio.board?.messages ?? [])
     .filter((m) => m.from === e.value.id || m.to === e.value.id)
-    .map((m) => ({ at: m.at, text: m.from === e.value.id ? `→ ${m.to}: ${m.text}` : `← ${m.text}`, state: undefined }))
+    .map((m) => ({ at: m.at, text: m.from === e.value.id ? `→ ${studio.nameOf(m.to)}: ${m.text}` : `← ${studio.nameOf(m.from)}: ${m.text}`, state: undefined }))
   return [...mine, ...said].sort((a, b) => b.at - a.at)
 })
 const tasks = computed(() => studio.tasksOf(e.value.id))
-// Igual que en el mapa: en espera, el tablero dice si espera a otro o lleva su entrega.
-const visual = computed(() => {
-  const h = studio.board?.hints[e.value.id]
-  if (h?.state === 'gaming') return 'gaming'
-  return h && (e.value.state === 'idle' || e.value.state === 'starting') ? h.state : e.value.state
-})
 const taskById = (id: string) => studio.board?.tasks.find((t) => t.id === id)
 
 const journal = ref('')
-const context = computed(() => studio.board?.context[e.value.id])
+const context = computed(() => studio.board?.context[e.value.id] ?? e.value.context)
 const burnoutAt = computed(() => studio.board?.burnoutAt ?? 80)
+const hot = computed(() => (context.value ?? 0) >= burnoutAt.value)
 const gaming = computed(() => studio.board?.hints[e.value.id]?.state === 'gaming')
+/** La bitácora partida en sus secciones (## Traspaso, ## Hechos). */
+const sections = computed(() => {
+  const out: { title: string; lines: string[] }[] = []
+  for (const l of journal.value.split('\n')) {
+    const h = /^#{1,3}\s+(.*)/.exec(l)
+    if (h) out.push({ title: h[1].trim(), lines: [] })
+    else if (l.trim()) (out.at(-1) ?? (out.push({ title: 'Bitácora', lines: [] }), out[0])).lines.push(l.replace(/^[-*]\s+/, ''))
+  }
+  return out.filter((s) => s.lines.length)
+})
+const NOTE: Record<string, string> = { traspaso: 'lo escribe el agente', hechos: 'los escribe la app · solo lectura' }
 
 async function loadJournal() {
   journal.value = await window.orquest.journal(e.value.id)
 }
-
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
 }
@@ -76,141 +92,147 @@ watch(
 )
 onBeforeUnmount(() => clearInterval(timer))
 
-const time = (t: number) => new Date(t).toLocaleTimeString()
-const lineClass = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '')
+// Escribirle sin entrar a la terminal: el texto y Enter van directo a su CLI.
+const message = ref('')
+function say() {
+  if (!message.value.trim()) return
+  window.orquest.write(e.value.id, `${message.value}\r`)
+  message.value = ''
+}
+
+const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '')
 </script>
 
 <template>
-  <aside class="drawer" :class="studio.drawerMode">
+  <aside class="drawer panel" :class="studio.drawerMode">
     <header>
-      <span class="avatar" :style="{ background: color }" />
+      <img class="avatar" :src="avatar" alt="" />
       <div class="who">
-        <strong>{{ studio.nameOf(e.id) }}</strong>
-        <small>{{ e.role }} · {{ e.provider }}{{ e.model ? ' · ' + e.model : '' }}{{ e.effort ? ' · ' + e.effort : '' }}</small>
-      </div>
-      <span class="pill" :class="visual">{{ LOOKS[visual].label }}</span>
-      <div class="ctx" :title="context === undefined ? 'contexto: sin dato' : `contexto usado: ${context}%`">
-        <span class="bar"><span :style="{ width: (context ?? 0) + '%' }" :class="{ hot: (context ?? 0) >= burnoutAt }" /></span>
-        <small>{{ context === undefined ? '—' : context + '%' }}</small>
+        <h2><span class="title-pixel">{{ studio.nameOf(e.id) }}</span> <span class="chip" :style="{ color: `var(--st-${look.color})` }">■ {{ look.label }}</span></h2>
+        <p class="dim">{{ e.role }} · {{ cli }}<template v-if="e.model"> · {{ e.model }}</template><template v-if="e.effort"> · esfuerzo {{ EFFORT[e.effort] }}</template></p>
+        <p class="ctx">
+          <span class="cap">Contexto</span>
+          <span class="meter" :class="{ hot }"><i><b :style="{ width: `${context ?? 0}%` }" /></i>{{ context === undefined ? 'sin dato' : `${Math.round(context)}%` }}</span>
+        </p>
+        <p v-if="hot" class="over">Pasó el umbral de {{ burnoutAt }} %. Mándalo a Descanso para limpiar contexto.</p>
       </div>
       <div class="actions">
-        <button :disabled="gaming || e.state === 'exited'" title="Escribe su traspaso y se reinicia con el contexto limpio" @click="studio.rest(e.id)">🎮 Descanso</button>
-        <button
-          :title="studio.drawerMode === 'float' ? 'Pantalla dividida' : 'Flotante'"
-          @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'"
-        >
-          {{ studio.drawerMode === 'float' ? '◫' : '❐' }}
+        <button class="btn" @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'">
+          <template v-if="studio.drawerMode === 'float'"><Columns2 /> Dividir</template><template v-else><AppWindow /> Flotante</template>
         </button>
-        <button @click="studio.fire(e.id)">Despedir</button>
-        <button @click="studio.select(null)">✕</button>
+        <button class="btn" @click="studio.select(null)"><X /> Cerrar</button>
+        <button class="btn" :disabled="gaming || e.state === 'exited'" title="Escribe su traspaso y se reinicia con el contexto limpio" @click="studio.rest(e.id)"><Gamepad2 /> Descanso</button>
+        <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> Despedir</button>
       </div>
     </header>
 
-    <nav>
+    <nav class="tabs">
       <button v-for="[id, label] in TABS" :key="id" :class="{ on: tab === id }" @click="tab = id">{{ label }}</button>
     </nav>
 
     <div class="body">
-      <TerminalView v-show="tab === 'terminal'" :id="e.id" />
+      <template v-if="tab === 'terminal'">
+        <p v-if="e.state === 'blocked'" class="needs"><AlertTriangle /> <b>{{ studio.nameOf(e.id) }} te necesita.</b> Su CLI pide algo: respóndele aquí abajo, en su terminal.</p>
+        <div class="screen"><TerminalView :id="e.id" /></div>
+        <form class="say" @submit.prevent="say">
+          <ChevronRight />
+          <input v-model="message" :placeholder="`Escríbele a ${studio.nameOf(e.id)}…`" />
+        </form>
+      </template>
 
       <div v-if="tab === 'archivos'" class="files">
         <ul>
-          <li v-if="!changes.length" class="muted">Sin cambios en su oficina.</li>
-          <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path)">
-            <code>{{ c.status }}</code> {{ c.path }}
-          </li>
+          <li v-if="!changes.length" class="dim">Sin cambios en su oficina.</li>
+          <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path)"><code>{{ c.status }}</code> {{ c.path }}</li>
         </ul>
-        <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="lineClass(l)">{{ l }}
+        <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="mark(l)">{{ l || ' ' }}
 </span></pre>
       </div>
 
-      <div v-if="tab === 'capturas'" class="pad muted">
-        Aún no hay capturas. Aquí aparecen las que tome al probar la app; en el mapa se ve un flash de cámara.
-      </div>
+      <p v-if="tab === 'capturas'" class="dim pad">Aún no hay capturas. Aquí aparecen las que tome al probar la app.</p>
 
-      <ol v-if="tab === 'actividad'" class="pad timeline">
-        <li v-for="(a, i) in activity" :key="i">
-          <time>{{ time(a.at) }}</time>
-          <span :class="['dot', a.state]" />
-          {{ a.text }}
-        </li>
+      <ol v-if="tab === 'actividad'" class="timeline">
+        <li v-if="!activity.length" class="dim">Sin actividad todavía.</li>
+        <li v-for="(a, i) in activity" :key="i"><time>{{ time(a.at) }}</time><i :style="{ background: a.state ? `var(--st-${LOOK[a.state].color})` : 'var(--border-light)' }" />{{ a.text }}</li>
       </ol>
 
-      <pre v-if="tab === 'bitacora'" class="pad journal">{{ journal || 'Aún no hay bitácora.' }}</pre>
+      <div v-if="tab === 'tarea'" class="task">
+        <span class="cap">Oficina</span>
+        <p><code>{{ e.office.path }}</code> · rama <code>{{ e.office.branch }}</code></p>
+        <span class="cap">Tareas</span>
+        <p v-if="!tasks.length" class="dim">Sin tareas. Se las asigna el jefe.</p>
+        <article v-for="t in tasks" :key="t.id" class="card">
+          <h3><span class="id">{{ t.id }}</span> {{ t.title }} <span class="chip" :style="{ color: `var(--st-${TASK_COLOR[t.status]})` }">■ {{ capital(TASK_STATUS[t.status]) }}</span></h3>
+          <p v-if="t.description && t.description !== t.title">{{ t.description }}</p>
+          <p v-if="t.deps.length" class="dim">Depende de: <span v-for="d in t.deps" :key="d">{{ d }} ({{ TASK_STATUS[taskById(d)?.status ?? 'waiting'] }}) </span></p>
+          <p v-if="t.qa" :class="t.qa.verdict === 'pass' ? 'good' : 'bad'">QA: {{ t.qa.report }}</p>
+        </article>
+        <template v-if="e.warnings.length">
+          <span class="cap">Avisos</span>
+          <p v-for="w in e.warnings" :key="w" class="bad">{{ w }}</p>
+        </template>
+      </div>
 
-      <dl v-if="tab === 'tarea'" class="pad task">
-        <dt>Puesto</dt>
-        <dd>{{ e.role }}</dd>
-        <dt>Oficina</dt>
-        <dd><code>{{ e.office.path }}</code></dd>
-        <dt>Rama</dt>
-        <dd><code>{{ e.office.branch }}</code></dd>
-        <dt>Bitácora</dt>
-        <dd class="muted">Su memoria entre reinicios, y la capacitación de quien ocupe su puesto.</dd>
-        <dt>Tareas</dt>
-        <dd v-if="!tasks.length" class="muted">Sin tareas. Se las asigna el jefe.</dd>
-        <dd v-for="t in tasks" :key="t.id" class="task-item">
-          <strong>{{ t.id }} · {{ t.title }}</strong> <span class="muted">({{ TASK_STATUS[t.status] }})</span>
-          <p v-if="t.description">{{ t.description }}</p>
-          <p v-if="t.deps.length" class="muted">
-            Depende de:
-            <span v-for="d in t.deps" :key="d">{{ d }} ({{ TASK_STATUS[taskById(d)?.status ?? 'waiting'] }}) </span>
-          </p>
-          <p v-if="t.qa" :class="t.qa.verdict === 'pass' ? 'ok' : 'warn'">QA: {{ t.qa.report }}</p>
-        </dd>
-        <dt v-if="e.warnings.length">Avisos</dt>
-        <dd v-for="w in e.warnings" :key="w" class="warn">⚠ {{ w }}</dd>
-      </dl>
+      <div v-if="tab === 'bitacora'" class="journal">
+        <p v-if="!sections.length" class="dim">Aún no hay bitácora. Es su memoria entre reinicios y la capacitación de quien ocupe su puesto.</p>
+        <article v-for="s in sections" :key="s.title" class="card">
+          <h3><span class="title-pixel" :class="s.title.toLowerCase()">{{ s.title }}</span> <small class="dim">{{ NOTE[s.title.toLowerCase()] }}</small></h3>
+          <p v-for="(l, i) in s.lines" :key="i">{{ l }}</p>
+        </article>
+      </div>
     </div>
   </aside>
 </template>
 
 <style scoped>
-.drawer { display: flex; flex-direction: column; background: var(--bg); min-width: 0; min-height: 0; }
-.drawer.float { position: fixed; right: 16px; top: 64px; bottom: 16px; width: min(760px, 60vw); border: 3px solid var(--line); box-shadow: 8px 8px 0 #000; }
-.drawer.split { border-left: 3px solid var(--line); height: 100vh; }
-header { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 2px solid var(--line); background: var(--panel); }
-.avatar { width: 24px; height: 24px; box-shadow: 2px 2px 0 #000; }
-.who { display: grid; }
-.who small { color: var(--muted); font-size: 11px; }
-.actions { margin-left: auto; display: flex; gap: 4px; }
-nav { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 2px solid var(--line); }
-nav button { border-bottom: none; font-size: 12px; }
-nav .on { background: var(--bg); border-color: var(--accent); }
-.body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
-.pad { padding: 12px; margin: 0; font-size: 13px; }
-.muted { color: var(--muted); }
-.files { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-.files ul { list-style: none; margin: 0; padding: 8px; font-size: 13px; }
-.files li { padding: 2px 6px; cursor: pointer; }
-.files li:hover, .files li.on { background: var(--line); }
-.diff { margin: 0; padding: 8px; font-size: 12px; overflow: auto; border-top: 2px solid var(--line); }
-.add { color: #81c784; }
-.del { color: #e57373; }
-.hunk { color: #64b5f6; }
-.timeline { list-style: none; display: grid; gap: 6px; }
-.timeline time { color: var(--muted); font-size: 11px; margin-right: 8px; }
-.dot { display: inline-block; width: 8px; height: 8px; background: var(--line); margin-right: 6px; }
-.task { display: grid; grid-template-columns: 90px 1fr; gap: 6px 12px; }
-.task dt { color: var(--muted); }
-.task dd { margin: 0; overflow-wrap: anywhere; }
-.warn { color: var(--accent); }
-.ok { color: var(--idle); }
-.task-item p { margin: 4px 0 0; font-size: 12px; }
-.task-item { padding-bottom: 6px; }
-.pill { font-size: 11px; padding: 2px 6px; color: #111; }
-.starting { background: var(--starting); }
-.working { background: var(--working); }
-.blocked { background: var(--blocked); color: #fff; }
-.idle { background: var(--idle); }
-.exited { background: var(--exited); color: #fff; }
-.waiting { background: #9fa8da; }
-.gaming { background: #26a69a; }
-.ctx { display: flex; align-items: center; gap: 4px; }
-.ctx small { color: var(--muted); font-size: 10px; width: 28px; }
-.bar { display: block; width: 60px; height: 6px; background: var(--line); }
-.bar span { display: block; height: 100%; background: var(--working); }
-.bar span.hot { background: var(--blocked); }
-.journal { white-space: pre-wrap; font-size: 12px; }
-.delivering { background: var(--accent); }
+.drawer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.drawer.float { position: fixed; right: 16px; top: 64px; bottom: 16px; width: min(640px, 56vw); z-index: 6; }
+.drawer.split { grid-row: 2; grid-column: 2; border-width: 0 0 0 3px; box-shadow: none; }
+header { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
+.avatar { width: 48px; height: 56px; object-fit: contain; image-rendering: pixelated; background: var(--bg); border: 2px solid var(--border); padding: 4px; flex: none; }
+.who { flex: 1; min-width: 0; }
+h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; }
+.dim { margin: 0; font-size: 11px; line-height: 1.6; color: var(--text-secondary); }
+.who .dim { margin-top: 6px; }
+.ctx { margin: 8px 0 0; display: flex; align-items: center; gap: 10px; }
+.over { margin: 6px 0 0; font-size: 11px; color: var(--st-block); }
+.actions { display: grid; grid-template-columns: auto auto; gap: 6px; flex: none; }
+.tabs { display: flex; gap: 4px; padding: 10px 14px 0; border-bottom: 3px solid var(--border); background: var(--surface); }
+.tabs button { border: 2px solid var(--border); border-bottom: 0; background: var(--surface-2); color: var(--text-secondary); padding: 7px 12px; font: 700 12px var(--font); }
+.tabs button.on { background: var(--accent); color: var(--on-accent); }
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; overflow: auto; }
+.needs { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 12px; background: var(--tint-danger); border: 2px solid var(--st-block); }
+.needs svg { width: 16px; height: 16px; color: var(--st-block); flex: none; }
+.needs b { color: var(--st-block); }
+.screen { flex: 1; min-height: 160px; display: flex; background: var(--term-bg); border: 2px solid var(--border-light); overflow: hidden; }
+.say { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--bg); border: 2px solid var(--border); }
+.say svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
+.say input { flex: 1; border: 0; background: none; padding: 10px 0; font: 12px var(--font); color: var(--text-primary); outline: none; }
+.pad { padding: 4px 0; }
+.files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
+.files ul { list-style: none; margin: 0; padding: 6px; font-size: 12px; background: var(--bg); border: 2px solid var(--border); max-height: 180px; overflow: auto; }
+.files li { padding: 4px 8px; cursor: pointer; }
+.files li:hover, .files li.on { background: var(--surface-2); }
+.files code { color: var(--accent); margin-right: 6px; }
+.diff { margin: 0; overflow: auto; font: 12px/1.6 var(--font); background: var(--term-bg); border: 2px solid var(--border); }
+.diff span { display: block; padding: 0 10px; white-space: pre; }
+.diff .add { background: var(--tint-ok); }
+.diff .del { background: var(--tint-danger); }
+.diff .hunk { color: var(--text-secondary); }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.timeline li { display: flex; align-items: center; gap: 10px; }
+.timeline time { color: var(--text-secondary); font-size: 11px; }
+.timeline i { width: 8px; height: 8px; flex: none; }
+.task, .journal { display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.task p, .journal p { margin: 0; line-height: 1.7; }
+.task code { color: var(--accent); }
+.card { background: var(--bg); border: 2px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+h3 { margin: 0; display: flex; align-items: center; gap: 10px; font: 700 12px var(--font); }
+h3 .title-pixel { font-size: 16px; }
+h3 .traspaso { color: var(--st-work); }
+h3 .hechos { color: var(--accent); }
+.id { color: var(--accent); }
+.good { color: var(--st-idle); }
+.bad { color: var(--st-block); }
 </style>

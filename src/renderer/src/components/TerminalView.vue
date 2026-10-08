@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
+import { theme } from '../theme'
 
 const props = defineProps<{ id: string }>()
 const el = ref<HTMLDivElement>()
@@ -9,6 +11,13 @@ let term: Terminal | undefined
 let fit: FitAddon | undefined
 let offData: (() => void) | undefined
 let observer: ResizeObserver | undefined
+
+/** Colores de la terminal según el tema de la app. */
+function colors() {
+  const css = getComputedStyle(document.documentElement)
+  const v = (name: string) => css.getPropertyValue(name).trim()
+  return { background: v('--term-bg'), foreground: v('--text-primary'), cursor: v('--accent'), selectionBackground: v('--border-light') }
+}
 
 async function attach(id: string) {
   offData?.()
@@ -25,7 +34,7 @@ function fitNow() {
 }
 
 onMounted(() => {
-  term = new Terminal({ fontSize: 13, theme: { background: '#1b1a24' }, convertEol: false })
+  term = new Terminal({ fontSize: 13, fontFamily: "'JetBrains Mono', ui-monospace, monospace", theme: colors(), convertEol: false })
   fit = new FitAddon()
   term.loadAddon(fit)
   term.open(el.value!)
@@ -37,6 +46,7 @@ onMounted(() => {
 })
 
 watch(() => props.id, attach)
+watch(theme, () => term && (term.options.theme = colors()), { flush: 'post' })
 
 onBeforeUnmount(() => {
   offData?.()
