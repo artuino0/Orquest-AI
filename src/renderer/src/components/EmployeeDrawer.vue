@@ -90,7 +90,8 @@ function say() {
   // Texto y, un momento después, Enter: juntos, algunas CLIs (Codex) lo toman como pegado y no envían.
   const id = e.value.id
   window.orquest.write(id, message.value)
-  setTimeout(() => window.orquest.write(id, '\r'), 700)
+  // Mientras más largo, más tarda la CLI en recibirlo todo.
+  setTimeout(() => window.orquest.write(id, '\r'), 700 + message.value.length * 2)
   message.value = ''
 }
 

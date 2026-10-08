@@ -245,7 +245,11 @@ export class Studio extends EventEmitter<StudioEvents> {
       for (const msg of batch) {
         if (!this.opts.manager.isLive(id)) return
         this.opts.manager.write(id, msg)
+        const since = Date.now()
         await wait(pause)
+        // Un texto largo tarda en entrar (el manual del puesto son más de mil caracteres): el Enter
+        // espera a que la pantalla deje de moverse. Con Codex real, a los 0.7 s aún no había acabado.
+        while (pause > 0 && this.opts.manager.quietFor(id) < 500 && Date.now() - since < 20_000) await wait(100)
         if (!this.opts.manager.isLive(id)) return
         this.opts.manager.write(id, '\r')
         await wait(Math.min(pause, 300))

@@ -242,6 +242,12 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
    * Listo para recibir un mensaje: está en espera y se ve su prompt. Con
    * patrones sin comprobar contra la CLI real basta con que esté en espera.
    */
+  /** Cuánto lleva su pantalla sin cambiar, en ms (enorme si ya no está). */
+  quietFor(id: string): number {
+    const e = this.live.get(id)
+    return e ? Date.now() - e.lastDataAt : Number.MAX_SAFE_INTEGER
+  }
+
   atPrompt(id: string): boolean {
     const e = this.live.get(id)
     if (!e || e.employee.state !== 'idle') return false
