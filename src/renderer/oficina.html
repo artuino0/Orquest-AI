@@ -5,12 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orquest AI · oficina de píxel</title>
 <link rel="stylesheet" href="oficina/styles.css">
-<!-- las mismas fuentes del menú de la app -->
-<script type="module">
-  import '@fontsource/jetbrains-mono/400.css'
-  import '@fontsource/pixelify-sans/400.css'
-  import '@fontsource/pixelify-sans/700.css'
-</script>
+<!-- los emojis en píxel y la luz de las pantallas se dibujan al vuelo: imágenes data: -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
 </head>
 <body>
 <div id="app">
@@ -52,8 +48,7 @@
     </div>
   </main>
 </div>
-<!-- demo.js pone window.OFICINA; app.js dibuja lo que ella diga -->
-<script src="oficina/demo.js"></script>
-<script src="oficina/app.js"></script>
+<!-- inicio.js elige de dónde salen los datos (la app o la demo) y arranca la oficina -->
+<script type="module" src="oficina/inicio.js"></script>
 </body>
 </html>

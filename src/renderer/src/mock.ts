@@ -46,6 +46,8 @@ const SUMMARIES: Record<string, ProjectSummary> = {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const nothing = () => () => {}
 
+import { mockStudio } from './mockstudio'
+
 export function installMock(caso: string) {
   const todo = (what: string) => async (): Promise<never> => {
     throw new Error(`La vista previa no tiene ${what}.`)
@@ -91,5 +93,7 @@ export function installMock(caso: string) {
     onState: nothing,
     onHired: nothing,
   }
-  window.orquest = api
+  // Con ?proyecto hay además un proyecto de mentira que avanza solo.
+  const params = new URLSearchParams(location.search)
+  window.orquest = params.get('proyecto') ? { ...api, ...mockStudio(params) } : api
 }

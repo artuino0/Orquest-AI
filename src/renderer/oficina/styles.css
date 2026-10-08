@@ -98,6 +98,8 @@ main {
   transition: opacity 0.3s;
 }
 .char > img { position: absolute; left: 0; bottom: 0; }
+/* lo que lleva en la mano: a un costado, a la altura de la cintura */
+.char > img.carga { left: auto; right: calc(-3px * var(--s)); bottom: calc(5px * var(--s)); }
 
 /* working: rebote de 1 pixel nativo */
 @keyframes bounce {
@@ -132,7 +134,8 @@ main {
   color: #1a1c2c;
   padding: 0 calc(2 * var(--p));
   font-family: "Pixelify Sans", sans-serif;
-  font-size: calc(6px * var(--s)); line-height: calc(10px * var(--s));
+  /* con la oficina chica la letra no baja de un tamaño legible */
+  font-size: max(11px, calc(6px * var(--s))); line-height: max(16px, calc(10px * var(--s)));
   white-space: nowrap;
   box-shadow: var(--p) 0 #1a1c2c, calc(-1 * var(--p)) 0 #1a1c2c, 0 var(--p) #1a1c2c, 0 calc(-1 * var(--p)) #1a1c2c,
     0 calc(2 * var(--p)) rgba(26, 28, 44, 0.35);
@@ -174,7 +177,7 @@ main {
   color: #f4f4f4;
   padding: 0 calc(2px * var(--s));
   font-family: "Pixelify Sans", sans-serif;
-  font-size: calc(5px * var(--s)); line-height: calc(7px * var(--s));
+  font-size: max(10px, calc(5px * var(--s))); line-height: max(13px, calc(7px * var(--s)));
   white-space: nowrap;
 }
 .label.jefe { color: #f0b072; }
@@ -304,3 +307,9 @@ html.flotante #cerrar-flotante { display: block; }
 .hoja[hidden] { display: none; }
 .hoja.animado { bottom: auto; pointer-events: none; }
 @keyframes hoja { to { background-position-x: calc(var(--fw) * var(--n) * -1px * var(--s)); } }
+
+/* Dentro de la app: sin encabezado (ya lo trae el panel), fondo del panel y
+   personajes que responden al clic. */
+.en-app header { display: none; }
+.en-app, .en-app body { background: transparent; }
+.en-app .char, .en-app .char-capa { pointer-events: auto; cursor: pointer; }
