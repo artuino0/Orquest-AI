@@ -15,13 +15,13 @@
 | # | Tiempo | Qué se ve | Voz |
 | --- | --- | --- | --- |
 | 1 | 0–7 s | Terminales que se enciman; caen tres recibos de suscripción. | **Ella:** "¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho." |
-| 2 | 7–10 s | Las terminales caen dentro del edificio. Oficina vacía y el nombre. | **Ella:** "Esto es Orquest." |
+| 2 | 7–10 s | Las terminales caen dentro del edificio. Oficina vacía y el nombre. | **Ella:** "Esto es Orquest AI." |
 | 3 | 10–17 s | Jhonny entra y se sienta. Chat: cada frase sale como burbuja mientras se oye. | **Ella:** "Hola, Jhonny." · **Jhonny:** "Hola. ¿Qué necesitas?" · **Ella:** "Hagamos una tienda en línea." |
 | 4 | 17–27 s | Una ficha por nombre: personaje, nombre, proveedor, modelo, esfuerzo y puesto. Luego los cuatro entran y toman su cubículo. | **Jhonny:** "Claro. Te propongo contratar a Cinthya, Juan, Pablo y Mario." |
 | 5 | 27–34 s | El chat marca "planeando…". Tablero: tres tarjetas; la de QA espera a las otras. | **Jhonny:** "¿Por dónde empezamos?" · **Ella:** "Comienza con el login." · **Jhonny:** "Va. Ya lo repartí." |
 | 6 | 34–42 s | Sin voz. Teclean, globos de actividad, pasan por la impresora y llevan su hoja a Jhonny. | — |
 | 7 | 42–54 s | Entregas: dos sellos verdes; en la tercera, veredicto de QA en rojo y clic en Devolver. Pablo regresa a su cubículo; Cinthya y Juan se van a la sala de juegos. | **Jhonny:** "Ya entregaron. Mario encontró un error en lo de Pablo." · **Ella:** "Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso." · **Jhonny:** "Ya va de vuelta a su escritorio." |
-| 8 | 54–60 s | La cámara se aleja: oficina entera, Pablo tecleando solo. Nombre y liga. | **Ella:** "Orquest AI. El código está abierto." |
+| 8 | 54–60 s | La cámara se aleja: oficina entera, Pablo tecleando solo. Nombre y liga. | **Ella:** "Orquest AI. Como un juego." |
 
 Fichas de la toma 4: Cinthya (Claude Code, backend), Juan (Codex, frontend), Pablo (Antigravity, frontend), Mario (OpenCode, QA). Modelo y esfuerzo se copian de lo que liste la app el día de grabar.
 

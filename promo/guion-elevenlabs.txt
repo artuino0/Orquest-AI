@@ -21,7 +21,7 @@ EN ORDEN
       silencio 0.5 s · las terminales caen dentro del edificio
 
 02 · ELLA · entra en 0:07
-[casual] Esto es Orquest.
+[casual] Esto es Orquest AI.
 
       silencio 1.5 s · Jhonny entra y se sienta
 
@@ -76,7 +76,7 @@ EN ORDEN
       silencio 2 s · la cámara se aleja; Pablo teclea solo
 
 13 · ELLA · entra en 0:55
-[casual] Orquest AI. El código está abierto.
+[happy] Orquest AI. Como un juego.
 
 ════════════════════════════════════════
 POR VOZ (para generar de corrido con cada voz; un clip por línea)
@@ -85,12 +85,12 @@ POR VOZ (para generar de corrido con cada voz; un clip por línea)
 ELLA
 
 01  [casual] ¿Cansado de programar entre terminales? Pagas tres suscripciones de inteligencia artificial... y a ninguna le sacas provecho.
-02  [casual] Esto es Orquest.
+02  [casual] Esto es Orquest AI.
 03  [casual] Hola, Jhonny.
 05  [casual] Hagamos una tienda en línea.
 08  [casual] Comienza con el login.
 11  [casual] Cinthya, aprobado. Juan, aprobado. Pablo... te lo regreso.
-13  [casual] Orquest AI. El código está abierto.
+13  [happy] Orquest AI. Como un juego.
 
 JHONNY
 
