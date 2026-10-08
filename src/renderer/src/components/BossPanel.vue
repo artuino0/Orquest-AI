@@ -5,6 +5,7 @@ import { useStudio } from '../stores/studio'
 import type { Effort, ProviderId } from '../../../shared/ipc'
 import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
+import TerminalView from './TerminalView.vue'
 import { CHARACTERS, charUrl } from '../characters'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
@@ -164,6 +165,11 @@ const pending = computed(() => {
           <div><span class="cap">Objetivo</span><p>{{ studio.board?.goal || 'Sin objetivo escrito.' }}</p></div>
           <button class="btn" title="Díselo al jefe para cambiarlo" @click="message = `Cambia el objetivo a: ${studio.board?.goal ?? ''}`"><Pencil /> Editar</button>
         </div>
+        <!-- Detenido: su CLI pregunta algo y nada de lo que escribas le llega hasta que contestes. -->
+        <div v-if="boss?.state === 'blocked'" class="stuck">
+          <p><AlertTriangle /> <span><b>El jefe está detenido: su CLI te pregunta algo.</b> Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.</span></p>
+          <div class="mini"><TerminalView id="jefe" /></div>
+        </div>
         <div ref="log" class="log">
           <div class="spacer" />
           <p v-if="!chat.length" class="empty">Aún no hay mensajes. Escríbele al jefe abajo.</p>
@@ -238,6 +244,11 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .goal > svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
 .goal div { flex: 1; min-width: 0; }
 .goal p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; }
+.stuck { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--tint-danger); border: 2px solid var(--st-block); }
+.stuck p { margin: 0; display: flex; gap: 10px; font-size: 12px; line-height: 1.5; }
+.stuck svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
+.stuck b { color: var(--st-block); }
+.mini { height: 230px; display: flex; background: var(--term-bg); border: 2px solid var(--border); overflow: hidden; }
 .log { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
 .spacer { flex: 1; }
 .empty, .dim { margin: 0; font-size: 11px; color: var(--text-secondary); }
