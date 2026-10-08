@@ -32,6 +32,8 @@ export interface StudioSnapshot extends BoardSnapshot {
   bossOnline: boolean
   /** Lo que el tablero dice de cada empleado: esperando a alguien, llevando su entrega o jugando. */
   hints: Record<string, NonNullable<ReturnType<Board['hint']>> | { state: 'gaming' }>
+  /** Quiénes volverían a su escritorio si se retoma (al abrir un proyecto que quedó con gente). */
+  resumable: string[]
   /** % de contexto usado por agente, si se conoce. */
   context: Record<string, number>
   /** Desde qué % se manda a descansar. */
@@ -45,6 +47,8 @@ export interface StudioOptions {
   store?: StudioStore
   /** URL del servidor MCP para un token. */
   mcpUrl: (token: string) => string
+  /** Pausa entre escribirle un mensaje a una CLI y darle Enter. */
+  submitDelayMs?: number
   /** Cuánto espera hablar_con la respuesta del empleado. */
   replyTimeoutMs?: number
   /** Expedientes, manuales e historial del estudio; compartidos entre proyectos. */
@@ -86,6 +90,10 @@ export class Studio extends EventEmitter<StudioEvents> {
   private waiters = new Map<string, (answer: string) => void>()
   private offices = new Map<string, Office>()
   private launches = new Map<string, Launch>()
+  /** Envíos en curso a cada terminal, para que no se encimen. */
+  private sending = new Map<string, Promise<void>>()
+  /** Quién falta por dejar su corte al cerrar la app. */
+  private cuts = new Map<string, () => void>()
   /** Quién está jugando videojuegos (limpiando contexto) y por qué. */
   private resting = new Map<string, string>()
   /** Pasó el umbral a media tarea: descansa en cuanto termine su turno. */
@@ -226,12 +234,23 @@ export class Studio extends EventEmitter<StudioEvents> {
       return
     }
     this.stopRetry(id)
-    while (q.length) {
-      const msg = q.shift()!
-      this.opts.manager.write(id, msg)
-      // Enter aparte: algunas CLIs tratan el texto pegado y el Enter juntos como pegado multilínea.
-      setTimeout(() => this.opts.manager.isLive(id) && this.opts.manager.write(id, '\r'), 150)
-    }
+    // De uno en uno: texto, pausa y Enter. Las CLIs toman una ráfaga de teclas como pegado, y un
+    // Enter que llega dentro de la ráfaga se queda como salto de línea en vez de enviar (Codex lo
+    // hace con textos largos). Tampoco se encima el siguiente mensaje antes del Enter del anterior.
+    const batch = q.splice(0)
+    const pause = this.opts.submitDelayMs ?? 700
+    const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))
+    const previous = this.sending.get(id) ?? Promise.resolve()
+    this.sending.set(id, previous.then(async () => {
+      for (const msg of batch) {
+        if (!this.opts.manager.isLive(id)) return
+        this.opts.manager.write(id, msg)
+        await wait(pause)
+        if (!this.opts.manager.isLive(id)) return
+        this.opts.manager.write(id, '\r')
+        await wait(Math.min(pause, 300))
+      }
+    }))
   }
 
   // ── Lanzar agentes ───────────────────────────────────────────────────────
@@ -319,7 +338,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       intro: () => (viaArg ? [] : [prompt]),
     }, (emp) => [
       emp.resumed
-        ? 'La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Sigue donde ibas (leer_proyecto).'
+        ? `La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto).`
         : resume
           ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto).`
           : previous
@@ -404,7 +423,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel)],
     }, (e) =>
       again
-        ? [e.resumed ? 'La app se reabrió y retomaste tu sesión. Sigue donde ibas (leer_tarea).' : `La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
+        ? [e.resumed ? `La app se reabrió y retomaste tu sesión. Revisa el corte que dejaste en tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).` : `La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
         : before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [],
     !!again)
     if (again) return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
@@ -463,6 +482,47 @@ export class Studio extends EventEmitter<StudioEvents> {
    * contexto limpio en la misma oficina; al volver lee su bitácora. En el mapa
    * se va a jugar videojuegos mientras tanto. Lo que dura es lo que tarda.
    */
+  /**
+   * Antes de cerrar la app: cada agente deja su corte (qué hacía, qué quedó a
+   * medias, qué sigue) con escribir_traspaso, para retomar desde ahí al volver.
+   * Espera a todos o hasta `timeoutMs`. A quien está detenido esperando al
+   * usuario no se le pide: no puede contestar. `onProgress` avisa cada avance.
+   */
+  async checkpoint(timeoutMs: number, onProgress?: (p: { asked: string[]; done: string[] }) => void): Promise<{ asked: string[]; done: string[] }> {
+    const ids = [BOSS_ID, ...this.board.staff.map((m) => m.id)].filter((id) => this.opts.manager.isLive(id) && this.opts.manager.get(id)?.state !== 'blocked')
+    const done: string[] = []
+    const report = () => onProgress?.({ asked: ids.map((id) => this.nameOf(id)), done: done.map((id) => this.nameOf(id)) })
+    report()
+    if (!ids.length) return { asked: [], done: [] }
+    const all = Promise.all(ids.map((id) => new Promise<void>((resolve) => {
+      this.cuts.set(id, () => {
+        if (!done.includes(id)) done.push(id)
+        this.fact(id, 'dejó su corte al cerrarse la app')
+        report()
+        resolve()
+      })
+      this.notify(id, `La app se va a cerrar. Detente y deja tu corte ahora con escribir_traspaso: qué estabas haciendo, qué quedó a medias (archivos, comandos), decisiones y tu siguiente paso exacto. Al reabrir retomarás desde ahí. No hagas nada más después.`)
+    })))
+    let timer: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([all, new Promise<void>((resolve) => (timer = setTimeout(resolve, timeoutMs)))])
+    clearTimeout(timer)
+    this.cuts.clear()
+    this.changed()
+    return { asked: ids, done }
+  }
+
+  /** Quiénes volverían si se retoma el proyecto: nombres, con el jefe primero. Vacío si no hay a quién retomar. */
+  get resumable(): string[] {
+    if (this.resumedOnce || this.bossOnline || !this.board.boss) return []
+    return ['Jefe', ...this.board.staff.filter((m) => !m.gone && m.office && this.board.slots.some((x) => x.employeeId === m.id)).map((m) => m.name)]
+  }
+
+  /** El usuario prefirió no retomar: se queda sin jefe hasta que contrate uno. */
+  skipResume() {
+    this.resumedOnce = true
+    this.changed()
+  }
+
   /** Vuelve a sentar en su escritorio a alguien cuya CLI se cerró (no a quien despediste). */
   async bringBack(id: string) {
     if (this.opts.manager.isLive(id)) throw new RuleError(`${this.nameOf(id)} ya está en la oficina.`)
@@ -519,7 +579,10 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (tool === 'escribir_traspaso') {
       const id = caller.kind === 'boss' ? BOSS_ID : caller.id
       try {
-        return await this.writeHandoff(id, String(args.traspaso ?? ''))
+        const done = await this.writeHandoff(id, String(args.traspaso ?? ''))
+        // Si era el corte que se pidió al cerrar la app, ya cumplió.
+        this.cuts.get(id)?.()
+        return done
       } finally {
         this.changed()
       }
@@ -842,7 +905,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       const c = this.opts.manager.get(id)?.context
       if (c !== undefined) context[id] = c
     }
-    return { ...this.board.snapshot(), repo: this.root, bossOnline: this.bossOnline || this.resting.has(BOSS_ID), hints, context, burnoutAt: this.burnoutAt }
+    return { ...this.board.snapshot(), repo: this.root, bossOnline: this.bossOnline || this.resting.has(BOSS_ID), resumable: this.resumable, hints, context, burnoutAt: this.burnoutAt }
   }
 
   /** Lo que reporta la barra de estado de una CLI (Claude Code): % de contexto. */

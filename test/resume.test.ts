@@ -142,3 +142,38 @@ describe('cuando no hay conversación que retomar', () => {
     expect(b.snapshot().boss?.sessionId).toBe(launches[1][launches[1].indexOf('--session-id') + 1])
   })
 })
+
+describe('corte al cerrar y pregunta al abrir', () => {
+  it('al cerrar se le pide su corte a cada quien y se espera hasta el límite', async () => {
+    const repo = await makeRepo()
+    const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
+    const a = await open(repo, store, recorder().spawn)
+    expect(await a.checkpoint(50)).toEqual({ asked: [], done: [] }) // sin nadie, no espera
+    await a.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const seen: string[][] = []
+    const started = Date.now()
+    const r = await a.checkpoint(120, (p) => seen.push(p.done))
+    // La CLI de mentira nunca contesta: se cierra de todos modos al cumplirse el plazo.
+    expect(r).toEqual({ asked: [BOSS_ID], done: [] })
+    expect(Date.now() - started).toBeGreaterThanOrEqual(100)
+    expect(a.snapshot().messages.at(-1)?.text).toMatch(/La app se va a cerrar.*escribir_traspaso/)
+  })
+
+  it('al abrir se dice quiénes volverían, y decir que no deja la oficina sin jefe', async () => {
+    const repo = await makeRepo()
+    const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
+    const a = await open(repo, store, recorder().spawn)
+    expect(a.snapshot().resumable).toEqual([])
+    await a.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    expect(a.snapshot().resumable).toEqual([]) // ya está en su mesa
+    a.shutdown()
+
+    const second = recorder()
+    const b = await open(repo, store, second.spawn)
+    expect(b.snapshot().resumable).toEqual(['Jefe'])
+    b.skipResume()
+    expect(b.snapshot().resumable).toEqual([])
+    await b.resume()
+    expect(second.launches).toHaveLength(0)
+  })
+})

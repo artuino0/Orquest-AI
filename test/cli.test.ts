@@ -86,6 +86,7 @@ async function setup(withCli = true) {
     detect: async () => CLIS,
     mcpUrl: (t) => mcp!.url(t),
     replyTimeoutMs: 2000,
+    submitDelayMs: 0,
     ...(withCli && { cli: { url: (t) => mcp!.cliUrl(t), dir } }),
   }).init()
   studio = s

@@ -137,6 +137,25 @@ export const useStudio = defineStore('studio', () => {
     recents.value = list.map((r, i) => ({ ...r, summary: got[i] ?? null }))
   }
 
+  /** Quién está en la oficina de este proyecto. */
+  async function loadEmployees() {
+    const root = board.value?.repo
+    if (!root) return
+    // Git da la raíz con diagonales y las oficinas se arman con las del sistema: se comparan parejas.
+    const same = (p: string) => p.split('\\').join('/').toLowerCase()
+    employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(root)))
+  }
+
+  /** Al abrir un proyecto que quedó con gente: vuelven todos a su escritorio, o se decide que no. */
+  const resuming = ref(false)
+  async function resumeProject(yes: boolean) {
+    resuming.value = true
+    await attempt(() => (yes ? window.orquest.resumeProject() : window.orquest.skipResume()))
+    await loadEmployees()
+    resuming.value = false
+    if (!yes) overlay.value = 'boss'
+  }
+
   async function openProject(path: string) {
     error.value = null
     try {
@@ -151,11 +170,10 @@ export const useStudio = defineStore('studio', () => {
     const root = board.value.repo
     recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
     saveRecents(recents.value)
-    // Git da la raíz con diagonales y las oficinas se arman con las del sistema: se comparan parejas.
-    const same = (p: string) => p.split('\\').join('/').toLowerCase()
-    employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(board.value!.repo)))
+    await loadEmployees()
     screen.value = 'office'
-    overlay.value = board.value.bossOnline ? null : 'boss'
+    // Si quedó gente al cerrar, primero se pregunta si se retoma; si no hay jefe, a contratarlo.
+    overlay.value = board.value.bossOnline || board.value.resumable.length ? null : 'boss'
   }
 
   /** Corre una acción y deja el motivo del rechazo en error. */
@@ -224,7 +242,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices,
     bossCharacter, setBossCharacter, characterOf,
-    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack,
+    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
   }
 })
