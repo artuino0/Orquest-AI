@@ -103,6 +103,8 @@ export function installMock(caso: string) {
     list: async () => [],
     scrollback: async () => '',
     changes: async () => [],
+    captures: async () => [],
+    capture: todo('capturas'),
     diff: async () => '',
     write: () => {},
     resize: () => {},
