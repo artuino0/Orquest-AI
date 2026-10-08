@@ -358,6 +358,10 @@ ${stderr}`
     mcpArgs: ({ url, permissions }) => [
       '-c',
       `mcp_servers.orquest.url=${JSON.stringify(url)}`,
+      // Las herramientas de Orquest (leer_tarea, entregar…) no piden permiso, igual que en Claude Code:
+      // sin esto Codex pregunta "Allow the orquest MCP server to run tool …?" en cada llamada.
+      '-c',
+      'mcp_servers.orquest.default_tools_approval_mode="approve"',
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
     ],
     // Codex solo distingue escribir o no; los comandos los aprueba el usuario.

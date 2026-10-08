@@ -40,3 +40,12 @@ describe('modelos y esfuerzo por proveedor', () => {
     expect(PROVIDERS.antigravity.efforts).toEqual([])
   })
 })
+
+describe('herramientas de Orquest sin pedir permiso', () => {
+  it('Codex las aprueba solas; lo demás sigue según el puesto', () => {
+    const args = PROVIDERS.codex.mcpArgs!({ url: 'http://127.0.0.1:1/mcp/t', permissions: { edit: false, allow: [], deny: [] } })
+    expect(args).toContain('mcp_servers.orquest.default_tools_approval_mode="approve"')
+    expect(args.slice(-2)).toEqual(['-s', 'read-only'])
+    expect(args.join(' ')).not.toMatch(/bypass|danger|never/i)
+  })
+})
