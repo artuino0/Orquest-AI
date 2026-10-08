@@ -4,8 +4,8 @@
 
 **Duración:** 45 segundos (versión corta de 20 s al final).
 **Formato:** horizontal 16:9 para YouTube y el README; se recorta a vertical 9:16 para redes, porque la acción siempre queda al centro.
-**Tono:** cercano y un poco juguetón, sin vender humo. Es una herramienta de trabajo que se ve como un juego, no un juguete.
-**Idea central:** *tus agentes de código ya trabajan; ahora puedes verlos trabajar.*
+**Tono:** quien lo hizo, contándolo en primera persona a un colega. Sin eslóganes, sin preguntas retóricas, sin "ven" ni "descubre". Dice lo que hace y lo que le falta.
+**Idea central:** *me perdía entre terminales, así que hice esto; le falta mucho y por eso lo abro.*
 
 **Storyboard visual:** [`promo/storyboard.html`](../promo/storyboard.html), con las pantallas del diseño de Pencil exportadas a `promo/pen/` (17 pantallas a 2560×1600). Este documento es el guion; aquel, toma por toma con su imagen.
 
@@ -17,36 +17,36 @@
 
 | # | Tiempo | Qué se ve | Qué se oye (voz) | Texto en pantalla |
 | --- | --- | --- | --- | --- |
-| 1 | 0–4 s | Pantalla negra. Aparecen, una por una, cuatro terminales apiladas con texto corriendo. Se enciman, tapan todo. | "¿Cuántas terminales tienes abiertas ahorita?" | — |
-| 2 | 4–8 s | Las terminales se encogen de golpe y caen dentro de un edificio en píxel. Corte a la oficina vacía de Orquest: cubículos sin gente, la calle afuera, de noche. | "¿Y sabes qué está haciendo cada una?" | — |
-| 3 | 8–13 s | Panel "Contratar al Jefe". Se escribe el objetivo: *"Tienda en línea con catálogo y pagos"*. Se elige un personaje. Clic en **Contratar jefe**. El jefe entra caminando y se sienta en su mesa. | "En Orquest AI, tus agentes son empleados. Contratas a un jefe y le dices qué quieres." | **Orquest AI** |
-| 4 | 13–19 s | Panel Plantilla: tres puestos propuestos, cada uno con su proveedor (Claude Code, Codex, Antigravity) y el motivo. Clic en **Aprobar**. Los empleados entran por la puerta y cada uno toma su cubículo; las sillas se separan del escritorio. | "Él propone al equipo: quién hace backend, quién frontend, quién prueba. Tú apruebas." | *Usa las CLIs y suscripciones que ya tienes* |
-| 5 | 19–26 s | La oficina trabajando. Globos sobre los escritorios: "Editando api.ts", "Corriendo pruebas". Uno levanta la mano (✋). Clic en él: se abre su terminal real con la pregunta de permiso. | "Cada animación es un estado real. Si alguien teclea, está trabajando. Si levanta la mano, te necesita." | *Cada animación es un estado real* |
-| 6 | 26–32 s | Un empleado termina (✅), va a la impresora, toma su hoja y camina a la mesa del jefe. Corte al panel Entregas: reporte, veredicto de QA y el diff. Clic en **Integrar**. | "Cuando terminan, te traen su entrega. El jefe revisa, QA prueba, y tú decides qué entra." | *Tú apruebas cada integración* |
-| 7 | 32–37 s | Cámara lenta sobre los detalles: el reloj de la pared marcando la hora real, alguien jugando en la maquinita, el jefe en su golfito, el gato dormido, un taxi pasando por la calle. | "Y sí: también descansan." | — |
-| 8 | 37–42 s | La oficina completa, de día. Encima, en letra de píxel, el llamado. Abajo, la dirección del repositorio. | "Orquest AI es código abierto. Apenas empieza, y falta mucho por construir." | **Código abierto · Apache 2.0** |
-| 9 | 42–45 s | Los empleados voltean a la cámara. Uno saluda. Queda el logotipo y la liga. | "Ven a construirlo con nosotros." | **github.com/artuino0/Orquest-AI** · *Manda tu PR* |
+| 1 | 0–4 s | Pantalla negra. Aparecen, una por una, cuatro terminales apiladas con texto corriendo. Se enciman, tapan todo. | "Trabajo con varios agentes de código a la vez. Uno en cada terminal." | — |
+| 2 | 4–8 s | Las terminales se encogen de golpe y caen dentro de un edificio en píxel. Corte a la oficina vacía de Orquest: cubículos sin gente, la calle afuera, de noche. | "Y me perdía: ya no sabía quién estaba haciendo qué." | — |
+| 3 | 8–13 s | Panel "Contratar al Jefe". Se escribe el objetivo: *"Tienda en línea con catálogo y pagos"*. Se elige un personaje. Clic en **Contratar jefe**. El jefe entra caminando y se sienta en su mesa. | "Así que hice esto: una oficina. Hay un jefe, y a él le digo qué quiero." | **Orquest AI** |
+| 4 | 13–19 s | Panel Plantilla: tres puestos propuestos, cada uno con su proveedor (Claude Code, Codex, Antigravity) y el motivo. Clic en **Aprobar**. Los empleados entran por la puerta y cada uno toma su cubículo; las sillas se separan del escritorio. | "Él propone quién hace cada cosa y con qué agente. Yo digo sí o no." | — |
+| 5 | 19–26 s | La oficina trabajando. Globos sobre los escritorios: "Editando api.ts", "Corriendo pruebas". Uno levanta la mano (✋). Clic en él: se abre su terminal real con la pregunta de permiso. | "Nada de lo que se mueve es adorno. Si alguien teclea, está trabajando. Si levanta la mano, me está esperando a mí." | — |
+| 6 | 26–32 s | Un empleado termina (✅), va a la impresora, toma su hoja y camina a la mesa del jefe. Corte al panel Entregas: reporte, veredicto de QA y el diff. Clic en **Integrar**. | "Cuando terminan me traen su entrega, y yo decido si entra al proyecto." | — |
+| 7 | 32–37 s | Cámara lenta sobre los detalles: el reloj de la pared marcando la hora real, alguien jugando en la maquinita, el jefe en su golfito, el gato dormido, un taxi pasando por la calle. | "También descansan. Eso lo puse porque me dio risa." | — |
+| 8 | 37–42 s | La oficina completa, de día. Sin letreros grandes: solo la oficina y, abajo, con qué está probado. | "Le falta mucho. Solo lo he probado bien con dos agentes, y en Windows." | *Probado: Claude Code y Codex · Windows* |
+| 9 | 42–45 s | Los empleados voltean a la cámara. Uno saluda. Queda el logotipo y la liga. | "Por eso abro el código. Si te da curiosidad, ahí está. Yo reviso cada PR." | **github.com/artuino0/Orquest-AI** · Apache 2.0 |
 
 ---
 
 ## Guion de voz completo
 
-> ¿Cuántas terminales tienes abiertas ahorita?
-> ¿Y sabes qué está haciendo cada una?
+> Trabajo con varios agentes de código a la vez. Uno en cada terminal.
+> Y me perdía: ya no sabía quién estaba haciendo qué.
 >
-> En Orquest AI, tus agentes son empleados. Contratas a un jefe y le dices qué quieres.
-> Él propone al equipo: quién hace backend, quién frontend, quién prueba. Tú apruebas.
+> Así que hice esto: una oficina. Hay un jefe, y a él le digo qué quiero.
+> Él propone quién hace cada cosa y con qué agente. Yo digo sí o no.
 >
-> Cada animación es un estado real. Si alguien teclea, está trabajando. Si levanta la mano, te necesita.
+> Nada de lo que se mueve es adorno. Si alguien teclea, está trabajando. Si levanta la mano, me está esperando a mí.
 >
-> Cuando terminan, te traen su entrega. El jefe revisa, QA prueba, y tú decides qué entra.
+> Cuando terminan me traen su entrega, y yo decido si entra al proyecto.
 >
-> Y sí: también descansan.
+> También descansan. Eso lo puse porque me dio risa.
 >
-> Orquest AI es código abierto. Apenas empieza, y falta mucho por construir.
-> Ven a construirlo con nosotros.
+> Le falta mucho. Solo lo he probado bien con dos agentes, y en Windows.
+> Por eso abro el código. Si te da curiosidad, ahí está. Yo reviso cada PR.
 
-Son unas 95 palabras: caben en 45 segundos a ritmo tranquilo.
+Unas 105 palabras. Dicho como se lo contarías a un colega: sin prisa y sin subir la voz al final de las frases.
 
 ---
 
@@ -54,10 +54,10 @@ Son unas 95 palabras: caben en 45 segundos a ritmo tranquilo.
 
 | # | Tiempo | Qué se ve | Voz |
 | --- | --- | --- | --- |
-| 1 | 0–4 s | Las terminales apiladas caen dentro del edificio de píxel. | "Tus agentes de código ya trabajan." |
-| 2 | 4–11 s | La oficina en plena jornada: globos de actividad, una mano levantada, alguien llevando su entrega al jefe. | "Ahora puedes verlos trabajar. Cada animación es un estado real." |
-| 3 | 11–16 s | Panel Entregas, clic en **Integrar**. | "Tú decides qué entra." |
-| 4 | 16–20 s | Oficina completa, logotipo y liga. | "Orquest AI. Código abierto. Manda tu PR." |
+| 1 | 0–4 s | Las terminales apiladas caen dentro del edificio de píxel. | "Trabajo con varios agentes de código y me perdía entre terminales." |
+| 2 | 4–11 s | La oficina en plena jornada: globos de actividad, una mano levantada, alguien llevando su entrega al jefe. | "Hice una oficina para verlos. Lo que se mueve, está pasando." |
+| 3 | 11–16 s | Panel Entregas, clic en **Integrar**. | "Me traen su entrega y yo decido." |
+| 4 | 16–20 s | Oficina completa, logotipo y liga. | "Le falta mucho. El código está abierto." |
 
 ---
 
