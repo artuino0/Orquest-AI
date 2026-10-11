@@ -1,7 +1,7 @@
 # Arma el instalador en los tres sistemas. Se corre a mano (Actions → Instaladores
-# → Run workflow) o al publicar una etiqueta de versión (v0.1.0). Los archivos
-# quedan como adjuntos de la corrida. Ninguno va firmado todavía: Windows y macOS
-# avisan al abrirlos.
+# → Run workflow) o al publicar una etiqueta de versión (v0.1.0). A mano, los
+# archivos quedan como adjuntos de la corrida; con etiqueta, además se publican
+# en Releases. Ninguno va firmado todavía: Windows y macOS avisan al abrirlos.
 name: Instaladores
 
 on:
@@ -34,9 +34,6 @@ jobs:
         run: npm ci
       - name: Armar
         run: npm run dist -- --publish never
-        env:
-          # Sin certificado: que no busque uno en la máquina.
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
         with:
           name: orquest-ai-${{ matrix.nombre }}
@@ -45,3 +42,21 @@ jobs:
             dist/*.dmg
             dist/*.AppImage
           if-no-files-found: error
+
+  # Con etiqueta de versión: lo que se haya armado sale en Releases, como versión preliminar.
+  publicar:
+    name: Publicar en Releases
+    needs: instalador
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: paquetes
+          merge-multiple: true
+      - name: Publicar
+        run: gh release create "$GITHUB_REF_NAME" paquetes/* --repo "$GITHUB_REPOSITORY" --title "Orquest AI $GITHUB_REF_NAME" --generate-notes --prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
