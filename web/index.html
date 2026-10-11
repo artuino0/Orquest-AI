@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orquest AI · tus agentes de código, en una oficina que puedes ver</title>
-<meta name="description" content="Orquest AI abre Claude Code, Codex y otras CLIs de IA como empleados de un estudio en pixel art. Tú hablas con el jefe; él reparte, revisa y te pide aprobación.">
+<meta name="description" content="Claude Code, Codex y otras CLIs de IA se integran como empleados de un estudio en pixel art. Tú te comunicas solo con el jefe.">
 <meta property="og:title" content="Orquest AI">
-<meta property="og:description" content="Tus agentes de código, trabajando en una oficina que puedes ver. Cada animación es un estado real.">
-<meta property="og:image" content="img/jefe.png">
+<meta property="og:description" content="Tus agentes de código, trabajando en una oficina que puedes ver.">
+<meta property="og:image" content="img/oficina-poster.png">
 <meta name="theme-color" content="#15121b">
 <link rel="icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,103 +16,169 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- Diseño: design_web.pen. Las imágenes del diseño están en design_web-assets/. -->
 
-<header class="top">
-  <a class="brand" href="#inicio"><i></i>Orquest AI</a>
+<header class="barra">
+  <a class="marca" href="#inicio"><img src="design_web-assets/oficina-ico.png" alt="" width="32" height="32">Orquest AI</a>
   <nav>
     <a href="#como">Cómo funciona</a>
-    <a href="#trae">Qué trae</a>
-    <a href="#descargar">Descargar</a>
+    <a href="#incluye">Qué incluye</a>
+    <a href="#descargar" class="acento">Descargar</a>
     <a href="https://github.com/artuino0/Orquest-AI" rel="noopener">GitHub</a>
   </nav>
 </header>
 
 <main>
-  <section id="inicio" class="hero">
-    <div class="cast" aria-hidden="true">
-      <img src="img/char1.png" alt=""><img src="img/char2.png" alt=""><img src="img/char3.png" alt=""><img src="img/char4.png" alt="">
-      <img src="img/char5.png" alt=""><img src="img/char6.png" alt=""><img src="img/char7.png" alt=""><img src="img/char8.png" alt="">
+  <section id="inicio" class="portada">
+    <!-- Cada uno hace un ciclo de espera al cargar, escalonado, y se queda quieto. -->
+    <div class="fila" aria-hidden="true">
+      <i class="sp f4" style="--w:15;--h:23;--n:0;background-image:url(img/char1-idle.png)"></i>
+      <i class="sp f4" style="--w:19;--h:24;--n:1;background-image:url(img/char2-idle.png)"></i>
+      <i class="sp f4" style="--w:13;--h:21;--n:2;background-image:url(img/char3-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:3;background-image:url(img/char4-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:4;background-image:url(img/char5-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:5;background-image:url(img/char6-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:6;background-image:url(img/char7-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:7;background-image:url(img/char8-idle.png)"></i>
     </div>
     <h1>Orquest AI</h1>
-    <p class="lead">Tus agentes de código, trabajando en una oficina que puedes ver.</p>
-    <p class="sub">Claude Code, Codex y otras CLIs de IA entran como empleados de un estudio en pixel art. Tú hablas con el jefe; él arma el equipo, reparte el trabajo, revisa lo que entregan y te pide aprobación antes de tocar tu rama.</p>
-    <div class="actions">
-      <a class="btn primary" href="#descargar">Descargar</a>
-      <a class="btn" href="https://github.com/artuino0/Orquest-AI" rel="noopener">Ver el código</a>
+    <p class="frase">Tus agentes de código, trabajando en una oficina que puedes ver.</p>
+    <p class="parrafo">Claude Code, Codex y otras CLIs de IA se integran como empleados de un estudio en pixel art. Tú te comunicas solo con el jefe: él forma el equipo, asigna las tareas, revisa las entregas y solicita tu aprobación antes de integrar a tu rama.</p>
+    <div class="acciones">
+      <a class="boton primario" href="#descargar">Descargar</a>
+      <a class="boton" href="https://github.com/artuino0/Orquest-AI" rel="noopener">Ver el código</a>
     </div>
 
-    <figure class="office">
-      <div class="frame">
-        <button id="abrir-oficina" type="button">▶ Abrir la oficina</button>
-        <iframe id="oficina" title="Oficina de píxel de Orquest AI, en demostración" data-src="oficina/oficina.html?marco=0&amp;rapido=1" loading="lazy"></iframe>
+    <figure class="oficina">
+      <div class="marco">
+        <img class="poster" src="img/oficina-poster.png" alt="La oficina de píxel de Orquest AI: el jefe en su escritorio y los empleados en sus puestos" width="960" height="712">
+        <button id="abrir-oficina" class="boton primario" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l14 9-14 9z"/></svg>Abrir la oficina
+        </button>
+        <iframe id="oficina" title="Oficina de Orquest AI en demostración" data-src="oficina/oficina.html?marco=0&amp;rapido=1" hidden></iframe>
       </div>
-      <figcaption>Esto es una demostración con una jornada de mentira. En la app, cada persona es una terminal de verdad y cada movimiento es su estado real: teclea si trabaja, levanta la mano si te necesita, camina con su reporte cuando entrega.</figcaption>
+      <figcaption>Demostración con una jornada simulada. En la aplicación, cada personaje corresponde a una terminal real y cada animación refleja su estado: teclea cuando trabaja, levanta la mano cuando requiere tu atención y camina con su reporte cuando entrega.</figcaption>
     </figure>
   </section>
 
-  <section id="como">
-    <h2>Cómo funciona</h2>
-    <ol class="steps">
-      <li><b>Contratas al jefe</b><p>Eliges qué CLI lo lleva, le pones nombre y le das el objetivo del proyecto.</p></li>
-      <li><b>Propone la plantilla</b><p>Qué puestos hacen falta y con qué proveedor y modelo. Tú apruebas, cambias o quitas.</p></li>
-      <li><b>Cada quien en su oficina</b><p>Cada empleado trabaja en su propia copia del repositorio, así nadie pisa a nadie.</p></li>
-      <li><b>El jefe revisa, tú integras</b><p>Nada llega a tu rama sin que el jefe lo apruebe y tú des el visto bueno.</p></li>
-    </ol>
-  </section>
-
-  <section id="trae">
-    <h2>Qué trae</h2>
-    <div class="shots">
-      <figure><img src="img/jefe.png" alt="Chat con el jefe y sus preguntas pendientes" loading="lazy"><figcaption><b>Un solo interlocutor.</b> Le escribes al jefe. Lo que necesita de ti queda como pregunta pendiente, con respuestas sugeridas, hasta que contestes.</figcaption></figure>
-      <figure><img src="img/tablero.png" alt="Tablero de tareas del proyecto" loading="lazy"><figcaption><b>El tablero manda.</b> Tareas con dependencias: lo que espera a otra tarea no arranca hasta que esa se integra.</figcaption></figure>
-      <figure><img src="img/cuentas.png" alt="Uso de cada cuenta de las CLIs" loading="lazy"><figcaption><b>Tus cuentas, a la vista.</b> Cuánto llevas usado del límite de cada sesión, y la opción de repartir el trabajo entre dos cuentas.</figcaption></figure>
+  <section id="como" class="franja dos">
+    <div class="pasos">
+      <h2>Cómo funciona</h2>
+      <ol>
+        <li><b>Contratas al jefe</b><p>Eliges la CLI que lo ejecuta, le asignas un nombre y defines el objetivo del proyecto.</p></li>
+        <li><b>El jefe propone la plantilla</b><p>Define los puestos necesarios y el proveedor y modelo de cada uno. Tú apruebas, ajustas o descartas.</p></li>
+        <li><b>Cada empleado en su oficina</b><p>Cada empleado trabaja en una copia aislada del repositorio, sin interferir con el trabajo de los demás.</p></li>
+        <li><b>El jefe revisa, tú integras</b><p>Ningún cambio llega a tu rama sin la revisión del jefe y tu aprobación.</p></li>
+      </ol>
     </div>
-    <ul class="cards">
-      <li><h3>Permisos por puesto</h3><p>Cada puesto tiene su manual: qué puede editar y qué comandos corre sin preguntar. Orquest no salta los permisos de ninguna CLI.</p></li>
-      <li><h3>Memoria que sobrevive</h3><p>Cuando a alguien se le llena el contexto escribe su traspaso, descansa y vuelve leyendo su bitácora. Quien ocupe su puesto después también la lee.</p></li>
-      <li><h3>Expedientes</h3><p>Cómo le ha ido a cada proveedor y modelo contigo: entregas integradas a la primera y rechazos. El jefe lo consulta antes de proponer a alguien.</p></li>
-      <li><h3>Todo en tu máquina</h3><p>No hay servidor de Orquest. El tablero vive en una base de datos local y los agentes usan las sesiones que ya tienes en cada CLI.</p></li>
+
+    <!-- La calle: medidas en píxeles del arte; --k la escala. La mueve main.js mientras está a la vista. -->
+    <div class="calle" id="calle" aria-hidden="true">
+      <i class="acera"></i><i class="bordillo"></i><i class="asfalto"></i><i class="raya"></i><i class="bordillo der"></i><i class="acera der"></i>
+      <i class="cebra"></i>
+      <i class="fijo" style="--x:3;--y:96;--w:18;--h:28;background-image:url(design_web-assets/arbol-acera.png)"></i>
+      <i class="fijo" style="--x:7;--y:160;--w:10;--h:17;background-image:url(design_web-assets/buzon.png)"></i>
+      <i class="fijo" style="--x:112;--y:24;--w:9;--h:12;background-image:url(design_web-assets/hidrante.png)"></i>
+      <i class="fijo" style="--x:105;--y:96;--w:21;--h:40;background-image:url(design_web-assets/farola.png)"></i>
+      <i class="sp f2 actor" data-actor="rojo" style="--w:24;--h:33;--x:33;--y:146;background-image:url(design_web-assets/auto-rojo-frente-anim.png)"></i>
+      <i class="sp f2 actor" data-actor="azul" style="--w:24;--h:32;--x:33;--y:10;background-image:url(design_web-assets/auto-azul-frente-anim.png)"></i>
+      <i class="sp f2 actor" data-actor="taxi" style="--w:24;--h:32;--x:71;--y:84;background-image:url(design_web-assets/taxi-atras-anim.png)"></i>
+      <i class="sp f4 actor" data-actor="cruza" style="--w:17;--h:23;--x:46;--y:48;background-image:url(design_web-assets/char4-lado-camina.png)"></i>
+      <i class="sp f4 actor" data-actor="baja" style="--w:17;--h:23;--x:4;--y:36;background-image:url(design_web-assets/peaton2-camina.png)"></i>
+      <i class="sp f4 actor" data-actor="sube" style="--w:17;--h:23;--x:105;--y:152;background-image:url(design_web-assets/char5-atras-camina.png)"></i>
+    </div>
+  </section>
+
+  <section id="incluye" class="seccion">
+    <h2>Qué incluye</h2>
+    <figure class="principal">
+      <img src="design_web-assets/jefe.png" alt="Chat con el jefe y sus preguntas pendientes" width="1280" height="720" loading="lazy">
+      <figcaption><h3>Un solo interlocutor.</h3><p>Te comunicas únicamente con el jefe. Lo que requiere de ti queda registrado como pregunta pendiente, con respuestas sugeridas, hasta que la atiendas.</p></figcaption>
+    </figure>
+    <div class="secundarias">
+      <figure>
+        <img src="design_web-assets/tablero.png" alt="Tablero de tareas del proyecto" width="1280" height="720" loading="lazy">
+        <figcaption><h3>Tablero con dependencias.</h3><p>Las tareas se encadenan por dependencias: una tarea que depende de otra no inicia hasta que la primera se integra.</p></figcaption>
+      </figure>
+      <figure>
+        <img src="design_web-assets/cuentas.png" alt="Consumo del límite de cada cuenta" width="1280" height="720" loading="lazy">
+        <figcaption><h3>Uso de tus cuentas.</h3><p>Consulta el consumo del límite de cada sesión y distribuye el trabajo entre dos cuentas.</p></figcaption>
+      </figure>
+    </div>
+    <ul class="tarjetas">
+      <li><i class="sp" style="--w:16;--h:31;--k:2;background-image:url(design_web-assets/door.png)"></i><h4>Permisos por puesto</h4><p>Cada puesto cuenta con un manual que define qué puede editar y qué comandos ejecuta sin solicitar confirmación. Orquest AI no omite los permisos de ninguna CLI.</p></li>
+      <li><i class="sp" style="--w:16;--h:33;--k:2;background-image:url(design_web-assets/maquinita-azul.png)"></i><h4>Memoria persistente</h4><p>Cuando un agente agota su contexto, redacta un traspaso, reinicia su sesión y retoma el trabajo a partir de su bitácora. Quien ocupe el puesto después también la recibe.</p></li>
+      <li><i class="sp" style="--w:24;--h:30;--k:2;background-image:url(design_web-assets/librero2.png)"></i><h4>Expedientes</h4><p>Registro del desempeño de cada proveedor y modelo en tus proyectos: entregas integradas al primer intento y rechazos. El jefe lo consulta antes de proponer una contratación.</p></li>
+      <li><i class="sp" style="--w:16;--h:32;--k:2;background-image:url(design_web-assets/servidor.png)"></i><h4>Ejecución local</h4><p>No existe un servidor de Orquest AI. El tablero se almacena en una base de datos local y los agentes utilizan las sesiones que ya tienes iniciadas en cada CLI.</p></li>
     </ul>
   </section>
 
-  <section id="clis">
-    <h2>Con qué trabaja</h2>
-    <p class="note">Orquest no trae modelos: lanza las CLIs que ya tengas instaladas y con sesión. Necesitas al menos una, y <code>git</code>.</p>
-    <ul class="providers">
-      <li style="--c:#e8823a">Claude Code<small>la más probada</small></li>
-      <li style="--c:#3f7fe8">Codex<small>ha trabajado en la oficina</small></li>
-      <li style="--c:#3fb86a">Antigravity<small>ha trabajado en la oficina</small></li>
-      <li style="--c:#f1f1f1">OpenCode<small>ha trabajado en la oficina</small></li>
-      <li style="--c:#b79cf0">Command Code<small>conectada, sin probar a fondo</small></li>
-      <li style="--c:#f58bb8">Kimi<small>conectada, sin probar a fondo</small></li>
-      <li style="--c:#8c8c96">Grok<small>conectada, sin probar a fondo</small></li>
+  <section id="clis" class="franja">
+    <h2>CLIs compatibles</h2>
+    <p class="nota">Orquest AI no incluye modelos: ejecuta las CLIs que ya tienes instaladas y con sesión iniciada. Requiere al menos una, además de git.</p>
+    <!-- Teclea la tarjeta bajo el cursor o con foco; las demás se quedan quietas. -->
+    <ul class="clis">
+      <li tabindex="0" style="--c:#e8823a"><i class="sp f2" style="--w:19;--h:24;background-image:url(design_web-assets/char2-sentado-teclea.png)"></i><b>Claude Code</b><small>La de mayor cobertura de pruebas</small></li>
+      <li tabindex="0" style="--c:#3f7fe8"><i class="sp f2" style="--w:13;--h:21;background-image:url(design_web-assets/char3-sentado-teclea.png)"></i><b>Codex</b><small>Probada en uso real</small></li>
+      <li tabindex="0" style="--c:#3fb86a"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char4-sentado-teclea.png)"></i><b>Antigravity</b><small>Probada en uso real</small></li>
+      <li tabindex="0" style="--c:#f1f1f1"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char5-sentado-teclea.png)"></i><b>OpenCode</b><small>Probada en uso real</small></li>
+      <li tabindex="0" style="--c:#b79cf0"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char6-sentado-teclea.png)"></i><b>Command Code</b><small>Integrada, con pruebas limitadas</small></li>
+      <li tabindex="0" style="--c:#f58bb8"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char7-sentado-teclea.png)"></i><b>Kimi</b><small>Integrada, con pruebas limitadas</small></li>
+      <li tabindex="0" style="--c:#8c8c96"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char8-sentado-teclea.png)"></i><b>Grok</b><small>Integrada, con pruebas limitadas</small></li>
     </ul>
   </section>
 
-  <section id="descargar">
+  <section id="descargar" class="seccion">
     <h2>Descargar</h2>
-    <p class="note">Versión <b id="version">v0.1.0</b>, preliminar. Los instaladores todavía no van firmados: Windows y macOS avisan al abrirlos. Los de macOS y Linux se compilan en automático y nadie los ha probado a mano; si los abres, cuéntanos cómo te fue.</p>
-    <div class="downloads">
-      <a class="dl" data-os="win" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-instalador.exe"><b>Windows</b><small>instalador .exe</small></a>
-      <a class="dl" data-os="mac" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-arm64.dmg"><b>macOS</b><small>Apple Silicon · .dmg</small></a>
-      <a class="dl" data-os="linux" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-x86_64.AppImage"><b>Linux</b><small>x86_64 · .AppImage</small></a>
+    <div class="instaladores">
+      <a class="descarga" data-os="win" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-instalador.exe">
+        <span><em>SISTEMA DETECTADO</em><b>Windows</b><small>instalador .exe</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
+      <a class="descarga" data-os="mac" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-arm64.dmg">
+        <span><em>SISTEMA DETECTADO</em><b>macOS</b><small>Apple Silicon · .dmg</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
+      <a class="descarga" data-os="linux" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-x86_64.AppImage">
+        <span><em>SISTEMA DETECTADO</em><b>Linux</b><small>x86_64 · .AppImage</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
     </div>
-    <p class="note"><a href="https://github.com/artuino0/Orquest-AI/releases" rel="noopener">Todas las versiones</a> · o compílala tú: <code>npm install &amp;&amp; npm run dev</code></p>
+    <div class="aviso">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4m0 3v.5"/></svg>
+      <p>Versión <span id="version">v0.1.0</span>, preliminar. Los instaladores aún no están firmados, por lo que Windows y macOS muestran una advertencia al abrirlos. Los de macOS y Linux se generan de forma automática y todavía no se han verificado manualmente; si los usas, agradecemos tus comentarios.</p>
+    </div>
+    <p class="otras"><a href="https://github.com/artuino0/Orquest-AI/releases" rel="noopener">Todas las versiones</a> <span>· o compila desde el código fuente:</span> <code>npm install &amp;&amp; npm run dev</code></p>
   </section>
 
-  <section id="abierto">
-    <h2>Abierto</h2>
-    <p class="note">Orquest AI es software libre con licencia Apache 2.0. Se aceptan Pull Requests: probarla en macOS y Linux y conectar bien las CLIs que faltan es justo donde más ayuda hace falta.</p>
-    <div class="actions">
-      <a class="btn" href="https://github.com/artuino0/Orquest-AI/blob/main/CONTRIBUTING.md" rel="noopener">Cómo contribuir</a>
-      <a class="btn" href="https://github.com/artuino0/Orquest-AI/issues" rel="noopener">Reportar un problema</a>
+  <section id="abierto" class="franja dos">
+    <div class="texto">
+      <h2>Código abierto</h2>
+      <p class="nota">Orquest AI es software libre bajo licencia Apache 2.0. Las contribuciones se reciben mediante Pull Request y cada cambio es revisado por el autor del proyecto.</p>
+      <div class="acciones">
+        <a class="boton" href="https://github.com/artuino0/Orquest-AI/blob/main/CONTRIBUTING.md" rel="noopener">Cómo contribuir</a>
+        <a class="boton" href="https://github.com/artuino0/Orquest-AI/issues" rel="noopener">Reportar un problema</a>
+      </div>
+    </div>
+    <div class="areas">
+      <h4>Áreas donde puedes contribuir</h4>
+      <ul>
+        <li>Pruebas en macOS y Linux</li>
+        <li>Integración completa de las CLIs pendientes</li>
+      </ul>
     </div>
   </section>
 </main>
 
-<footer>
-  <p>Hecho por Jose Arturo Muñoz Castorena · Apache 2.0 · El arte parte del paquete <a href="https://2dpig.itch.io/pixel-office" rel="noopener">Pixel Office de 2dPig</a>.</p>
-  <p>Claude Code, Codex y las demás CLIs son de sus respectivos dueños; Orquest AI no está afiliada a ninguno.</p>
+<footer class="pie">
+  <!-- Uno camina de lado a lado por esta franja; el gato y el perro se quedan quietos. -->
+  <div class="paseo" aria-hidden="true">
+    <i class="sp f4 camina" style="--w:13;--h:21;--k:2;background-image:url(design_web-assets/char3-lado-camina.png)"></i>
+    <i class="sp" style="--w:16;--h:13;--k:2;background-image:url(design_web-assets/gato.png)"></i>
+    <i class="sp" style="--w:24;--h:11;--k:2;background-image:url(design_web-assets/perro.png)"></i>
+  </div>
+  <p>Desarrollado por Jose Arturo Muñoz Castorena · Licencia Apache 2.0 · Parte del arte proviene del paquete <a href="https://2dpig.itch.io/pixel-office" rel="noopener">Pixel Office de 2dPig</a>.</p>
+  <p class="chico">Claude Code, Codex y las demás CLIs pertenecen a sus respectivos titulares; Orquest AI no tiene afiliación con ninguno.</p>
 </footer>
 
 <script src="main.js" defer></script>

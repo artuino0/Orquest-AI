@@ -13,5 +13,3 @@ promo/salida/
 __pycache__/
 *.pyc
 
-# Página web: la oficina de demostración se arma con scripts/web.mjs
-web/oficina/
