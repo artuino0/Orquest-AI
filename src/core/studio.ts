@@ -19,7 +19,7 @@ import { ASK_REMINDER, PLAN_REMINDER, bossPrompt, employeePrompt, oneLine, type 
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
-import { commitDelivery, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, repoRoot, type Office } from './worktree.js'
+import { commitDelivery, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, officePending, removeOffice, repoRoot, type Office } from './worktree.js'
 
 /** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
 const SUBMIT_RETRY_MS = 1200
@@ -956,6 +956,9 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     const released = this.board.merged(t.id)
     this.record(t, 'merged')
+    // Si quien la hizo ya no trabaja aquí, era lo último que detenía su oficina.
+    const author = this.board.staff.find((m) => m.id === t.assignee)
+    if (author?.gone && author.office) await this.vacate(author.id, author.office)
     const branch = await currentBranch(this.root)
     for (const r of released) {
       this.notify(
@@ -1040,18 +1043,45 @@ export class Studio extends EventEmitter<StudioEvents> {
     return this.journal.read(id)
   }
 
-  /** El usuario despide a alguien: su CLI se cierra; su rama y su tablero quedan. */
+  /** El usuario despide a alguien: su CLI se cierra y su oficina se desocupa si no deja nada pendiente; su rama y su tablero quedan. */
   async fire(id: string) {
     this.fact(id, 'despedido; su bitácora queda para capacitar a quien ocupe el puesto')
     this.launches.delete(id)
     // Con cuánto contexto usado se va: se ve después en Plantilla, entre los despedidos.
     const context = this.opts.manager.get(id)?.context
+    const office = id === BOSS_ID ? undefined : (this.opts.manager.get(id)?.office ?? this.board.staff.find((m) => m.id === id)?.office)
     if (this.opts.manager.get(id)) await this.opts.manager.fire(id, this.root)
     // Despedido no vuelve al reabrir la app.
     if (id === BOSS_ID) this.board.boss = undefined
     else this.board.dismiss(id, context)
+    if (office) await this.vacate(id, office)
     if (id !== BOSS_ID) this.notify(BOSS_ID, `El usuario despidió a ${this.nameOf(id)} (${id}). Reasigna sus tareas abiertas si hace falta; quien ocupe su puesto recibirá su bitácora.`)
     this.changed()
+  }
+
+  /**
+   * Desocupa la oficina de quien ya no trabaja aquí, si con eso no se pierde
+   * nada: lo que pesa ahí (dependencias, compilados) no es trabajo. Si dejó
+   * archivos sin entregar o entregas sin integrar, se conserva y se avisa.
+   */
+  private async vacate(id: string, office: { path: string; branch: string }) {
+    try {
+      if (!(await exists(office.path))) return
+      const left = await officePending(this.root, office)
+      if (left.files || left.commits) {
+        const what = [
+          left.files ? `${left.files} ${left.files === 1 ? 'archivo sin entregar' : 'archivos sin entregar'}` : '',
+          left.commits ? `${left.commits} ${left.commits === 1 ? 'commit sin integrar' : 'commits sin integrar'}` : '',
+        ].filter(Boolean).join(' y ')
+        this.fact(id, `su oficina se conserva: tiene ${what}`)
+        this.emit('notice', `La oficina de ${this.nameOf(id)} se conserva: tiene ${what} (${office.path}).`)
+        return
+      }
+      await removeOffice(this.root, office, true)
+      this.fact(id, 'su oficina se desocupó: todo lo suyo ya estaba integrado')
+    } catch (err) {
+      this.emit('notice', `No se pudo desocupar la oficina de ${this.nameOf(id)}: ${(err as Error).message}`)
+    }
   }
 
   /** Los planes guardados del jefe, el más reciente primero. */

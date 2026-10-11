@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -246,5 +246,36 @@ describe('capacitación', () => {
     await tick()
     expect(typed.get(nuevo.id)).toContain(`estuvo Ana: ${join(repo, '.orquest', 'bitacoras', `${id}.md`)}`)
     expect(await readFile(join(repo, '.orquest', 'bitacoras', `${id}.md`), 'utf8')).toContain('despedido')
+  })
+
+  it('al despedir se desocupa la oficina, salvo que deje trabajo sin entregar', async () => {
+    const { s, id, repo } = await setup()
+    const office = join(repo, '.orquest', 'oficinas', id)
+    const there = () => access(office).then(() => true, () => false)
+    const notices: string[] = []
+    s.on('notice', (text: string) => notices.push(text))
+    // Lo que git no mira (dependencias, compilados) no es trabajo: no detiene la limpieza.
+    await writeFile(join(repo, '.git', 'info', 'exclude'), '/.orquest/\nnode_modules\n')
+    await mkdir(join(office, 'node_modules', 'pesado'), { recursive: true })
+    await writeFile(join(office, 'node_modules', 'pesado', 'index.js'), 'x')
+    expect(await there()).toBe(true)
+    await s.fire(id)
+    expect(await there()).toBe(false)
+    expect(notices).toEqual([])
+    await tick()
+    expect(await readFile(join(repo, '.orquest', 'bitacoras', `${id}.md`), 'utf8')).toContain('su oficina se desocupó')
+    // La rama queda: ahí está lo que entregó.
+    expect(execFileSync('git', ['branch', '--list', `orquest/${id}`], { cwd: repo, encoding: 'utf8' })).toContain(`orquest/${id}`)
+  })
+
+  it('la oficina de quien se va con archivos sin entregar se conserva y se avisa', async () => {
+    const { s, id, repo } = await setup()
+    const office = join(repo, '.orquest', 'oficinas', id)
+    const notices: string[] = []
+    s.on('notice', (text: string) => notices.push(text))
+    await writeFile(join(office, 'a-medias.ts'), 'export const x = 1')
+    await s.fire(id)
+    expect(await readFile(join(office, 'a-medias.ts'), 'utf8')).toContain('export const x')
+    expect(notices.join()).toContain('1 archivo sin entregar')
   })
 })

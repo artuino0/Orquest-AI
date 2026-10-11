@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -52,9 +52,42 @@ async function excludeOrquest(root: string) {
 }
 
 /** Quita la oficina. La rama se conserva: ahí está la entrega. */
-export async function removeOffice(repo: string, office: Office, force = false): Promise<void> {
+export async function removeOffice(repo: string, office: Pick<Office, 'path'>, force = false): Promise<void> {
   const root = await repoRoot(repo)
-  await git(root, 'worktree', 'remove', ...(force ? ['--force'] : []), office.path)
+  if (!force) {
+    await git(root, 'worktree', 'remove', office.path)
+    return
+  }
+  // En Windows la CLI recién cerrada tarda un momento en soltar la carpeta: se insiste un poco.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await git(root, 'worktree', 'remove', '--force', office.path)
+      return
+    } catch (err) {
+      if (attempt < 4) {
+        await new Promise((r) => setTimeout(r, 500))
+        continue
+      }
+      // Si git la dejó a medias, se termina de quitar a mano y se le avisa que ya no existe.
+      await rm(office.path, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 }).catch(() => {
+        throw err
+      })
+      await git(root, 'worktree', 'prune')
+      return
+    }
+  }
+}
+
+/**
+ * Lo que se perdería al quitar una oficina: archivos sin entregar y commits de
+ * su rama que no están en la rama del repo principal. Lo que git no mira
+ * (dependencias instaladas, compilados) no cuenta: es justo lo que pesa.
+ */
+export async function officePending(repo: string, office: Pick<Office, 'path' | 'branch'>): Promise<{ files: number; commits: number }> {
+  const root = await repoRoot(repo)
+  const files = (await git(office.path, 'status', '--porcelain', '--untracked-files=all')).split('\n').filter(Boolean).length
+  const commits = Number(await git(root, 'rev-list', '--count', `HEAD..${office.branch}`)) || 0
+  return { files, commits }
 }
 
 export interface FileChange {
