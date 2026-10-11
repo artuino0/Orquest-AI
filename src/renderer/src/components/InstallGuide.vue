@@ -35,7 +35,7 @@ const open = (url: string) => window.orquest.openExternal(url)
           <button v-if="c.signup" class="btn" :title="c.signup.referral ? 'Enlace de referido del autor de Orquest AI' : ''" @click="open(c.signup.url)"><UserPlus />Crear cuenta</button>
         </div>
       </article>
-      <p v-if="clis.some((c) => c.signup?.referral)" class="intro">«Crear cuenta» usa el enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
+      <p v-if="clis.some((c) => c.signup?.referral)" class="intro">«Crear cuenta» de {{ clis.filter((c) => c.signup?.referral).map((c) => c.name).join(' y ') }} usa el enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
       <p v-if="!clis.length" class="intro">Todas las CLIs conocidas están listas.</p>
     </section>
   </div>

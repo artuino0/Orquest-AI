@@ -99,7 +99,7 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
       <div v-if="signups.length" class="more">
         <span class="dim">¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.</span>
         <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> Crear cuenta de {{ c.name }}</button>
-        <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">Son enlaces de referido del autor: a ti no te cuesta más y ayudan a sostener Orquest AI.</span>
+        <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">El de {{ signups.filter((c) => c.signup?.referral).map((c) => c.name).join(' y ') }} es enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</span>
       </div>
     </div>
   </PanelFrame>

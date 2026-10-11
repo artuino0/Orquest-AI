@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as pty from 'node-pty'
@@ -11,7 +11,8 @@ import { officeChanges } from '../src/core/worktree.js'
 const realSpawn: Spawner = (file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o })
 
 async function makeRepo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'orquest-repo-'))
+  // Con su nombre verdadero: git contesta con el real aunque la carpeta temporal venga abreviada o por un enlace.
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'orquest-repo-')))
   const git = (...a: string[]) => execFileSync('git', a, { cwd: dir })
   git('init', '-q', '-b', 'main')
   git('config', 'user.email', 'test@orquest.dev')

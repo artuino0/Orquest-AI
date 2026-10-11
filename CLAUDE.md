@@ -108,7 +108,7 @@ Las medidas para armar un puesto (dónde van silla, persona, monitor y mampara r
 ## Pendiente
 
 - Instalador: `npm run dist` (Windows probado a mano; arranca y el comando `orquest` responde). macOS y Linux solo se arman en GitHub (`.github/workflows/instaladores.yml`) y nadie los ha abierto. Sin firma de código. En macOS una app abierta desde el Finder no hereda el PATH de la terminal: puede que no encuentre las CLIs.
-- Enlaces para crear cuenta (`signup` en `providers.ts`, botón «Crear cuenta» en la guía de instalación y en Cuentas): hoy apuntan a la página de planes de cada proveedor. Cuando lleven el código de referido del autor se marcan `referral: true` y la app lo dice junto al botón.
+- Enlaces para crear cuenta (`signup` en `providers.ts`, botón «Crear cuenta» en la guía de instalación y en Cuentas): apuntan a la página de planes de cada proveedor, sin referido (el de Claude solo admite tres invitados y el de ChatGPT va por correo). Si algún día llevan uno, se marca `referral: true` y la app lo dice junto al botón.
 
 - Correr la app en Electron de verdad (nunca se pudo en el entorno donde se escribió) y ajustar lo que falle.
 - Probar Codex con su CLI real (conexión MCP, sandbox, patrones de pantalla y contexto).

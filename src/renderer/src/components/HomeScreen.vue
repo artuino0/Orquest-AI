@@ -143,7 +143,7 @@ import ThemeToggle from './ThemeToggle.vue'
         </button>
         <span class="chip">{{ CHIP[stateOf(c)] }}</span>
       </div>
-      <p v-if="studio.clis.some((c) => c.signup?.referral)" class="referral">«Crear cuenta» y «Otra cuenta» usan el enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
+      <p v-if="studio.clis.some((c) => c.signup?.referral)" class="referral">El enlace de cuenta de {{ studio.clis.filter((c) => c.signup?.referral).map((c) => c.name).join(' y ') }} es de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
       <p v-if="!studio.clis.length" class="empty">Buscando las CLIs instaladas…</p>
 
       <footer>
