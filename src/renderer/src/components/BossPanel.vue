@@ -86,17 +86,17 @@ watch(() => chat.value.length, () => nextTick(() => log.value?.scrollTo(0, log.v
 // aparecería y desaparecería a cada rato. Se queda puesto y solo cambia el texto;
 // se da por terminado cuando lleva unos segundos sin trabajar.
 const IDLE_AFTER_MS = 3000
-const busy = ref(false)
+const atWork = ref(false)
 const doing = ref<Activity>()
 let idleTimer: ReturnType<typeof setTimeout> | undefined
 watch(() => boss.value?.state, (state) => {
   clearTimeout(idleTimer)
-  if (state === 'working') busy.value = true
-  else idleTimer = setTimeout(() => (busy.value = false), state === 'blocked' ? 0 : IDLE_AFTER_MS)
+  if (state === 'working') atWork.value = true
+  else idleTimer = setTimeout(() => (atWork.value = false), state === 'blocked' ? 0 : IDLE_AFTER_MS)
 }, { immediate: true })
 // Se conserva lo último que hizo mientras llega lo siguiente.
 watch(() => studio.doing.jefe, (a) => { if (a) doing.value = a }, { immediate: true })
-watch(busy, (b) => { if (!b) doing.value = undefined })
+watch(atWork, (b) => { if (!b) doing.value = undefined })
 onBeforeUnmount(() => clearTimeout(idleTimer))
 
 const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
@@ -220,12 +220,12 @@ const pending = computed(() => {
           </div>
         </div>
         <!-- Qué está haciendo ahora, leído de su terminal: siempre en el mismo lugar -->
-        <div class="now" :class="{ off: !busy }">
+        <div class="now" :class="{ off: !atWork }">
           <span class="who">Jefe · ahora</span>
-          <b>{{ busy ? (doing?.label ?? 'Trabajando') : boss?.state === 'blocked' ? 'Detenido' : 'En espera' }}</b>
-          <i v-if="busy" class="dots" />
-          <span class="what">{{ busy ? doing?.detail : '' }}</span>
-          <span v-if="busy && doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
+          <b>{{ atWork ? (doing?.label ?? 'Trabajando') : boss?.state === 'blocked' ? 'Detenido' : 'En espera' }}</b>
+          <i v-if="atWork" class="dots" />
+          <span class="what">{{ atWork ? doing?.detail : '' }}</span>
+          <span v-if="atWork && doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
         </div>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
