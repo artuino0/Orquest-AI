@@ -9,6 +9,7 @@ import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
+import { archiveCaptures } from './captures.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { Journal, type JournalOwner } from './journal.js'
@@ -1063,6 +1064,7 @@ export class Studio extends EventEmitter<StudioEvents> {
    * Desocupa la oficina de quien ya no trabaja aquí, si con eso no se pierde
    * nada: lo que pesa ahí (dependencias, compilados) no es trabajo. Si dejó
    * archivos sin entregar o entregas sin integrar, se conserva y se avisa.
+   * Sus capturas se copian antes a `.orquest/capturas/<id>`.
    */
   private async vacate(id: string, office: { path: string; branch: string }) {
     try {
@@ -1077,8 +1079,12 @@ export class Studio extends EventEmitter<StudioEvents> {
         this.emit('notice', `La oficina de ${this.nameOf(id)} se conserva: tiene ${what} (${office.path}).`)
         return
       }
+      // Sus capturas suelen estar en carpetas que git ignora: se guardan antes de quitar la oficina.
+      const attached = this.board.tasks.filter((t) => t.assignee === id).flatMap((t) => [...(t.delivery?.screenshots ?? []), ...(t.qa?.screenshots ?? [])])
+      const shots = join(this.root, '.orquest', 'capturas', id)
+      const saved = await archiveCaptures(office.path, shots, attached, await headOf(this.root).catch(() => undefined))
       await removeOffice(this.root, office, true)
-      this.fact(id, 'su oficina se desocupó: todo lo suyo ya estaba integrado')
+      this.fact(id, `su oficina se desocupó: todo lo suyo ya estaba integrado${saved ? `; sus ${saved} capturas quedaron en ${shots}` : ''}`)
     } catch (err) {
       this.emit('notice', `No se pudo desocupar la oficina de ${this.nameOf(id)}: ${(err as Error).message}`)
     }

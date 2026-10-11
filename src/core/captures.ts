@@ -8,8 +8,8 @@
  * oficina.
  */
 import { execFile } from 'node:child_process'
-import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { copyFile, mkdir, readFile, stat } from 'node:fs/promises'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 
@@ -67,6 +67,22 @@ export async function listCaptures(office: string, extra: string[] = [], main?: 
     if (info?.isFile()) found.push({ path, at: info.mtimeMs, size: info.size })
   }
   return found.sort((a, b) => b.at - a.at).slice(0, MAX_LIST)
+}
+
+/**
+ * Copia las capturas de una oficina a `dest`, con la misma ruta que tenían.
+ * Para antes de quitar la oficina: muchas viven en carpetas que git ignora y
+ * se irían con ella. Devuelve cuántas guardó.
+ */
+export async function archiveCaptures(office: string, dest: string, extra: string[] = [], main?: string): Promise<number> {
+  let saved = 0
+  for (const c of await listCaptures(office, extra, main)) {
+    const to = inside(dest, c.path)
+    if (!to) continue
+    await mkdir(dirname(to), { recursive: true })
+    if (await copyFile(join(office, c.path), to).then(() => true, () => false)) saved++
+  }
+  return saved
 }
 
 /** Los bytes de una captura y su tipo, para pintarla en el panel. */

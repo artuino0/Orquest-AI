@@ -258,10 +258,15 @@ describe('capacitación', () => {
     await writeFile(join(repo, '.git', 'info', 'exclude'), '/.orquest/\nnode_modules\n')
     await mkdir(join(office, 'node_modules', 'pesado'), { recursive: true })
     await writeFile(join(office, 'node_modules', 'pesado', 'index.js'), 'x')
+    // Sus capturas sí: las de una carpeta ignorada se irían con la oficina.
+    await writeFile(join(repo, '.git', 'info', 'exclude'), '/.orquest/\nnode_modules\ntest-results\n')
+    await mkdir(join(office, 'test-results'), { recursive: true })
+    await writeFile(join(office, 'test-results', 'login.png'), 'png')
     expect(await there()).toBe(true)
     await s.fire(id)
     expect(await there()).toBe(false)
     expect(notices).toEqual([])
+    expect(await readFile(join(repo, '.orquest', 'capturas', id, 'test-results', 'login.png'), 'utf8')).toBe('png')
     await tick()
     expect(await readFile(join(repo, '.orquest', 'bitacoras', `${id}.md`), 'utf8')).toContain('su oficina se desocupó')
     // La rama queda: ahí está lo que entregó.
