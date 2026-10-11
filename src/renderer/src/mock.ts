@@ -76,6 +76,7 @@ export function installMock(caso: string) {
     openProject: todo('proyectos'),
     hireBoss: todo('jefe'),
     sayToBoss: todo('jefe'),
+    answerQuestion: todo('jefe'),
     approveTemplate: todo('plantilla'),
     mergeTask: todo('entregas'),
     returnTask: todo('entregas'),

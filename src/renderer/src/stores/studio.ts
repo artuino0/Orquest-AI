@@ -202,6 +202,7 @@ export const useStudio = defineStore('studio', () => {
   const mergeTask = (id: string) => attempt(() => window.orquest.mergeTask(id))
   const returnTask = (id: string, notes: string) => attempt(() => window.orquest.returnTask(id, notes))
   const sayToBoss = (text: string) => attempt(() => window.orquest.sayToBoss(text))
+  const answerQuestion = (id: string, text: string) => attempt(() => window.orquest.answerQuestion(id, text))
 
   let noticeSeq = 0
   function notice(text: string) {
@@ -259,6 +260,6 @@ export const useStudio = defineStore('studio', () => {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
-    detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, notice,
+    detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
   }
 })

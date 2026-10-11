@@ -91,6 +91,11 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   let bossOnline = false
   let proposed = [...PROPOSED]
   const messages: StudioSnapshot['messages'] = []
+  // Dos preguntas de ejemplo, para ver cómo esperan al usuario.
+  const questions: StudioSnapshot['questions'] = [
+    { id: 'P1', text: '¿Qué pasarela de pagos usamos en la tienda?', options: ['Stripe', 'Mercado Pago', 'Conekta'], recommended: 'Stripe', blocks: 'El checkout y la tarea de pagos', tasks: ['T3'], askedAt: Date.now() - 12 * 60_000, status: 'open' },
+    { id: 'P2', text: '¿Cuál es el dominio de producción?', options: [], tasks: [], askedAt: Date.now() - 4 * 60_000, status: 'open' },
+  ]
   /** La primera vez que se integra algo, choca: para ver cómo sale un conflicto. */
   let conflictPending = true
   let seq = 0
@@ -109,7 +114,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
-      messages, seq: { task: seq, slot: PEOPLE.length },
+      messages, questions: JSON.parse(JSON.stringify(questions)), seq: { task: seq, slot: PEOPLE.length },
       hints, context: Object.fromEntries(employees.map((e, i) => [e.id, 20 + i * 11])), burnoutAt: 80,
     }
   }
@@ -202,6 +207,13 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     list: async () => employees.map((e) => ({ ...e })),
     hireBoss: async () => {
       if (!bossOnline) start()
+    },
+    answerQuestion: async (id, text) => {
+      const q = questions.find((x) => x.id === id && x.status === 'open')
+      if (!q) throw new Error(`${id} ya no está pendiente.`)
+      Object.assign(q, { status: 'answered', answer: text, closedAt: Date.now() })
+      messages.push({ at: Date.now(), from: 'usuario', to: 'jefe', text: `${q.id} · ${q.text} → ${text}` })
+      publish()
     },
     sayToBoss: async (text) => {
       messages.push({ at: Date.now(), from: 'usuario', to: 'jefe', text })

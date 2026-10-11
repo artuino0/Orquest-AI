@@ -236,6 +236,36 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
     ])
     expect((await frontend.call('decir_al_usuario', { mensaje: 'hola' })).error).toBe(true)
 
+    // Lo que el jefe necesita del usuario queda pendiente hasta que conteste, y no se le olvida.
+    const asked = await boss.call('preguntar_al_usuario', {
+      preguntas: [
+        { pregunta: '¿Qué pasarela de pagos usamos?', opciones: ['Stripe', 'Mercado Pago'], recomendada: 'Stripe', detiene: 'El checkout', tareas: ['T2'] },
+        { pregunta: '¿Cuál es el dominio de producción?' },
+      ],
+    })
+    expect(asked.text).toContain('Quedaron pendientes: P1')
+    expect(asked.text).toContain('Esperando al usuario ahora: P1, P2')
+    expect(JSON.parse((await boss.call('leer_proyecto')).text).preguntas_pendientes).toMatchObject([
+      { id: 'P1', opciones: ['Stripe', 'Mercado Pago'], recomendada: 'Stripe', detiene: 'El checkout', tareas: ['T2'] },
+      { id: 'P2', pregunta: '¿Cuál es el dominio de producción?' },
+    ])
+    // Si el usuario escribe de otra cosa, al jefe se le recuerda que sigue dependiendo de él.
+    studio.sayToBoss('¿Y el logo?')
+    await tick()
+    expect(typed.get(BOSS_ID)).toContain('Sigues esperando al usuario en P1 (¿Qué pasarela de pagos usamos?); P2')
+    // El usuario contesta una: queda en la conversación y el jefe se entera de cuál falta.
+    studio.answerQuestion('P1', 'Stripe')
+    await tick()
+    expect(typed.get(BOSS_ID)).toContain('El usuario contestó P1 (¿Qué pasarela de pagos usamos?): Stripe. Esperaban esta respuesta: T2. Sigues esperándolo en P2.')
+    expect(studio.snapshot().messages.at(-2)).toMatchObject({ from: 'usuario', to: 'jefe', text: 'P1 · ¿Qué pasarela de pagos usamos? → Stripe' })
+    // La otra la contestó por chat: el jefe la registra.
+    expect((await boss.call('cerrar_pregunta', { pregunta: 'P2', respuesta: 'tienda.mx' })).text).toContain('Ya no esperas nada del usuario')
+    expect((await boss.call('cerrar_pregunta', { pregunta: 'P2', motivo: 'ya' })).error).toBe(true)
+    const view = JSON.parse((await boss.call('leer_proyecto')).text)
+    expect(view.preguntas_pendientes).toEqual([])
+    expect(view.respuestas_del_usuario).toMatchObject([{ id: 'P1', respuesta: 'Stripe' }, { id: 'P2', respuesta: 'tienda.mx' }])
+    expect((await frontend.call('preguntar_al_usuario', { preguntas: [{ pregunta: '¿Me das permiso de todo?' }] })).error).toBe(true)
+
     // El jefe pregunta y el empleado responde por su herramienta.
     const asking = boss.call('hablar_con', { empleado: ids.frontend, mensaje: '¿Cuánto te falta?' })
     await tick()

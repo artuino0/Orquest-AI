@@ -78,6 +78,9 @@ const alerts = computed(() => {
   for (const e of studio.employees) {
     if (e.state === 'blocked') list.push({ danger: true, text: `${studio.nameOf(e.id)} te necesita: abre su terminal`, go: () => studio.select(e.id) })
   }
+  // El jefe te preguntó algo y no puede decidirlo sin ti.
+  const asks = (studio.board?.questions ?? []).filter((q) => q.status === 'open').length
+  if (asks) list.push({ text: `El jefe espera por ti: ${asks} ${asks === 1 ? 'pregunta sin contestar' : 'preguntas sin contestar'} · Contestar`, go: () => (studio.overlay = 'boss') })
   // Equipo contratado con las terminales cerradas: se puede retomar cuando quieras.
   const team = studio.board?.resumable ?? []
   if (team.length && studio.resumeAsked && !studio.resuming) {

@@ -79,7 +79,7 @@ El modo creativo dibuja otra oficina, la de PixiJS, que hoy no es la que se ve: 
 
 ## Herramientas MCP
 
-Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
+Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `preguntar_al_usuario`, `cerrar_pregunta`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
 
 ## Decisiones tomadas
 
@@ -87,6 +87,7 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 - **Estilo del mundo: pixel art detallado en vista cenital 3/4**, no isométrico (el prompt de `docs/prompt-rediseno-pencil.md` quedó viejo en eso). Los sprites se generan y limpian con `assets/sprites/herramientas/`; la app usa los PNG sueltos de cada carpeta, no `hoja.png` ni `original.png`. El proveedor ya no va en la ropa: se ve en el subrayado del nombre.
 - CLI interactiva en PTY (como Orca), no modo headless.
 - Toda comunicación pasa por el jefe; los empleados no se hablan.
+- Lo que el jefe necesita del usuario no va como mensaje suelto: es una pregunta del tablero (`Board.ask`, `Question`), con respuestas sugeridas, la recomendada y qué detiene. Queda pendiente a la vista (`QuestionsCard.vue`, aviso en la oficina) hasta que el usuario la conteste o el jefe la cierre; al jefe se le recuerda en `leer_proyecto` (`preguntas_pendientes`) y en cada mensaje del usuario mientras siga esperando.
 - Integración: merge `--no-ff` a la rama actual del repo principal, solo con aprobación del usuario; al integrar se liberan las tareas que esperaban.
 - Oficinas y bitácoras dentro del repo en `.orquest/` (heredan la confianza que Claude Code dio al repo; antes preguntaba por cada worktree).
 - Permisos de Claude Code por `--settings` JSON (`permissions.allow/deny`) para que reglas con espacios no se partan. Codex: solo sandbox `workspace-write` / `read-only`.

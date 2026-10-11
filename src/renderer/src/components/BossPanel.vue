@@ -7,6 +7,7 @@ import type { Activity } from '../../../core/activity'
 import type { Effort, ProviderId } from '../../../shared/ipc'
 import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
+import QuestionsCard from './QuestionsCard.vue'
 import TerminalView from './TerminalView.vue'
 import { CHARACTERS, charUrl } from '../characters'
 
@@ -161,9 +162,15 @@ const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'
 const context = computed(() => Math.round(studio.board?.context.jefe ?? boss.value?.context ?? 0))
 const cli = computed(() => studio.clis.find((c) => c.id === boss.value?.provider)?.name ?? boss.value?.provider ?? '')
 
+/** Sin trabajar y con preguntas abiertas: no está libre, depende de ti. */
+const waitsForYou = computed(() => boss.value?.state === 'idle' && (studio.board?.questions ?? []).some((q) => q.status === 'open'))
+
 /** Lo que está detenido hasta que hagas algo. */
 const pending = computed(() => {
   const list: { icon: 'warn' | 'team' | 'inbox'; text: string; label: string; go: () => void }[] = []
+  // Lo primero: lo que el jefe te preguntó y no puede decidir sin ti.
+  const asks = (studio.board?.questions ?? []).filter((q) => q.status === 'open').length
+  if (asks) list.push({ icon: 'warn', text: `${asks} ${asks === 1 ? 'pregunta sin contestar' : 'preguntas sin contestar'}`, label: 'Contestar', go: () => document.querySelector('.asks input')?.scrollIntoView({ block: 'center' }) })
   for (const e of studio.employees) {
     if (e.state === 'blocked' && e.id !== 'jefe') list.push({ icon: 'warn', text: `${studio.nameOf(e.id)} necesita un permiso`, label: `Ver a ${studio.nameOf(e.id)}`, go: () => studio.select(e.id) })
   }
@@ -286,6 +293,7 @@ const pending = computed(() => {
             </p>
           </div>
         </div>
+        <QuestionsCard />
         <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread }} {{ unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos' }}</button>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
@@ -300,7 +308,7 @@ const pending = computed(() => {
           <div>
             <h3 class="title-pixel">{{ studio.nameOf('jefe') }}</h3>
             <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · esfuerzo {{ EFFORT_LABEL[boss.effort].toLowerCase() }}</template></p>
-            <span v-if="boss" class="chip" :style="{ color: `var(--st-${STATE[boss.state][1]})` }">■ {{ STATE[boss.state][0] }}</span>
+            <span v-if="boss" class="chip" :style="{ color: `var(--st-${waitsForYou ? 'review' : STATE[boss.state][1]})` }">■ {{ waitsForYou ? 'Espera por ti' : STATE[boss.state][0] }}</span>
             <span class="meter" :class="{ hot: context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${context}%` }" /></i>{{ context }}%</span>
           </div>
         </div>

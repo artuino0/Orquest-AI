@@ -57,6 +57,8 @@ export interface OrquestApi {
   skipResume(): Promise<void>
   hireBoss(req: BossRequest): Promise<void>
   sayToBoss(text: string): Promise<void>
+  /** Contesta una pregunta pendiente del jefe (P1, P2…). */
+  answerQuestion(id: string, text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>

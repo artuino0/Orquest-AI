@@ -744,6 +744,25 @@ export class Studio extends EventEmitter<StudioEvents> {
         return `${t.id} → ${t.assignee}: ${t.status === 'waiting' ? `esperando a ${b.openDeps(t).map((d) => d.id).join(', ')}` : t.status}.`
       }
 
+      case 'preguntar_al_usuario': {
+        const { asked, repeated } = b.ask(
+          (a.preguntas as any[]).map((q) => ({ text: q.pregunta, options: q.opciones, recommended: q.recomendada, blocks: q.detiene, tasks: q.tareas })),
+        )
+        this.changed()
+        const pending = b.openQuestions().map((q) => q.id).join(', ')
+        return [
+          asked.length ? `Quedaron pendientes: ${asked.map((q) => `${q.id} (${q.text})`).join('; ')}.` : '',
+          repeated.length ? `Ya estaban pendientes y no se repiten: ${[...new Set(repeated.map((q) => q.id))].join(', ')}.` : '',
+          `El usuario las ve en su chat con tus sugerencias y Orquest te avisa cuando conteste cada una. No las repitas con decir_al_usuario ni las des por contestadas. Mientras, avanza lo que no dependa de ellas. Esperando al usuario ahora: ${pending}.`,
+        ].filter(Boolean).join(' ')
+      }
+      case 'cerrar_pregunta': {
+        const answer = String(a.respuesta ?? '').trim()
+        const q = answer ? b.answer(String(a.pregunta), answer) : b.withdraw(String(a.pregunta), String(a.motivo ?? ''))
+        this.changed()
+        const pending = b.openQuestions().map((x) => x.id)
+        return `${q.id} ${answer ? `quedó contestada: "${q.answer}"` : `se retiró: ${q.note}`}. ${pending.length ? `Sigues esperando al usuario en ${pending.join(', ')}.` : 'Ya no esperas nada del usuario.'}`
+      }
       case 'decir_al_usuario': {
         const text = String(a.mensaje ?? '').trim()
         if (!text) throw new RuleError('El mensaje va vacío.')
@@ -946,8 +965,26 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   sayToBoss(text: string) {
     this.board.say('usuario', BOSS_ID, text)
-    this.notify(BOSS_ID, `El usuario dice: ${text} (contéstale con decir_al_usuario; no ve tu terminal)`)
+    // Si el jefe sigue esperando respuestas, se le recuerda con cada mensaje: que no las dé por contestadas ni las olvide.
+    const open = this.board.openQuestions()
+    const waiting = open.length
+      ? ` Sigues esperando al usuario en ${open.map((q) => `${q.id} (${q.text})`).join('; ')}: si este mensaje contesta alguna, regístralo con cerrar_pregunta; si no, recuérdale en una línea que siguen pendientes.`
+      : ''
+    this.notify(BOSS_ID, `El usuario dice: ${text} (contéstale con decir_al_usuario; no ve tu terminal)${waiting}`)
     this.changed()
+  }
+
+  /** El usuario contesta una pregunta del jefe: queda en el tablero, en la conversación y se le avisa al jefe. */
+  answerQuestion(id: string, text: string) {
+    const q = this.board.answer(id, text)
+    this.board.say('usuario', BOSS_ID, `${q.id} · ${q.text} → ${q.answer}`)
+    const open = this.board.openQuestions()
+    this.notify(
+      BOSS_ID,
+      `El usuario contestó ${q.id} (${q.text}): ${q.answer}.${q.tasks.length ? ` Esperaban esta respuesta: ${q.tasks.join(', ')}.` : ''} ${open.length ? `Sigues esperándolo en ${open.map((x) => x.id).join(', ')}.` : 'Ya no esperas nada de él: sigue con el trabajo.'}`,
+    )
+    this.changed()
+    return q
   }
 
   async diff(taskId: string): Promise<string> {
@@ -1033,6 +1070,17 @@ export class Studio extends EventEmitter<StudioEvents> {
         qa: t.qa && { veredicto: t.qa.verdict, reporte: t.qa.report },
       })),
       esperan_al_usuario: b.inbox().map((t) => t.id),
+      // Lo que le preguntaste y aún no contesta: sigues dependiendo de él en esto.
+      preguntas_pendientes: b.openQuestions().map((q) => ({
+        id: q.id,
+        pregunta: q.text,
+        opciones: q.options.length ? q.options : undefined,
+        recomendada: q.recommended,
+        detiene: q.blocks,
+        tareas: q.tasks.length ? q.tasks : undefined,
+        esperando_desde_hace_min: Math.max(0, Math.round((Date.now() - q.askedAt) / 60000)),
+      })),
+      respuestas_del_usuario: b.questions.filter((q) => q.status === 'answered').slice(-8).map((q) => ({ id: q.id, pregunta: q.text, respuesta: q.answer })),
     }
   }
 
@@ -1080,6 +1128,8 @@ export const BOSS_TOOLS = new Set([
   'levantar_empleado',
   'asignar_tarea',
   'decir_al_usuario',
+  'preguntar_al_usuario',
+  'cerrar_pregunta',
   'hablar_con',
   'revisar_entrega',
   'mandar_a_qa',

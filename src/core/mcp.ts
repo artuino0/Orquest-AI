@@ -76,6 +76,35 @@ export const TOOLS: Record<string, ToolDef> = {
       mensaje: z.string(),
     },
   },
+  preguntar_al_usuario: {
+    who: 'boss',
+    description:
+      'Le pregunta al usuario algo que solo él puede decidir o saber. Cada pregunta queda pendiente a su vista hasta que conteste, y Orquest te avisa con su respuesta. Úsala en vez de decir_al_usuario siempre que necesites una respuesta para seguir.',
+    input: {
+      preguntas: z
+        .array(
+          z.object({
+            pregunta: z.string().describe('Una sola decisión, escrita completa: el usuario la lee sin ver tu terminal ni el contexto'),
+            opciones: z.array(z.string()).max(5).optional().describe('De 2 a 5 respuestas posibles, cortas y distintas entre sí. Omítelas si la respuesta es libre (un nombre, una URL)'),
+            recomendada: z.string().optional().describe('La opción que tú elegirías, copiada tal cual de opciones'),
+            detiene: z.string().optional().describe('Qué no puede avanzar mientras no conteste'),
+            tareas: z.array(z.string()).optional().describe('Ids de las tareas que esperan esta respuesta'),
+          }),
+        )
+        .min(1)
+        .max(6),
+    },
+  },
+  cerrar_pregunta: {
+    who: 'boss',
+    description:
+      'Cierra una pregunta pendiente al usuario. Con `respuesta`, registra lo que él te contestó por el chat. Con `motivo`, la retira porque ya no hace falta. No la uses para contestarla tú por él.',
+    input: {
+      pregunta: z.string().describe('Id de la pregunta: P1, P2…'),
+      respuesta: z.string().optional().describe('Lo que contestó el usuario, con sus palabras'),
+      motivo: z.string().optional().describe('Por qué ya no hace falta que conteste'),
+    },
+  },
   hablar_con: {
     who: 'boss',
     description: 'Manda una instrucción o pregunta a un empleado y espera su respuesta.',

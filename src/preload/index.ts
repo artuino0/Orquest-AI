@@ -26,6 +26,7 @@ const api: OrquestApi = {
   openProject: (repo) => invoke('project:open', repo),
   hireBoss: (req) => invoke('boss:hire', req),
   sayToBoss: (text) => invoke('boss:say', text),
+  answerQuestion: (id, text) => invoke('boss:answer', id, text),
   approveTemplate: (slots) => invoke('template:approve', slots),
   mergeTask: (id) => invoke('task:merge', id),
   returnTask: (id, notes) => invoke('task:return', id, notes),

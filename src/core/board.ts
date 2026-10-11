@@ -103,6 +103,40 @@ export interface Message {
   text: string
 }
 
+/**
+ * Algo que el jefe necesita que el usuario decida o le diga. Queda pendiente
+ * hasta que el usuario conteste (o el jefe la cierre): así no se pierde de
+ * vista que el trabajo depende de él.
+ */
+export interface Question {
+  /** P1, P2… */
+  id: string
+  text: string
+  /** Respuestas que sugiere el jefe; el usuario puede escribir otra. */
+  options: string[]
+  /** La que el jefe elegiría; es una de `options`. */
+  recommended?: string
+  /** Qué se detiene mientras no se conteste. */
+  blocks?: string
+  /** Tareas que esperan esta respuesta. */
+  tasks: string[]
+  askedAt: number
+  status: 'open' | 'answered' | 'withdrawn'
+  answer?: string
+  /** Por qué se retiró sin respuesta. */
+  note?: string
+  closedAt?: number
+}
+
+/** Lo que el jefe manda al preguntar. */
+export interface QuestionDraft {
+  text: string
+  options?: string[]
+  recommended?: string
+  blocks?: string
+  tasks?: string[]
+}
+
 /** Con quién y cómo se contrató al jefe, para retomarlo al reabrir. */
 export interface BossRecord {
   provider: ProviderId
@@ -119,7 +153,9 @@ export interface BoardSnapshot {
   staff: StaffMember[]
   tasks: Task[]
   messages: Message[]
-  seq: { task: number; slot: number }
+  /** Lo que el jefe le preguntó al usuario, pendiente o ya cerrado. */
+  questions: Question[]
+  seq: { task: number; slot: number; question?: number }
 }
 
 /** Lo que se dice de un proyecto en la lista de recientes, sin abrirlo. */
@@ -139,6 +175,10 @@ export function summarize(b: BoardSnapshot): ProjectSummary {
 /** Una regla rota. El motivo llega tal cual a quien llamó la herramienta. */
 export class RuleError extends Error {}
 
+/** Cuántas preguntas puede tener el usuario esperándolo, y cuántas sugerencias cada una. */
+export const MAX_OPEN_QUESTIONS = 12
+export const MAX_OPTIONS = 5
+
 const OPEN: TaskStatus[] = ['waiting', 'ready', 'in_progress', 'delivered', 'in_qa', 'approved']
 
 export class Board {
@@ -149,7 +189,8 @@ export class Board {
   staff: StaffMember[] = []
   tasks: Task[] = []
   messages: Message[] = []
-  private seq = { task: 0, slot: 0 }
+  questions: Question[] = []
+  private seq: { task: number; slot: number; question?: number } = { task: 0, slot: 0, question: 0 }
 
   constructor(private now: () => number = Date.now) {}
 
@@ -519,6 +560,83 @@ export class Board {
     return undefined
   }
 
+  // ── Preguntas al usuario ─────────────────────────────────────────────────
+
+  /** Las que el usuario aún no contesta, de la más vieja a la más nueva. */
+  openQuestions(): Question[] {
+    return this.questions.filter((q) => q.status === 'open')
+  }
+
+  question(id: string): Question {
+    const key = String(id).trim().toUpperCase()
+    const q = this.questions.find((x) => x.id === key)
+    if (!q) throw new RuleError(`No existe la pregunta ${id}. Pendientes: ${this.openQuestions().map((x) => x.id).join(', ') || 'ninguna'}.`)
+    return q
+  }
+
+  /**
+   * El jefe pregunta. Cada pregunta debe entenderse sola; las sugerencias son
+   * opcionales pero, si las hay, la recomendada tiene que ser una de ellas.
+   * Una que ya está pendiente con las mismas palabras no se duplica: se devuelve la que había.
+   */
+  ask(drafts: QuestionDraft[]): { asked: Question[]; repeated: Question[] } {
+    if (!drafts.length) throw new RuleError('No mandaste ninguna pregunta.')
+    const same = (a: string, b: string) => nameKey(a) === nameKey(b)
+    const clean = drafts.map((d, i) => {
+      const n = drafts.length > 1 ? ` ${i + 1}` : ''
+      const text = String(d.text ?? '').replace(/\s+/g, ' ').trim()
+      if (text.length < 8) throw new RuleError(`La pregunta${n} va vacía o no se entiende sola. Escríbela completa, como la leería el usuario sin ver tu terminal.`)
+      const options = [...new Set((d.options ?? []).map((o) => String(o).replace(/\s+/g, ' ').trim()).filter(Boolean))]
+      if (options.length === 1) throw new RuleError(`La pregunta${n} trae una sola respuesta sugerida. Da al menos dos, o ninguna si es de respuesta libre.`)
+      if (options.length > MAX_OPTIONS) throw new RuleError(`La pregunta${n} trae ${options.length} respuestas sugeridas; el tope es ${MAX_OPTIONS}. Deja las que de verdad son opción.`)
+      const rec = String(d.recommended ?? '').replace(/\s+/g, ' ').trim()
+      const recommended = rec ? options.find((o) => same(o, rec)) : undefined
+      if (rec && !recommended) throw new RuleError(`La recomendada de la pregunta${n} ("${rec}") no está entre sus respuestas sugeridas (${options.join(' / ') || 'no diste ninguna'}).`)
+      const tasks = [...new Set((d.tasks ?? []).map((t) => this.task(String(t)).id))]
+      return { text, options, recommended, blocks: String(d.blocks ?? '').replace(/\s+/g, ' ').trim() || undefined, tasks }
+    })
+    const repeated: Question[] = []
+    const fresh = clean.filter((c, i) => {
+      const old = this.openQuestions().find((q) => same(q.text, c.text))
+      if (old) repeated.push(old)
+      // Dos veces la misma en el mismo envío también cuenta como repetida.
+      return !old && clean.findIndex((x) => same(x.text, c.text)) === i
+    })
+    const open = this.openQuestions().length
+    if (open + fresh.length > MAX_OPEN_QUESTIONS) {
+      throw new RuleError(`Ya hay ${open} preguntas esperando al usuario y el tope es ${MAX_OPEN_QUESTIONS}. Cierra las que ya no hagan falta (cerrar_pregunta) o junta las que son la misma decisión.`)
+    }
+    const asked = fresh.map((c): Question => ({ ...c, id: `P${(this.seq.question = (this.seq.question ?? 0) + 1)}`, askedAt: this.now(), status: 'open' }))
+    this.questions.push(...asked)
+    // Las cerradas se conservan como historial, con tope.
+    const closed = this.questions.filter((q) => q.status !== 'open')
+    if (closed.length > 60) {
+      const drop = new Set(closed.slice(0, closed.length - 60).map((q) => q.id))
+      this.questions = this.questions.filter((q) => !drop.has(q.id))
+    }
+    return { asked, repeated }
+  }
+
+  /** El usuario contesta (o el jefe registra lo que el usuario le contestó por chat). */
+  answer(id: string, text: string): Question {
+    const q = this.question(id)
+    if (q.status !== 'open') throw new RuleError(`${q.id} ya estaba ${q.status === 'answered' ? `contestada: "${q.answer}"` : 'retirada'}.`)
+    const answer = String(text ?? '').replace(/\s+/g, ' ').trim()
+    if (!answer) throw new RuleError('La respuesta va vacía.')
+    Object.assign(q, { status: 'answered', answer, closedAt: this.now() })
+    return q
+  }
+
+  /** El jefe la retira: ya no hace falta que el usuario la conteste. */
+  withdraw(id: string, note: string): Question {
+    const q = this.question(id)
+    if (q.status !== 'open') throw new RuleError(`${q.id} ya estaba ${q.status === 'answered' ? `contestada: "${q.answer}"` : 'retirada'}.`)
+    const why = String(note ?? '').replace(/\s+/g, ' ').trim()
+    if (!why) throw new RuleError('Di por qué ya no hace falta: el usuario la tenía pendiente y lo va a ver.')
+    Object.assign(q, { status: 'withdrawn', note: why, closedAt: this.now() })
+    return q
+  }
+
   // ── Mensajes y persistencia ──────────────────────────────────────────────
 
   say(from: string, to: string, text: string) {
@@ -538,6 +656,7 @@ export class Board {
       staff: this.staff,
       tasks: this.tasks,
       messages: this.messages,
+      questions: this.questions,
       seq: this.seq,
     })
   }
@@ -553,7 +672,9 @@ export class Board {
     b.slots = b.slots.map((x) => ({ ...x, name: x.name ?? x.id }))
     b.tasks = c.tasks
     b.messages = c.messages
-    b.seq = c.seq
+    // Los tableros guardados antes de que hubiera preguntas no las traen.
+    b.questions = c.questions ?? []
+    b.seq = { question: 0, ...c.seq }
     return b
   }
 }
