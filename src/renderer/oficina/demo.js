@@ -60,9 +60,19 @@
   const TAREAS = {};
   for (const [id, , role] of PLANTILLA) TAREAS[id] = POR_ROL[role].map((t) => ({ ...t, id: `${t.clave}-${++folio}` }));
 
-  // ?rapido=1 acorta las esperas para ver un ciclo completo en un minuto.
+  // ?rapido=1 acorta lo que cada quien tarda sin tarea y trabajando. Lo que dura una caminata
+  // (el jefe llevando una tarea, alguien entregando) no se acorta: la oficina no camina más rápido.
   const RAPIDO = new URLSearchParams(location.search).get('rapido') ? 0.2 : 1;
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms * RAPIDO));
+  const caminata = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Entregan de uno en uno: quien termina sigue en lo suyo hasta que el anterior volvió del jefe.
+  let fila = Promise.resolve();
+  function turnoDeEntrega() {
+    let soltar;
+    const antes = fila;
+    fila = new Promise((r) => (soltar = r));
+    return antes.then(() => soltar);
+  }
   const entre = (a, b) => a + Math.random() * (b - a);
 
   const estado = {};
@@ -96,7 +106,7 @@
       poner(agent, 'idle');
       await esperar(entre(20000, 40000)); // sin tarea: puede ir por café
       emitir({ agent, type: 'asignada', text: `${t.id} ${t.tarea}` });
-      await esperar(10000); // el jefe camina y se la entrega
+      await caminata(10000); // el jefe camina y se la entrega
       poner(agent, 'working');
       actividad(agent, t);
       for (let rechazos = 0; ; rechazos++) {
@@ -107,13 +117,15 @@
           poner(agent, 'working');
           await esperar(6000);
         }
+        const soltar = await turnoDeEntrega();
         actividad(agent, null);
         poner(agent, 'done');
         emitir({ agent, type: 'reporte', emoji: t.emoji, text: t.reporte });
-        await esperar(18000); // camina a avisarle al jefe y regresa
+        await caminata(18000); // camina a avisarle al jefe y regresa
+        soltar();
         const ok = rechazos > 0 || Math.random() < 0.65;
         emitir(ok ? { agent, type: 'revision', verdict: 'aprobada', emoji: '👍', text: t.ok } : { agent, type: 'revision', verdict: 'rechazada', emoji: '😠', text: t.mal });
-        await esperar(12000); // el jefe va a dar el veredicto
+        await caminata(12000); // el jefe va a dar el veredicto
         if (ok) break;
         poner(agent, 'working');
         actividad(agent, t);
