@@ -8,3 +8,7 @@ dist/
 
 # Video del comercial: cuadros y resultado de promo/grabar.mjs
 promo/salida/
+
+# Python: archivos compilados de las herramientas de arte
+__pycache__/
+*.pyc
