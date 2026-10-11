@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Qué hacer con cada CLI que no está lista: el comando para instalarla o iniciar sesión y su página. */
-import { ExternalLink, X } from 'lucide-vue-next'
+import { ExternalLink, UserPlus, X } from 'lucide-vue-next'
 import type { CliStatus } from '../../../shared/ipc'
 
 defineProps<{ clis: CliStatus[] }>()
@@ -30,8 +30,12 @@ const open = (url: string) => window.orquest.openExternal(url)
             <code v-if="c.install?.command">{{ c.install.command }}</code>
           </template>
         </div>
-        <button v-if="c.install" class="btn" @click="open(c.install.url)"><ExternalLink />Página oficial</button>
+        <div class="links">
+          <button v-if="c.install" class="btn" @click="open(c.install.url)"><ExternalLink />Página oficial</button>
+          <button v-if="c.signup" class="btn" :title="c.signup.referral ? 'Enlace de referido del autor de Orquest AI' : ''" @click="open(c.signup.url)"><UserPlus />Crear cuenta</button>
+        </div>
       </article>
+      <p v-if="clis.some((c) => c.signup?.referral)" class="intro">«Crear cuenta» usa el enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
       <p v-if="!clis.length" class="intro">Todas las CLIs conocidas están listas.</p>
     </section>
   </div>
@@ -44,6 +48,7 @@ header { display: flex; justify-content: space-between; align-items: center; }
 .intro { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
 article { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 2px solid var(--border-light); }
 .color { width: 14px; height: 14px; flex: none; border: 2px solid var(--border); }
+.links { display: grid; gap: 6px; flex: none; }
 .body { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .body strong { font-size: 13px; }
 .body small { font-size: 11px; color: var(--text-secondary); }

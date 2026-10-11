@@ -225,7 +225,9 @@ app.whenReady().then(async () => {
     return undefined
   })
   // El comando corre con este mismo Electron en modo Node: no depende de que haya Node instalado.
-  cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(app.getAppPath(), 'src/cli/orquest.mjs') })
+  // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
+  const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
+  cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(appDir, 'src/cli/orquest.mjs') })
   createWindow()
 })
 app.on('window-all-closed', async () => {

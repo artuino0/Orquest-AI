@@ -1,0 +1,47 @@
+# Arma el instalador en los tres sistemas. Se corre a mano (Actions → Instaladores
+# → Run workflow) o al publicar una etiqueta de versión (v0.1.0). Los archivos
+# quedan como adjuntos de la corrida. Ninguno va firmado todavía: Windows y macOS
+# avisan al abrirlos.
+name: Instaladores
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  instalador:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, nombre: Windows }
+          - { os: ubuntu-latest, nombre: Linux }
+          - { os: macos-latest, nombre: macOS }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar
+        run: npm ci
+      - name: Armar
+        run: npm run dist -- --publish never
+        env:
+          # Sin certificado: que no busque uno en la máquina.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orquest-ai-${{ matrix.nombre }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+          if-no-files-found: error

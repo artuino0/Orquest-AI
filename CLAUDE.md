@@ -25,6 +25,7 @@ npm run dev          # app (electron-vite)
 npm test             # vitest
 npm run typecheck    # tsc (núcleo/main) + vue-tsc (renderer)
 npm run build
+npm run dist         # instalador en dist/ (electron-builder.yml)
 ```
 
 Requiere Node ≥ 22.5 (`node:sqlite`).
@@ -105,6 +106,9 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 Las medidas para armar un puesto (dónde van silla, persona, monitor y mampara respecto a la casilla) vienen de las entregas de arte en `docs/tareas/*.entrega.md` y están como constantes al inicio de `scene.ts` (`BACK`, `FRONT`, `SIDE`, `PANEL`).
 
 ## Pendiente
+
+- Instalador: `npm run dist` (Windows probado a mano; arranca y el comando `orquest` responde). macOS y Linux solo se arman en GitHub (`.github/workflows/instaladores.yml`) y nadie los ha abierto. Sin firma de código. En macOS una app abierta desde el Finder no hereda el PATH de la terminal: puede que no encuentre las CLIs.
+- Enlaces para crear cuenta (`signup` en `providers.ts`, botón «Crear cuenta» en la guía de instalación y en Cuentas): hoy apuntan a la página de planes de cada proveedor. Cuando lleven el código de referido del autor se marcan `referral: true` y la app lo dice junto al botón.
 
 - Correr la app en Electron de verdad (nunca se pudo en el entorno donde se escribió) y ajustar lo que falle.
 - Probar Codex con su CLI real (conexión MCP, sandbox, patrones de pantalla y contexto).

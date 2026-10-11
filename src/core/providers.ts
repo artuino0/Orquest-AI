@@ -108,6 +108,11 @@ export interface SessionCheck {
   read(out: { stdout: string; stderr: string; code: number }): { ok: boolean; account?: string }
 }
 
+export interface Signup {
+  url: string
+  referral?: boolean
+}
+
 export interface ProviderAdapter {
   id: ProviderId
   name: string
@@ -129,6 +134,11 @@ export interface ProviderAdapter {
   login: string
   /** Cómo se instala: comando si es uno solo y la página oficial. */
   install: { command?: string; url: string }
+  /**
+   * Dónde se abre una cuenta. `referral` avisa que el enlace lleva el código de
+   * referido del autor: la app lo dice junto al botón, nunca lo esconde.
+   */
+  signup?: Signup
   /** Qué modelos ofrece (ver ModelSource). */
   models: ModelSource
   /** Esfuerzos que recibe por argumento, de menor a mayor. Vacío = no recibe. */
@@ -260,6 +270,7 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
     },
     login: 'claude auth login',
     install: { command: 'npm install -g @anthropic-ai/claude-code', url: 'https://docs.claude.com/en/docs/claude-code/setup' },
+    signup: { url: 'https://claude.com/pricing' },
     // Alias que la propia CLI resuelve al modelo más nuevo de cada familia (ver `claude --help`).
     // No tiene comando de listado: además de los alias, los nombres completos que trae su programa.
     models: {
@@ -333,6 +344,7 @@ ${stderr}`
     },
     login: 'codex login',
     install: { command: 'npm install -g @openai/codex', url: 'https://developers.openai.com/codex/cli' },
+    signup: { url: 'https://chatgpt.com/pricing' },
     // No tiene comando de listado, pero guarda la lista que le da su servidor; primero va el que tengas por defecto.
     models: {
       files: [

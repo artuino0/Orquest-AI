@@ -1,0 +1,43 @@
+# Instalador de Orquest AI (`npm run dist`). Sale en dist/.
+appId: ai.orquest.app
+productName: Orquest AI
+copyright: Copyright © 2026 Jose Arturo Muñoz Castorena
+
+directories:
+  output: dist
+
+# Solo lo que la app usa al correr: lo ya compilado y el comando `orquest`.
+files:
+  - out/**
+  - src/cli/orquest.mjs
+  - package.json
+  - LICENSE
+  - NOTICE
+
+# Fuera del paquete comprimido: node-pty lanza sus propios ejecutables y el
+# comando `orquest` lo corren las terminales de los agentes, desde fuera de la app.
+asarUnpack:
+  - node_modules/node-pty/**
+  - src/cli/**
+
+# node-pty ya trae sus binarios listos (N-API): no hace falta compilador para empaquetar.
+npmRebuild: false
+
+win:
+  target: nsis
+  icon: assets/herdr-oficina/sprites/oficina.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: Orquest-AI-${version}-instalador.${ext}
+
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+  artifactName: Orquest-AI-${version}-${arch}.${ext}
+
+linux:
+  target: AppImage
+  category: Development
+  artifactName: Orquest-AI-${version}-${arch}.${ext}

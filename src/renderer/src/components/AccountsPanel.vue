@@ -5,7 +5,7 @@
  * (core/accounts): no calcula nada.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, UserPlus } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { ago } from '../format'
 import type { Account } from '../../../core/accounts'
@@ -33,6 +33,9 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(timer))
 
 const cliName = (id: string) => studio.clis.find((c) => c.id === id)?.name ?? id
+/** Proveedores que tienen dónde abrir una cuenta: se ofrecen tengas ya una o no. */
+const signups = computed(() => studio.clis.filter((c) => c.signup))
+const open = (url: string) => window.orquest.openExternal(url)
 /** Quién está trabajando con esa cuenta en este proyecto. */
 const using = (a: Account) => {
   const key = a.main ? '' : a.dir
@@ -65,6 +68,9 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
     <div v-else-if="!accounts.length" class="blank">
       <h2>No hay cuentas con sesión iniciada</h2>
       <p>Aquí aparecen las de Codex y Claude Code en cuanto inicies sesión en su CLI.</p>
+      <p v-if="signups.length" class="more">
+        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> Crear cuenta de {{ c.name }}</button>
+      </p>
     </div>
     <div v-else class="accounts">
       <section v-for="[provider, list] in groups" :key="provider">
@@ -90,11 +96,18 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
       <p class="dim hint">
         Otra cuenta del mismo proveedor es otra carpeta con su propia sesión (por ejemplo <code>~/.codex2</code>): Orquest la detecta sola y la ofrece al contratar, y así dos cuentas trabajan al mismo tiempo.
       </p>
+      <div v-if="signups.length" class="more">
+        <span class="dim">¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.</span>
+        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> Crear cuenta de {{ c.name }}</button>
+        <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">Son enlaces de referido del autor: a ti no te cuesta más y ayudan a sostener Orquest AI.</span>
+      </div>
     </div>
   </PanelFrame>
 </template>
 
 <style scoped>
+.more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.more .note { flex-basis: 100%; }
 .accounts { display: flex; flex-direction: column; gap: 18px; padding: 16px; overflow: auto; }
 section { display: flex; flex-direction: column; gap: 10px; }
 h3 { display: flex; align-items: center; gap: 8px; margin: 0; }

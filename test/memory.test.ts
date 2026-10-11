@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -14,7 +14,8 @@ import { ScreenReader } from '../src/core/state.js'
 import { BOSS_ID, Studio } from '../src/core/studio.js'
 
 async function makeRepo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'orquest-mem-'))
+  // Con su nombre verdadero: la carpeta temporal suele venir abreviada o por un enlace, y git contesta con el real.
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'orquest-mem-')))
   const git = (...a: string[]) => execFileSync('git', a, { cwd: dir })
   git('init', '-q', '-b', 'main')
   git('config', 'user.email', 't@orquest.dev')

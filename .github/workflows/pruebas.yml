@@ -29,8 +29,8 @@ jobs:
           - { os: ubuntu-latest, nombre: Linux (aún sin probar a mano), en_prueba: true }
           - { os: macos-latest, nombre: macOS (aún sin probar a mano), en_prueba: true }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

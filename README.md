@@ -109,7 +109,14 @@ npm run rebuild   # compila node-pty para Electron
 npm run dev       # abre la app
 npm test          # pruebas del núcleo (node-pty real, CLIs falsas)
 npm run typecheck
+npm run dist      # arma el instalador en dist/
 ```
+
+### Instalador
+
+`npm run dist` compila la app y deja el instalador del sistema donde se corre en `dist/` (configuración en `electron-builder.yml`). En Windows es `Orquest-AI-<versión>-instalador.exe`. Para los tres sistemas sin tener las tres máquinas: en GitHub, Actions → Instaladores → Run workflow; cada uno queda como adjunto de la corrida.
+
+Ninguno va firmado todavía, así que Windows (SmartScreen) y macOS avisan al abrirlo. El de Windows se probó a mano; los de macOS y Linux no.
 
 ## Siguientes fases
 

@@ -10,7 +10,8 @@ const WIN = process.platform === 'win32'
 /**
  * CLI de mentira en `dir`. Contesta la versión y, si se le pregunta por la
  * sesión, dice que sí solo cuando existe el archivo `sesion` junto a ella. En
- * Windows es un .cmd, como los lanzadores que deja npm.
+ * Windows es un .cmd, como los lanzadores que deja npm. No llama a ningún otro
+ * programa: la prueba la corre con el PATH reducido a su carpeta.
  */
 async function fakeCli(dir: string, name: string, o: { version: string; ask: string; yes: string; no: string }): Promise<string> {
   const path = join(dir, WIN ? `${name}.cmd` : name)
@@ -21,7 +22,7 @@ async function fakeCli(dir: string, name: string, o: { version: string; ask: str
     path,
     WIN
       ? `@echo off\r\nif "%1"=="${first}" (\r\n  if exist "%~dp0sesion" (echo ${cmd(o.yes)}) else (echo ${cmd(o.no)}& exit /b 1)\r\n) else (echo ${cmd(o.version)})\r\n`
-      : `#!/bin/sh\nif [ "$1" = "${first}" ]; then\n  if [ -f "$(dirname "$0")/sesion" ]; then echo '${o.yes}'; else echo '${o.no}'; exit 1; fi\nelse echo '${o.version}'; fi\n`,
+      : `#!/bin/sh\nif [ "$1" = "${first}" ]; then\n  if [ -f "\${0%/*}/sesion" ]; then echo '${o.yes}'; else echo '${o.no}'; exit 1; fi\nelse echo '${o.version}'; fi\n`,
   )
   await chmod(path, 0o755)
   return path

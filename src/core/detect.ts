@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs'
 import { access, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
-import { PROVIDERS, type Effort, type ProviderAdapter, type ProviderId } from './providers.js'
+import { PROVIDERS, type Effort, type ProviderAdapter, type ProviderId, type Signup } from './providers.js'
 
 export interface CliStatus {
   id: ProviderId
@@ -24,6 +24,8 @@ export interface CliStatus {
   login?: string
   /** Cómo instalarla. */
   install?: { command?: string; url: string }
+  /** Dónde abrir una cuenta, si el proveedor lo tiene. */
+  signup?: Signup
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -137,7 +139,7 @@ async function modelsOf(p: ProviderAdapter, binary: string, home: string): Promi
 }
 
 export async function detectProvider(p: ProviderAdapter, home = homedir()): Promise<CliStatus> {
-  const base = { id: p.id, name: p.name, login: p.login, install: p.install, efforts: p.efforts }
+  const base = { id: p.id, name: p.name, login: p.login, install: p.install, signup: p.signup, efforts: p.efforts }
   let binary: string | undefined
   for (const b of p.binaries) {
     binary = await findBinary(b)
