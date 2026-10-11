@@ -96,7 +96,65 @@ watch(() => boss.value?.state, (state) => {
 watch(() => studio.doing.jefe, (a) => { if (a) doing.value = a }, { immediate: true })
 watch(atWork, (b) => { if (!b) doing.value = undefined })
 const log = ref<HTMLDivElement>()
-watch(() => [chat.value.length, atWork.value], () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
+// El chat no te arrastra al final: tú decides cuándo bajar.
+//  · Al mandar un mensaje, se queda arriba a la vista y la respuesta se lee desde ahí hacia abajo.
+//  · Si estabas al final y llega algo, se muestra desde su primer renglón, no desde el último.
+//  · Si estabas leyendo más arriba, nada se mueve.
+// Lo que queda sin ver se cuenta en el botón "N mensajes nuevos".
+/** Hasta qué mensaje (su posición en `chat`) has llegado a ver. */
+const seen = ref(-1)
+const unread = computed(() => Math.max(0, chat.value.length - 1 - seen.value))
+let atBottom = true
+const bubbles = () => [...(log.value?.querySelectorAll<HTMLElement>('.msg:not(.doing)') ?? [])]
+/** Anota hasta dónde se ve y si estás al final. Un mensaje cuenta como visto cuando asoma su primer renglón. */
+function look() {
+  const el = log.value
+  if (!el) return
+  atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+  const fold = el.scrollTop + el.clientHeight - 12
+  const list = bubbles()
+  let last = -1
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].offsetTop < fold) {
+      last = i
+      break
+    }
+  }
+  if (last > seen.value) seen.value = last
+}
+/** Pone el mensaje `i` arriba a la vista (o lo más arriba que dé el chat). */
+function showFrom(i: number) {
+  const el = log.value
+  const target = bubbles()[i]
+  if (!el || !target) return
+  el.scrollTop = Math.min(target.offsetTop - 8, el.scrollHeight - el.clientHeight)
+  look()
+}
+function toBottom() {
+  const el = log.value
+  if (!el) return
+  el.scrollTop = el.scrollHeight
+  look()
+}
+watch(() => chat.value.length, async (n, before) => {
+  const first = before === undefined
+  const wasAtBottom = atBottom
+  await nextTick()
+  if (first) return toBottom() // al abrir el panel: lo último
+  if (n <= (before ?? 0)) return look()
+  // El mío más reciente entre los que acaban de llegar: ese manda.
+  let mine = -1
+  for (let i = n - 1; i >= before; i--) if (chat.value[i]?.mine) { mine = i; break }
+  if (mine >= 0) showFrom(mine)
+  else if (wasAtBottom) showFrom(Math.min(seen.value + 1, n - 1))
+  else look()
+}, { immediate: true })
+// El globo de "ahora" aparece al final: solo se acompaña si ya estabas ahí.
+watch(atWork, async () => {
+  const wasAtBottom = atBottom
+  await nextTick()
+  if (wasAtBottom && !unread.value) toBottom()
+})
 onBeforeUnmount(() => clearTimeout(idleTimer))
 
 const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
@@ -211,7 +269,7 @@ const pending = computed(() => {
           <p><AlertTriangle /> <span><b>El jefe está detenido: su CLI te pregunta algo.</b> Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.</span></p>
           <div class="mini"><TerminalView id="jefe" /></div>
         </div>
-        <div ref="log" class="log">
+        <div ref="log" class="log" @scroll.passive="look">
           <div class="spacer" />
           <p v-if="!chat.length" class="empty">Aún no hay mensajes. Escríbele al jefe abajo.</p>
           <div v-for="(m, i) in chat" :key="i" class="msg" :class="{ mine: m.mine }">
@@ -228,6 +286,7 @@ const pending = computed(() => {
             </p>
           </div>
         </div>
+        <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread }} {{ unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos' }}</button>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
           <button type="submit" class="btn primary"><Send /> Enviar</button>
@@ -299,7 +358,7 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .stuck svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
 .stuck b { color: var(--st-block); }
 .mini { height: 230px; display: flex; background: var(--term-bg); border: 2px solid var(--border); overflow: hidden; }
-.log { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
+.log { position: relative; flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
 .spacer { flex: 1; }
 .empty, .dim { margin: 0; font-size: 11px; color: var(--text-secondary); }
 .msg { align-self: flex-start; max-width: 70%; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--pv-claude); }
@@ -307,6 +366,8 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .msg .who { font-size: 10px; font-weight: 700; color: var(--pv-claude); }
 .msg.mine .who { color: var(--text-secondary); }
 .msg p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+.news { align-self: center; position: relative; z-index: 2; margin: -44px 0 8px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; font: 700 11px var(--font); color: var(--on-accent); background: var(--accent); border: 2px solid var(--border); box-shadow: 3px 3px 0 var(--shadow); cursor: pointer; }
+.news svg { width: 14px; height: 14px; }
 .msg.doing { border-left-style: dashed; background: none; }
 /* Un solo renglón de alto fijo: cambia el texto, no el tamaño del globo. */
 .msg.doing p { display: flex; align-items: baseline; gap: 8px; height: 18px; overflow: hidden; white-space: nowrap; }
