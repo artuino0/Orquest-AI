@@ -78,10 +78,8 @@ const chat = computed(() =>
     })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
-const log = ref<HTMLDivElement>()
-watch(() => chat.value.length, () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
 
-// Qué hace el jefe ahora, en un renglón fijo bajo el chat. Entre un paso y otro su
+// Qué hace el jefe ahora, como último globo del chat. Entre un paso y otro su
 // terminal se ve quieta un instante: si el renglón siguiera eso al pie de la letra
 // aparecería y desaparecería a cada rato. Se queda puesto y solo cambia el texto;
 // se da por terminado cuando lleva unos segundos sin trabajar.
@@ -97,6 +95,8 @@ watch(() => boss.value?.state, (state) => {
 // Se conserva lo último que hizo mientras llega lo siguiente.
 watch(() => studio.doing.jefe, (a) => { if (a) doing.value = a }, { immediate: true })
 watch(atWork, (b) => { if (!b) doing.value = undefined })
+const log = ref<HTMLDivElement>()
+watch(() => [chat.value.length, atWork.value], () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
 onBeforeUnmount(() => clearTimeout(idleTimer))
 
 const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
@@ -218,14 +218,15 @@ const pending = computed(() => {
             <span class="who">{{ m.who }} · {{ hour(m.at) }}</span>
             <p>{{ m.text }}</p>
           </div>
-        </div>
-        <!-- Qué está haciendo ahora, leído de su terminal: siempre en el mismo lugar -->
-        <div class="now" :class="{ off: !atWork }">
-          <span class="who">Jefe · ahora</span>
-          <b>{{ atWork ? (doing?.label ?? 'Trabajando') : boss?.state === 'blocked' ? 'Detenido' : 'En espera' }}</b>
-          <i v-if="atWork" class="dots" />
-          <span class="what">{{ atWork ? doing?.detail : '' }}</span>
-          <span v-if="atWork && doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
+          <!-- Qué está haciendo ahora, leído de su terminal: el último globo del chat, que no se quita entre un paso y otro -->
+          <div v-if="atWork" class="msg doing">
+            <span class="who">Jefe · ahora</span>
+            <p>
+              <b>{{ doing?.label ?? 'Trabajando' }}</b><i class="dots" />
+              <span class="what">{{ doing?.detail }}</span>
+              <span v-if="doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
+            </p>
+          </div>
         </div>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
@@ -306,13 +307,12 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .msg .who { font-size: 10px; font-weight: 700; color: var(--pv-claude); }
 .msg.mine .who { color: var(--text-secondary); }
 .msg p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
-.now { flex: none; display: flex; align-items: baseline; gap: 8px; height: 30px; padding: 6px 10px; overflow: hidden; white-space: nowrap; font-size: 12px; border-left: 3px dashed var(--st-work); }
-.now .who { font-size: 10px; color: var(--text-secondary); }
-.now b { color: var(--st-work); }
-.now .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
-.now .secs { font-size: 10px; color: var(--text-secondary); }
-.now.off { border-left-color: var(--border-light); }
-.now.off b { color: var(--text-secondary); font-weight: 400; }
+.msg.doing { border-left-style: dashed; background: none; }
+/* Un solo renglón de alto fijo: cambia el texto, no el tamaño del globo. */
+.msg.doing p { display: flex; align-items: baseline; gap: 8px; height: 18px; overflow: hidden; white-space: nowrap; }
+.msg.doing b { color: var(--st-work); }
+.msg.doing .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
+.msg.doing .secs { font-size: 10px; color: var(--text-secondary); }
 .dots { display: inline-block; width: 18px; height: 4px; margin-left: -4px; background: radial-gradient(circle, var(--st-work) 0 1.5px, transparent 2px) 0 0 / 6px 4px repeat-x; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 -34% 0 0); } }
 .say { display: flex; gap: 8px; }
