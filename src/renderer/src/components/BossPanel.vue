@@ -70,13 +70,10 @@ async function send() {
 const boss = computed(() => studio.employees.find((e) => e.id === 'jefe'))
 const chat = computed(() =>
   (studio.board?.messages ?? [])
-    // Lo que la app le teclea al jefe ([Orquest] …) no es conversación.
-    .filter((m) => m.from !== 'orquest' && (m.from === 'jefe' || m.to === 'jefe'))
-    .map((m) => ({
-      ...m,
-      mine: m.from === 'usuario',
-      who: m.from === 'usuario' ? 'Tú' : m.from === 'jefe' ? (m.to === 'usuario' ? 'Jefe' : `Jefe → ${studio.nameOf(m.to)}`) : studio.nameOf(m.from),
-    })),
+    // Solo lo que se dicen el usuario y el jefe. Lo que el jefe habla con cada empleado
+    // está en la pestaña Actividad de ese empleado; lo que la app teclea ([Orquest] …) no es conversación.
+    .filter((m) => (m.from === 'usuario' && m.to === 'jefe') || (m.from === 'jefe' && m.to === 'usuario'))
+    .map((m) => ({ ...m, mine: m.from === 'usuario', who: m.from === 'usuario' ? 'Tú' : 'Jefe' })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
 
