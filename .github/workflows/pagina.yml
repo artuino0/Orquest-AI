@@ -1,0 +1,37 @@
+# Publica la página web (la carpeta web/, tal cual) en GitHub Pages cada vez que
+# cambia en main. No compila nada. Requiere, una sola vez, activar Pages en el
+# repo: Settings → Pages → Source: GitHub Actions. El dominio propio se pone ahí mismo.
+name: Página
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/pagina.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pagina
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    name: Publicar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Dejar fuera el archivo de diseño
+        run: rm -f web/design_web.pen
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: publicar
+        uses: actions/deploy-pages@v4
