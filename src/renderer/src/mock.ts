@@ -64,6 +64,12 @@ export function installMock(caso: string) {
     },
     // Los modelos también son los de verdad, si el servidor de vista previa los da.
     cliModels: async () => (caso in CLIS ? {} : fetch('/__orquest/modelos').then((r) => (r.ok ? r.json() : {}), () => ({}))),
+    accounts: async () => [
+      { provider: 'claude', dir: '.claude', main: true, label: 'Principal', usage: { at: Date.now() - 40_000, windows: [{ label: '5 horas', minutes: 300, used: 62, resetsAt: Date.now() + 95 * 60_000 }, { label: 'Semana', minutes: 10080, used: 31, resetsAt: Date.now() + 4 * 86_400_000 }] } },
+      { provider: 'codex', dir: '.codex', main: true, label: 'Principal', usage: { at: Date.now() - 6 * 60_000, windows: [{ label: '5 horas', minutes: 300, used: 93, resetsAt: Date.now() + 22 * 60_000 }, { label: 'Semana', minutes: 10080, used: 74, resetsAt: Date.now() + 2 * 86_400_000 }] } },
+      { provider: 'codex', dir: '.codex2', main: false, label: '2', usage: { at: Date.now() - 3_600_000, windows: [{ label: '5 horas', minutes: 300, used: 17, resetsAt: Date.now() + 200 * 60_000 }, { label: 'Semana', minutes: 10080, used: 3, resetsAt: Date.now() + 6 * 86_400_000 }] } },
+      { provider: 'codex', dir: '.codex-trabajo', main: false, label: 'trabajo' },
+    ],
     pickRepo: async () => null,
     projectSummaries: async (repos) => repos.map((r) => SUMMARIES[r] ?? null),
     openExternal: async (url) => void window.open(url, '_blank'),

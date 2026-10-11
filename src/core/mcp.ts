@@ -45,6 +45,7 @@ export const TOOLS: Record<string, ToolDef> = {
             proveedor: z.enum(PROVIDERS),
             modelo: z.string().optional(),
             esfuerzo: z.enum(EFFORTS).optional(),
+            cuenta: z.string().optional().describe('Cuenta del proveedor, como sale en `cuentas` de leer_expedientes; sin ella, la principal'),
             motivo: z.string().describe('Por qué este proveedor para este puesto'),
           }),
         )

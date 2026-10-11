@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { AlertTriangle, Bell, Crown, FileText, FolderOpen, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, Crown, FileText, FolderOpen, Gauge, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
 import { OfficeScene } from '../world/scene'
@@ -13,6 +13,7 @@ import LibraryPanel from './LibraryPanel.vue'
 import MapEditor from './MapEditor.vue'
 import PixelOffice from './PixelOffice.vue'
 import PlansPanel from './PlansPanel.vue'
+import AccountsPanel from './AccountsPanel.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import CHAR1 from '../../../../assets/herdr-oficina/sprites/char1.png'
 
@@ -119,7 +120,7 @@ onBeforeUnmount(() => {
 })
 
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
-const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans') => {
+const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts') => {
   editing.value = false
   studio.overlay = studio.overlay === o ? null : o
 }
@@ -144,6 +145,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans') =>
         <button class="btn" :class="{ on: studio.overlay === 'board' }" @click="toggle('board')"><Kanban /> Tablero</button>
         <button class="btn" :class="{ on: studio.overlay === 'plans' }" title="Planes y documentos que el jefe deja en el repo" @click="toggle('plans')"><FileText /> Planes</button>
         <button class="btn" :class="{ on: studio.overlay === 'library' }" @click="toggle('library')"><FolderOpen /> Expedientes</button>
+        <button class="btn" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas de cada CLI y lo que llevan usado de su límite" @click="toggle('accounts')"><Gauge /> Cuentas</button>
         <button class="btn" :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
           <Inbox /> Entregas<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
         </button>
@@ -199,6 +201,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans') =>
       <BossPanel v-if="studio.overlay === 'boss'" />
       <LibraryPanel v-if="studio.overlay === 'library'" />
       <PlansPanel v-if="studio.overlay === 'plans'" />
+      <AccountsPanel v-if="studio.overlay === 'accounts'" />
     </div>
 
     <EmployeeDrawer v-if="studio.selectedEmployee" :key="studio.selectedEmployee.id" />

@@ -4,6 +4,7 @@ import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users } from 'lucide-vue
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
 import { EFFORT_LABEL, LOOK, lookOf, roleLabel } from '../status'
+import type { Account } from '../../../core/accounts'
 import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
 
@@ -19,11 +20,15 @@ interface Row extends SlotEdit {
 const studio = useStudio()
 const rows = ref<Row[]>([])
 const busy = ref(false)
+// Cuentas de cada CLI: solo se ofrece elegir cuando un proveedor tiene más de una.
+const accounts = ref<Account[]>([])
+void window.orquest.accounts().then((a) => (accounts.value = a), () => {})
+const accountsOf = (provider: string) => accounts.value.filter((a) => a.provider === provider)
 
 watch(
   () => studio.proposal.map((s) => s.id).join(),
   () => {
-    rows.value = studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, reason: s.reason }))
+    rows.value = studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, account: s.account ?? '', reason: s.reason }))
   },
   { immediate: true },
 )
@@ -57,7 +62,7 @@ function add() {
 
 async function approve() {
   busy.value = true
-  const ok = await studio.approveTemplate(rows.value.map(({ reason: _r, ...r }) => ({ ...r, model: r.model || undefined, effort: r.effort || undefined })))
+  const ok = await studio.approveTemplate(rows.value.map(({ reason: _r, ...r }) => ({ ...r, model: r.model || undefined, effort: r.effort || undefined, account: accountsOf(r.provider).some((a) => !a.main && a.dir === r.account) ? r.account : undefined })))
   busy.value = false
   if (ok) studio.overlay = null
 }
@@ -113,6 +118,9 @@ const subtitle = computed(() => {
                   <option v-if="!studio.usable.some((c) => c.id === r.provider)" :value="r.provider">{{ cliName(r.provider) }}</option>
                 </select>
               </span>
+              <select v-if="accountsOf(r.provider).length > 1" v-model="r.account" class="plain account" title="Con qué cuenta trabaja">
+                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">cuenta {{ a.label.toLowerCase() }}{{ a.usage?.windows[0] ? ` · ${Math.round(a.usage.windows[0].used)}%` : '' }}</option>
+              </select>
             </td>
             <td>
               <input v-model="r.model" class="plain" placeholder="por defecto" :list="`models-${r.provider}`" />
@@ -228,4 +236,5 @@ tr.no .chip, tr.no .rule p { color: var(--st-block); }
 .pick:hover td { background: var(--surface); }
 .tbl .chip { text-transform: none; }
 .proposal .chip { text-transform: uppercase; }
+.account { display: block; margin-top: 2px; font-size: 10px; color: var(--text-secondary); }
 </style>

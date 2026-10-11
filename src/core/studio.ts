@@ -6,6 +6,7 @@
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
 import { access } from 'node:fs/promises'
+import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
@@ -58,6 +59,8 @@ export interface StudioOptions {
   library?: Library
   /** Ejecutables por proveedor (pruebas). */
   binaries?: Partial<Record<ProviderId, string>>
+  /** Carpeta del usuario donde viven las cuentas de cada CLI (pruebas). */
+  home?: string
   /** URL donde una CLI reporta su estado (contexto, uso de la cuenta), por token. */
   statusUrl?: (token: string) => string
   /** % de contexto a partir del cual el agente se va a descansar. */
@@ -103,6 +106,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private restPending = new Set<string>()
   /** Contexto con que arrancó cada sesión. */
   private contextFloor = new Map<string, number>()
+  /** Uso de la cuenta que reporta cada CLI por su barra de estado: `proveedor|carpeta` → dato. */
+  private reported = new Map<string, AccountUsage>()
   private handoffWaiters = new Map<string, () => void>()
   private unsubscribe: () => void
   root = ''
@@ -335,15 +340,16 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   /** Contrata al jefe: trabaja en el repo principal, sin worktree. */
-  async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }) {
+  async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }) {
     if (this.bossOnline) throw new RuleError('El jefe ya está en su oficina.')
     await this.launchBoss(req, false)
     this.fact(BOSS_ID, `contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
     this.changed()
   }
 
-  private async launchBoss(req: { provider: ProviderId; model?: string; effort?: Effort; goal: string }, resume: boolean) {
+  private async launchBoss(req: { provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean) {
     const adapter = getProvider(req.provider)
+    const env = accountEnv(req.provider, req.account, this.opts.home)
     const channel = this.channel(req.provider)
     if (!channel) throw new RuleError(`${adapter.name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
     this.board.goal = req.goal
@@ -356,7 +362,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const previous = this.board.tasks.length > 0
     const journal = this.journal.path(BOSS_ID)
     // Para que `launch` sepa qué conversación retomar; si es nuevo, parte sin ninguna.
-    this.board.boss = { provider: req.provider, model: req.model, effort: req.effort, sessionId: resume ? this.board.boss?.sessionId : undefined }
+    this.board.boss = { provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined }
     await this.launch(BOSS_ID, {
       token,
       owner,
@@ -365,6 +371,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         provider: req.provider,
         model: req.model,
         effort: req.effort,
+        env,
         role: 'jefe',
         repo: this.root,
         office,
@@ -451,6 +458,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         provider: slot.provider,
         model: slot.model,
         effort: slot.effort,
+        env: accountEnv(slot.provider, slot.account, this.opts.home),
         role: slot.role,
         repo: this.root,
         office: again?.office,
@@ -464,7 +472,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         : before.length ? [`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [],
     !!again)
     if (again) return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
-    this.board.hired(slot, { id, role: slot.role, provider: slot.provider, effort: slot.effort, sessionId: emp.sessionId, office: emp.office })
+    this.board.hired(slot, { id, role: slot.role, provider: slot.provider, effort: slot.effort, account: slot.account, sessionId: emp.sessionId, office: emp.office })
     this.fact(id, `contratado como ${slot.role} (${slot.provider}${slot.model ? ` ${slot.model}` : ''})${before.length ? `; antes en el puesto: ${before.map((b) => b.split(':')[0]).join(', ')}` : ''}`)
     return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
   }
@@ -658,6 +666,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       case 'leer_expedientes': {
         const clis = await this.opts.detect()
         const lib = this.library
+        const accounts = this.accounts()
         return JSON.stringify(
           clis.map((c) => {
             const d = lib.dossier(c.id)
@@ -667,6 +676,13 @@ export class Studio extends EventEmitter<StudioEvents> {
               disponible: c.installed && c.session !== false,
               version: c.version,
               conecta_con_orquest: !!this.channel(c.id),
+              // Solo si hay más de una: así el jefe puede repartir gente entre cuentas.
+              cuentas: accounts.filter((x) => x.provider === c.id).length > 1
+                ? accounts.filter((x) => x.provider === c.id).map((x) => ({
+                    cuenta: x.main ? 'principal' : x.dir,
+                    uso: x.usage ? Object.fromEntries(x.usage.windows.map((w) => [w.label, `${Math.round(w.used)}%`])) : 'sin datos',
+                  }))
+                : undefined,
               puestos_permitidos: d.allowedRoles ?? 'todos',
               si_no_se_permite: d.enforce === 'block' ? 'el juego lo rechaza' : 'se permite con aviso',
               notas_del_usuario: d.notes || undefined,
@@ -693,6 +709,7 @@ export class Studio extends EventEmitter<StudioEvents> {
             provider: p.proveedor,
             model: p.modelo,
             effort: p.esfuerzo,
+            account: p.cuenta && p.cuenta !== 'principal' ? String(p.cuenta) : undefined,
             reason: p.motivo,
           })),
           ok,
@@ -958,6 +975,14 @@ export class Studio extends EventEmitter<StudioEvents> {
     const id = caller.kind === 'boss' ? BOSS_ID : caller.id
     const pct = (body as { context_window?: { used_percentage?: number } })?.context_window?.used_percentage
     if (typeof pct === 'number' && this.opts.manager.get(id)) this.opts.manager.setContext(id, Math.round(pct))
+    const usage = parseClaudeLimits(body)
+    const who = id === BOSS_ID ? this.board.boss : this.board.staff.find((m) => m.id === id)
+    if (usage && who) this.reported.set(`${who.provider}|${who.account ?? ''}`, usage)
+  }
+
+  /** Las cuentas de esta máquina con su uso: el que deja cada CLI en disco o el que acaba de reportar. */
+  accounts() {
+    return listAccounts(this.opts.home).map((a) => ({ ...a, usage: this.reported.get(`${a.provider}|${a.main ? '' : a.dir}`) ?? a.usage }))
   }
 
   /** Bitácora de un agente, para la UI. */

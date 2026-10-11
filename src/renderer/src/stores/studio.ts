@@ -4,7 +4,7 @@ import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, Project
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
 
-export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | null
+export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | null
 export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {

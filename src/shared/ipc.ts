@@ -4,6 +4,7 @@ import type { CliStatus } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
+import type { Account } from '../core/accounts.js'
 import type { Activity } from '../core/activity.js'
 import type { Capture } from '../core/captures.js'
 import type { ProjectDocument } from '../core/documents.js'
@@ -20,6 +21,8 @@ export interface BossRequest {
   provider: ProviderId
   model?: string
   effort?: Effort
+  /** Cuenta del proveedor (carpeta de su sesión); sin ella, la principal. */
+  account?: string
   goal: string
 }
 
@@ -39,6 +42,8 @@ export interface OrquestApi {
   detectClis(): Promise<CliStatus[]>
   /** Modelos que ofrece cada CLI lista, según ella misma. Tarda más que detectClis: se pide aparte. */
   cliModels(): Promise<Partial<Record<ProviderId, string[]>>>
+  /** Cuentas de cada CLI en esta máquina, con lo que llevan usado de su límite. */
+  accounts(): Promise<Account[]>
   pickRepo(): Promise<string | null>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>

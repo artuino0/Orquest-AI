@@ -66,6 +66,8 @@ export interface Slot {
   provider: ProviderId
   model?: string
   effort?: Effort
+  /** Con qué cuenta del proveedor trabaja (carpeta de su sesión, ver core/accounts); sin ella, la principal. */
+  account?: string
   /** Por qué el jefe propone a este proveedor. */
   reason?: string
   /** Aviso del expediente (permitido, pero con reservas). */
@@ -84,6 +86,7 @@ export interface StaffMember {
   /** false si su CLI ya no corre (se fue o se cerró la app). */
   online: boolean
   effort?: Effort
+  account?: string
   /** Su conversación en la CLI y su oficina: con eso vuelve a su escritorio al reabrir la app. */
   sessionId?: string
   office?: { path: string; branch: string; base?: string }
@@ -105,6 +108,7 @@ export interface BossRecord {
   provider: ProviderId
   model?: string
   effort?: Effort
+  account?: string
   sessionId?: string
 }
 
@@ -203,6 +207,7 @@ export class Board {
         provider: f.provider,
         model: f.model || undefined,
         effort: f.effort,
+        account: f.account || undefined,
         reason: base?.reason,
         warning: warnings[final.indexOf(f)],
         status: 'approved' as const,

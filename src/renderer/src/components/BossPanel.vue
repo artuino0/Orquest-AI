@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, Send, Target, Terminal, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
+import type { Account } from '../../../core/accounts'
 import type { Effort, ProviderId } from '../../../shared/ipc'
 import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
@@ -22,6 +23,12 @@ watch(leaders, (l) => {
   if (l.length && !l.some((c) => c.id === provider.value)) provider.value = l[0].id
 })
 const model = ref('')
+// Cuentas del proveedor elegido: solo se pregunta si hay más de una.
+const allAccounts = ref<Account[]>([])
+void window.orquest.accounts().then((a) => (allAccounts.value = a), () => {})
+const accounts = computed(() => allAccounts.value.filter((a) => a.provider === provider.value))
+const account = ref('')
+watch(provider, () => (account.value = ''))
 // Modelos y esfuerzos son los de la CLI elegida: lo que ella misma lista y recibe.
 const chosen = computed(() => studio.clis.find((c) => c.id === provider.value))
 const models = computed(() => chosen.value?.models ?? [])
@@ -47,7 +54,7 @@ const busy = ref(false)
 
 async function hire() {
   busy.value = true
-  const ok = await studio.hireBoss({ provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, goal: goal.value })
+  const ok = await studio.hireBoss({ provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value })
   busy.value = false
   if (ok) studio.overlay = null
 }
@@ -138,6 +145,12 @@ const pending = computed(() => {
         <select v-model="house" class="house" @change="model = ''">
           <option value="">todas ({{ houses.length }})</option>
           <option v-for="h in houses" :key="h" :value="h">{{ h }}</option>
+        </select>
+      </label>
+      <label v-if="accounts.length > 1" class="field">
+        <span>Cuenta</span>
+        <select v-model="account" class="house">
+          <option v-for="a in accounts" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.label }}{{ a.usage?.windows[0] ? ` · ${Math.round(a.usage.windows[0].used)}% usado` : '' }}</option>
         </select>
       </label>
       <div class="field">

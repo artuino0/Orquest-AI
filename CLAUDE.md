@@ -49,6 +49,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | `cli.ts` | Canal por comando para CLIs sin MCP: lee los campos de `orquest <herramienta> --campo valor` contra el esquema de la herramienta e instala el comando (lanzadores `.cmd` y POSIX). El comando es `src/cli/orquest.mjs`, sin dependencias; el servidor lo atiende en `/cli/<token>`. |
 | `store.ts` | SQLite local: tablero por proyecto, expedientes, manuales, historial. |
 | `prompts.ts` | Prompt del jefe y del empleado (armado con su manual). |
+| `accounts.ts` | Cuentas de un mismo proveedor: cada carpeta hermana con sesión (`~/.codex`, `~/.codex2`, `~/.claude-2`) es una cuenta. Las lista, da el entorno con que se lanza cada una (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`) y lo que lleva usado de su límite (Codex: lo que anota en sus sesiones; Claude Code: lo que manda su barra de estado). No lee los archivos de sesión. La cuenta viaja en el puesto, el empleado y el jefe (`account`); el panel Cuentas la muestra. |
 | `officefeed.ts` | Lo que la oficina de píxel necesita del estudio, en su idioma: quién está y en qué anda (`officeState`) y qué pasó entre dos fotos del tablero (`officeEvents`: asignada, reporte, revisión). Puro, sin Node: lo importa el panel. |
 
 Renderer (`src/renderer/src/world/`, lógica pura con pruebas en `test/world.test.ts` salvo `scene.ts` y `sprites.ts`):
