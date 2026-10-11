@@ -18,6 +18,8 @@ async function makeRepo(): Promise<string> {
   git('init', '-q', '-b', 'main')
   git('config', 'user.email', 'test@orquest.dev')
   git('config', 'user.name', 'Orquest')
+  // Que el resultado no dependa de cómo tenga los saltos de línea quien corre la prueba.
+  git('config', 'core.autocrlf', 'false')
   await writeFile(join(dir, 'README.md'), '# tienda\n')
   git('add', '.')
   git('commit', '-qm', 'inicio')

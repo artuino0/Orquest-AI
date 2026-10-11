@@ -22,21 +22,38 @@ async function makeRepo(): Promise<string> {
   return dir
 }
 
-/** CLI falsa: anuncia que trabaja, escribe un archivo con sus argumentos y queda esperando. */
+/**
+ * CLI falsa: anuncia que trabaja, escribe un archivo con sus argumentos y queda esperando una línea.
+ * Es un script de Node para que corra igual en cualquier sistema. En Windows se instala como lo
+ * hace npm, con su lanzador `.cmd`: así la prueba pasa por el mismo camino que una CLI de verdad.
+ */
 async function fakeCli(name: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'orquest-bin-'))
+  const script = [
+    `const fs = require('node:fs')`,
+    `process.stdout.write('\\x1b]7777;orquest:state=working\\x07✻ Trabajando… (esc to interrupt)\\n')`,
+    `fs.writeFileSync('trabajo-${name}.txt', '${name} ' + process.argv.slice(2).join(' ') + '\\n')`,
+    `setTimeout(() => {`,
+    `  process.stdout.write('\\x1b]7777;orquest:state=idle\\x07listo\\n> ')`,
+    `  let typed = ''`,
+    `  process.stdin.on('data', (d) => {`,
+    `    typed += d`,
+    `    const end = typed.search(/[\\r\\n]/)`,
+    `    if (end < 0) return`,
+    `    console.log('recibido: ' + typed.slice(0, end))`,
+    `    process.exit(0)`,
+    `  })`,
+    `}, 300)`,
+    ``,
+  ].join('\n')
+  if (process.platform === 'win32') {
+    await writeFile(join(dir, 'cli.js'), script)
+    const shim = join(dir, `${name}.cmd`)
+    await writeFile(shim, ['@ECHO off', 'node "%dp0%\\cli.js" %*', ''].join('\r\n'))
+    return shim
+  }
   const file = join(dir, name)
-  await writeFile(
-    file,
-    `#!/bin/sh
-printf '\\033]7777;orquest:state=working\\007✻ Trabajando… (esc to interrupt)\\n'
-echo "${name} $*" > trabajo-${name}.txt
-sleep 0.3
-printf '\\033]7777;orquest:state=idle\\007listo\\n> '
-read linea
-echo "recibido: $linea"
-`,
-  )
+  await writeFile(file, `#!/usr/bin/env node\n${script}`)
   await chmod(file, 0o755)
   return file
 }

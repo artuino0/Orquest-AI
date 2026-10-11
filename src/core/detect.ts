@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { createReadStream } from 'node:fs'
 import { access, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { delimiter, isAbsolute, join } from 'node:path'
 import { PROVIDERS, type Effort, type ProviderAdapter, type ProviderId } from './providers.js'
 
 export interface CliStatus {
@@ -47,6 +47,11 @@ async function holdsSomething(path: string): Promise<boolean> {
 /** Busca un ejecutable en el PATH sin depender de `which`. */
 export async function findBinary(name: string, pathEnv = process.env.PATH ?? ''): Promise<string | undefined> {
   const exts = process.platform === 'win32' ? ['.exe', '.cmd', '.bat'] : ['']
+  // Una ruta completa no se busca en el PATH: es esa, tal cual o con su extensión.
+  if (isAbsolute(name)) {
+    for (const ext of new Set(['', ...exts])) if (await exists(name + ext)) return name + ext
+    return undefined
+  }
   for (const dir of pathEnv.split(delimiter).filter(Boolean)) {
     for (const ext of exts) {
       const candidate = join(dir, name + ext)

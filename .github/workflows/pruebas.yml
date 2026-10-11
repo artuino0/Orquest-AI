@@ -1,0 +1,45 @@
+# Tipos y pruebas en cada Pull Request y en cada cambio a main.
+# Windows es donde se desarrolla y debe pasar siempre. Linux y macOS todavía
+# no se han probado a mano: corren para ir viendo qué falla, sin frenar un PR.
+name: Pruebas
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.en_prueba }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, nombre: Windows, en_prueba: false }
+          - { os: ubuntu-latest, nombre: Linux (aún sin probar a mano), en_prueba: true }
+          - { os: macos-latest, nombre: macOS (aún sin probar a mano), en_prueba: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar
+        run: npm ci
+        env:
+          # Las pruebas no abren la app: no hace falta descargar Electron.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Tipos
+        run: npm run typecheck
+      - name: Pruebas
+        run: npm test
