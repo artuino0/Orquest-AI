@@ -1,0 +1,109 @@
+/* Página de Orquest AI. Mismos colores y letras que la app (src/renderer/src/style.css). */
+:root {
+  --font: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --font-pixel: 'Pixelify Sans', 'JetBrains Mono', monospace;
+  --bg: #15121b;
+  --surface: #221d2c;
+  --surface-2: #2f2839;
+  --border: #08070b;
+  --border-light: #4a4159;
+  --text: #f4eadb;
+  --dim: #a89db6;
+  --accent: #f2b544;
+  --on-accent: #1a1206;
+  --shadow: #000000aa;
+  --wide: 1080px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.65 var(--font); }
+img { max-width: 100%; display: block; }
+a { color: var(--accent); }
+code { background: var(--border); border: 2px solid var(--border-light); padding: 1px 6px; font-size: 13px; }
+h1, h2, h3 { font-family: var(--font-pixel); line-height: 1.15; margin: 0; }
+h2 { font-size: clamp(28px, 4vw, 38px); color: var(--accent); margin-bottom: 20px; }
+h3 { font-size: 20px; }
+p { margin: 0; }
+
+/* Barra */
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px max(16px, calc((100vw - var(--wide)) / 2)); background: #0b0910ee; border-bottom: 3px solid var(--border); backdrop-filter: blur(6px); }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 20px var(--font-pixel); color: var(--accent); text-decoration: none; }
+.brand i { width: 14px; height: 14px; background: var(--accent); box-shadow: 3px 3px 0 var(--border); }
+.top nav { display: flex; gap: 18px; flex-wrap: wrap; }
+.top nav a { color: var(--dim); text-decoration: none; font-size: 13px; font-weight: 700; }
+.top nav a:hover { color: var(--text); }
+
+main > section { max-width: var(--wide); margin: 0 auto; padding: 64px 16px 8px; }
+
+/* Portada */
+.hero { text-align: center; padding-top: 48px; }
+.cast { display: flex; justify-content: center; gap: 8px; margin-bottom: 18px; }
+.cast img { width: 45px; height: 69px; image-rendering: pixelated; }
+.hero h1 { font-size: clamp(48px, 10vw, 96px); color: var(--accent); letter-spacing: 2px; text-shadow: 5px 5px 0 var(--border); }
+.lead { font: 400 clamp(18px, 2.6vw, 24px)/1.4 var(--font-pixel); margin-top: 14px; }
+.sub { max-width: 720px; margin: 14px auto 0; color: var(--dim); }
+.actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+#abierto .actions { justify-content: flex-start; }
+
+.btn { display: inline-block; padding: 10px 18px; background: var(--surface-2); color: var(--text); border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); font: 700 14px var(--font); text-decoration: none; cursor: pointer; }
+.btn:hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+
+/* La oficina en vivo */
+.office { margin: 40px 0 0; }
+.frame { position: relative; aspect-ratio: 480 / 356; background: var(--border); border: 4px solid var(--border); box-shadow: 8px 8px 0 var(--shadow); overflow: hidden; }
+.frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0b0910; }
+#abrir-oficina { position: absolute; inset: 0; z-index: 1; margin: auto; width: max-content; height: max-content; padding: 14px 22px; background: var(--accent); color: var(--on-accent); border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); font: 700 16px var(--font-pixel); cursor: pointer; }
+#abrir-oficina[hidden] { display: none; }
+.office figcaption { max-width: 760px; margin: 14px auto 0; font-size: 13px; color: var(--dim); }
+
+/* Pasos */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; counter-reset: paso; }
+.steps li { counter-increment: paso; padding: 16px; background: var(--surface); border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); }
+.steps li::before { content: counter(paso); display: inline-block; width: 30px; height: 30px; margin-bottom: 10px; background: var(--accent); color: var(--on-accent); font: 700 18px/30px var(--font-pixel); text-align: center; }
+.steps b { display: block; font: 700 19px var(--font-pixel); }
+.steps p, .cards p { margin-top: 6px; font-size: 13px; color: var(--dim); }
+
+/* Capturas y tarjetas */
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.shots figure { margin: 0; }
+.shots img { width: 100%; border: 3px solid var(--border); box-shadow: 5px 5px 0 var(--shadow); cursor: zoom-in; }
+.shots figcaption { margin-top: 10px; font-size: 13px; color: var(--dim); }
+.shots figcaption b { color: var(--text); }
+.cards { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.cards li { padding: 16px; background: var(--surface); border: 3px solid var(--border); border-top-color: var(--accent); }
+
+.note { max-width: 780px; color: var(--dim); font-size: 14px; }
+.note b { color: var(--text); }
+
+/* Proveedores */
+.providers { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.providers li { padding: 8px 12px; background: var(--surface); border: 3px solid var(--border); border-left: 8px solid var(--c); font-weight: 700; font-size: 13px; }
+.providers small { display: block; font-weight: 400; font-size: 11px; color: var(--dim); }
+
+/* Descargas */
+.downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 20px 0; }
+.dl { display: block; padding: 18px; background: var(--surface-2); color: var(--text); border: 3px solid var(--border); box-shadow: 4px 4px 0 var(--shadow); text-decoration: none; }
+.dl:hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--shadow); }
+.dl b { display: block; font: 700 24px var(--font-pixel); }
+.dl small { color: var(--dim); font-size: 12px; }
+.dl.tuyo { background: var(--accent); color: var(--on-accent); }
+.dl.tuyo small { color: var(--on-accent); }
+.dl.tuyo b::after { content: ' · el tuyo'; font: 700 12px var(--font); }
+
+footer { max-width: var(--wide); margin: 72px auto 0; padding: 24px 16px 40px; border-top: 3px solid var(--border-light); font-size: 12px; color: var(--dim); }
+footer p + p { margin-top: 6px; }
+
+/* Captura ampliada */
+.zoom { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: #0b0910ee; cursor: zoom-out; }
+.zoom img { max-height: 92vh; border: 4px solid var(--border); box-shadow: 8px 8px 0 var(--shadow); }
+
+@media (max-width: 560px) {
+  .top nav a:not([href^='#descargar']):not([href^='https']) { display: none; }
+  main > section { padding-top: 48px; }
+  .cast img { width: 30px; height: 46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

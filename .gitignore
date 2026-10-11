@@ -12,3 +12,6 @@ promo/salida/
 # Python: archivos compilados de las herramientas de arte
 __pycache__/
 *.pyc
+
+# Página web: la oficina de demostración se arma con scripts/web.mjs
+web/oficina/

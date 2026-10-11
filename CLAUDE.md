@@ -79,6 +79,8 @@ Los paneles siguen el diseño de Pencil (`oirquestai.pen`): fichas de color en `
 
 El modo creativo dibuja otra oficina, la de PixiJS, que hoy no es la que se ve: desde la app (Oficina → botón de regla y lápiz, `components/MapEditor.vue`) y se guarda sola en `<userData>/oficina.json` (`core/officefile.ts`, una por estudio; `stores/office.ts` lleva deshacer). `src/renderer/demo.html` abre la escena y el modo creativo con empleados de ejemplo sin abrir la app (`npx vite src/renderer`, luego `/demo.html`; ahí guarda en el navegador). Componentes Vue: Inicio, Oficina + HUD, Jefe, Plantilla, Tablero, Entregas, Expedientes/Manuales, panel del empleado (Terminal, Archivos, Capturas, Actividad, Tarea, Bitácora).
 
+La página web del proyecto vive en `web/` (HTML, CSS y JS planos, sin compilar): `index.html`, `style.css`, `main.js` e `img/`. Arriba incrusta la oficina de píxel en demostración (`oficina.html?marco=0`), que se arma aparte con `node scripts/web.mjs` en `web/oficina/` (no va en git). Para verla: `node scripts/web.mjs` y luego `npx vite web`. Las descargas apuntan a la versión más nueva de Releases.
+
 ## Herramientas MCP
 
 Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `preguntar_al_usuario`, `cerrar_pregunta`, `guardar_plan`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
