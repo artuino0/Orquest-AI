@@ -46,6 +46,7 @@ function createWindow() {
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
   const state = () => send('window:state', { maximized: !!win?.isMaximized() })
+  win.on('closed', () => (win = null))
   win.on('maximize', state)
   win.on('unmaximize', state)
   win.webContents.on('did-finish-load', state)
@@ -73,7 +74,10 @@ async function closeWithCuts() {
   win?.close()
 }
 
-const send = (channel: string, ...args: unknown[]) => win?.webContents.send(channel, ...args)
+// Al cerrar, las terminales todavía avisan que terminaron: a una ventana que ya no existe no se le manda nada.
+const send = (channel: string, ...args: unknown[]) => {
+  if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(channel, ...args)
+}
 manager.on('data', (id, data) => send('employee:data', id, data))
 manager.on('state', (id, state) => send('employee:state', id, state))
 manager.on('hired', (e) => send('employee:hired', e))
