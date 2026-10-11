@@ -90,7 +90,14 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const tasks: Task[] = []
   let bossOnline = false
   let proposed = [...PROPOSED]
-  const messages: StudioSnapshot['messages'] = []
+  const messages: StudioSnapshot['messages'] = [
+    // Una conversación de ejemplo entre el jefe y una empleada, para ver su pestaña Chat.
+    { at: Date.now() - 9 * 60_000, from: 'orquest', to: 'e1', text: '[Orquest] Tienes una tarea nueva (T1: API de productos). Léela con leer_tarea.' },
+    { at: Date.now() - 7 * 60_000, from: 'e1', to: 'jefe', text: '¿El catálogo lleva paginación desde ahora o lo dejo para después?' },
+    { at: Date.now() - 6 * 60_000, from: 'jefe', to: 'e1', text: 'Desde ahora: 20 por página, con cursor.' },
+    { at: Date.now() - 6 * 60_000, from: 'orquest', to: 'e1', text: '[Orquest] El jefe dice: Desde ahora: 20 por página, con cursor.' },
+    { at: Date.now() - 2 * 60_000, from: 'e1', to: 'tablero', text: 'Paginación lista; faltan las pruebas.' },
+  ]
   // Dos preguntas de ejemplo, para ver cómo esperan al usuario.
   const questions: StudioSnapshot['questions'] = [
     { id: 'P1', text: '¿Qué pasarela de pagos usamos en la tienda?', options: ['Stripe', 'Mercado Pago', 'Conekta'], recommended: 'Stripe', blocks: 'El checkout y la tarea de pagos', tasks: ['T3'], askedAt: Date.now() - 12 * 60_000, status: 'open' },

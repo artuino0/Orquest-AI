@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
@@ -8,9 +8,10 @@ import TerminalView from './TerminalView.vue'
 import type { Capture, FileChange } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
 
-type Tab = 'terminal' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
+type Tab = 'terminal' | 'chat' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
 const TABS: [Tab, string][] = [
   ['terminal', 'Terminal'],
+  ['chat', 'Chat'],
   ['archivos', 'Archivos'],
   ['capturas', 'Capturas'],
   ['actividad', 'Actividad'],
@@ -33,6 +34,40 @@ const activity = computed(() => {
     .filter((m) => m.from === e.value.id || m.to === e.value.id)
     .map((m) => ({ at: m.at, text: m.from === e.value.id ? `→ ${studio.nameOf(m.to)}: ${m.text}` : `← ${studio.nameOf(m.from)}: ${m.text}`, state: undefined }))
   return [...mine, ...said].sort((a, b) => b.at - a.at)
+})
+/**
+ * Su conversación con el jefe, para leerla como chat. Es solo lectura: las
+ * instrucciones se le dan al jefe, que es quien coordina.
+ * Lo que la app le avisa ([Orquest] …: tarea nueva, entrega regresada) va como nota al centro;
+ * "El jefe dice: …" se salta porque ya sale como mensaje del jefe.
+ */
+const chat = computed(() =>
+  (studio.board?.messages ?? [])
+    .filter((m) => (m.from === e.value.id || m.to === e.value.id) && !(m.from === 'orquest' && m.text.startsWith('[Orquest] El jefe dice:')))
+    .map((m) => ({
+      at: m.at,
+      kind: m.from === 'orquest' ? 'note' : m.from === e.value.id ? 'own' : 'other',
+      who: m.from === 'orquest' ? 'Orquest' : m.from === e.value.id ? (m.to === 'tablero' ? `${studio.nameOf(m.from)} · nota en el tablero` : studio.nameOf(m.from)) : m.from === 'usuario' ? 'Tú, en su terminal' : studio.nameOf(m.from),
+      text: m.from === 'orquest' ? m.text.replace(/^\[Orquest\]\s*/, '') : m.text,
+    })),
+)
+const chatLog = ref<HTMLDivElement>()
+// Al abrirlo, lo último. Después solo baja solo si ya estabas al final: no te mueve mientras lees.
+let chatAtBottom = true
+const chatLook = () => {
+  const el = chatLog.value
+  if (el) chatAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+}
+watch(() => [tab.value, e.value.id], async () => {
+  if (tab.value !== 'chat') return
+  await nextTick()
+  chatLog.value?.scrollTo(0, chatLog.value.scrollHeight)
+  chatAtBottom = true
+})
+watch(() => chat.value.length, async () => {
+  if (tab.value !== 'chat' || !chatAtBottom) return
+  await nextTick()
+  chatLog.value?.scrollTo(0, chatLog.value.scrollHeight)
 })
 const tasks = computed(() => studio.tasksOf(e.value.id))
 const taskById = (id: string) => studio.board?.tasks.find((t) => t.id === id)
@@ -200,6 +235,18 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
         </div>
       </div>
 
+      <div v-if="tab === 'chat'" class="chat">
+        <div ref="chatLog" class="chat-log" @scroll.passive="chatLook">
+          <div class="spacer" />
+          <p v-if="!chat.length" class="dim">Aún no ha hablado con el jefe. Aquí sale lo que el jefe le pide, lo que pregunta y lo que contesta.</p>
+          <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.kind">
+            <span class="who">{{ m.who }} · {{ time(m.at) }}</span>
+            <p>{{ m.text }}</p>
+          </div>
+        </div>
+        <p class="dim readonly">Solo lectura. Lo que quieras pedirle, díselo al jefe: él coordina y así el tablero no se desfasa.</p>
+      </div>
+
       <ol v-if="tab === 'actividad'" class="timeline">
         <li v-if="!activity.length" class="dim">Sin actividad todavía.</li>
         <li v-for="(a, i) in activity" :key="i"><time>{{ time(a.at) }}</time><i :style="{ background: a.state ? `var(--st-${LOOK[a.state].color})` : 'var(--border-light)' }" />{{ a.text }}</li>
@@ -284,6 +331,18 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .diff .add { background: var(--tint-ok); }
 .diff .del { background: var(--tint-danger); }
 .diff .hunk { color: var(--text-secondary); }
+.chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.chat-log { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
+.chat-log .spacer { flex: 1; }
+.bubble { align-self: flex-start; max-width: 78%; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--accent); }
+.bubble .who { font-size: 10px; font-weight: 700; color: var(--accent); }
+.bubble p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble.own { align-self: flex-end; border-left: 0; border-right: 3px solid var(--st-work); }
+.bubble.own .who { color: var(--st-work); }
+.bubble.note { align-self: center; max-width: 90%; padding: 4px 10px; background: none; border: 1px dashed var(--border-light); }
+.bubble.note .who { color: var(--text-secondary); }
+.bubble.note p { margin-top: 2px; font-size: 11px; color: var(--text-secondary); }
+.readonly { margin: 0; font-size: 10px; }
 .timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
 .timeline li { display: flex; align-items: center; gap: 10px; }
 .timeline time { color: var(--text-secondary); font-size: 11px; }
