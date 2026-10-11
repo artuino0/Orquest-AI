@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CliStatus } from '../../../shared/ipc'
 import { ago } from '../format'
@@ -24,6 +24,7 @@ const double = (ev: Event) => {
 const name = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
 
 type State = 'ready' | 'no-session' | 'missing'
+const openLink = (url: string) => window.orquest.openExternal(url)
 const stateOf = (c: CliStatus): State => (!c.installed ? 'missing' : c.session === false ? 'no-session' : 'ready')
 const CHIP: Record<State, string> = { ready: 'INSTALADA', 'no-session': 'SIN SESIÓN', missing: 'NO INSTALADA' }
 
@@ -137,8 +138,12 @@ import ThemeToggle from './ThemeToggle.vue'
           <strong>{{ c.name }}</strong>
           <small>{{ detail(c) }}</small>
         </span>
+        <button v-if="c.signup" class="btn signup" :title="c.signup.referral ? 'Enlace de referido del autor de Orquest AI' : `Planes de ${c.name}`" @click="openLink(c.signup.url)">
+          <UserPlus />{{ stateOf(c) === 'ready' ? 'Otra cuenta' : 'Crear cuenta' }}
+        </button>
         <span class="chip">{{ CHIP[stateOf(c)] }}</span>
       </div>
+      <p v-if="studio.clis.some((c) => c.signup?.referral)" class="referral">«Crear cuenta» y «Otra cuenta» usan el enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
       <p v-if="!studio.clis.length" class="empty">Buscando las CLIs instaladas…</p>
 
       <footer>
@@ -193,6 +198,8 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .color { width: 14px; height: 14px; flex: none; border: 2px solid var(--border); }
 .cli .data strong { font-size: 13px; line-height: 17px; }
 .cli .data small { font-size: 10px; line-height: 13px; }
+.cli .signup { flex: none; padding: 4px 8px; font-size: 10px; }
+.referral { margin: 0; padding: 8px 0 0; border-top: 2px solid var(--border-light); font-size: 10px; line-height: 1.5; color: var(--text-secondary); }
 .cli.ready .chip { color: var(--st-idle); }
 .cli.no-session .chip { color: var(--accent); }
 .cli.missing .chip { color: var(--text-secondary); }
