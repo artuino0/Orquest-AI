@@ -14,6 +14,14 @@ function via(channel: Channel): string {
     : 'en tu terminal son el comando orquest: orquest <herramienta> --campo valor, p. ej. orquest reportar_estado --estado trabajando --nota "voy a la mitad"; orquest ayuda lista las tuyas con sus campos'
 }
 
+/**
+ * Cómo le pregunta el jefe al usuario, en un renglón. Va en cada regreso a la
+ * oficina: un jefe que retoma su conversación no vuelve a leer su prompt, y uno
+ * contratado antes de que existieran las preguntas nunca lo leyó.
+ */
+export const ASK_REMINDER =
+  'Lo que necesites que el usuario decida o te diga va con preguntar_al_usuario, no con decir_al_usuario: una pregunta por decisión, con 2 a 5 respuestas sugeridas, tu recomendada, qué detiene y qué tareas la esperan. Queda pendiente a su vista hasta que conteste y Orquest te avisa; no la repitas ni decidas por él. preguntas_pendientes en leer_proyecto es tu lista de lo que sigues esperando de él: si tienes decisiones suyas pendientes que le pediste por mensaje, pásalas ahora a preguntas. Si te contesta por el chat, regístralo con cerrar_pregunta.'
+
 export function bossPrompt(goal: string, journal?: string, channel: Channel = 'mcp'): string {
   return `Eres el Jefe de un estudio de desarrollo en Orquest AI. Coordinas; no escribes código.
 Objetivo del proyecto: ${goal || '(el usuario te lo dirá)'}

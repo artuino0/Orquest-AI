@@ -235,6 +235,8 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
       { from: 'jefe', to: 'usuario', text: 'Falta el frontend.' },
     ])
     expect((await frontend.call('decir_al_usuario', { mensaje: 'hola' })).error).toBe(true)
+    // Si le pregunta algo por mensaje, se le dice cómo dejarlo pendiente.
+    expect((await boss.call('decir_al_usuario', { mensaje: '¿Reinicias tú Supabase o autorizo a Gabi?' })).text).toContain('preguntar_al_usuario')
 
     // Lo que el jefe necesita del usuario queda pendiente hasta que conteste, y no se le olvida.
     const asked = await boss.call('preguntar_al_usuario', {

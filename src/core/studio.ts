@@ -13,7 +13,7 @@ import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
-import { bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
+import { ASK_REMINDER, bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
@@ -382,9 +382,9 @@ export class Studio extends EventEmitter<StudioEvents> {
       intro: () => (viaArg ? [] : [prompt]),
     }, (emp) => [
       emp.resumed
-        ? `La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto).`
+        ? `La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${ASK_REMINDER}`
         : resume
-          ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto).`
+          ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${ASK_REMINDER}`
           : previous
             ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${journal}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.`
             : 'Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.',
@@ -768,7 +768,10 @@ export class Studio extends EventEmitter<StudioEvents> {
         if (!text) throw new RuleError('El mensaje va vacío.')
         b.say(BOSS_ID, 'usuario', text)
         this.changed()
-        return 'Entregado al usuario.'
+        // Una pregunta mandada como mensaje se pierde en el chat: se le dice cómo dejarla pendiente.
+        return /[¿?]/.test(text)
+          ? 'Entregado al usuario. Tu mensaje trae una pregunta: si necesitas su respuesta para seguir, mándala también con preguntar_al_usuario (con opciones, tu recomendada y qué detiene); así queda pendiente a su vista y no se pierde en el chat.'
+          : 'Entregado al usuario.'
       }
       case 'hablar_con': {
         const to = b.member(String(a.empleado))
