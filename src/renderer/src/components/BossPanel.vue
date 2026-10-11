@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, Send, Target, Terminal, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
+import type { Activity } from '../../../core/activity'
 import type { Effort, ProviderId } from '../../../shared/ipc'
 import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
@@ -77,9 +78,26 @@ const chat = computed(() =>
     })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
-const doing = computed(() => studio.doing.jefe)
 const log = ref<HTMLDivElement>()
-watch(() => [chat.value.length, boss.value?.state === 'working'], () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
+watch(() => chat.value.length, () => nextTick(() => log.value?.scrollTo(0, log.value.scrollHeight)), { immediate: true })
+
+// Qué hace el jefe ahora, en un renglón fijo bajo el chat. Entre un paso y otro su
+// terminal se ve quieta un instante: si el renglón siguiera eso al pie de la letra
+// aparecería y desaparecería a cada rato. Se queda puesto y solo cambia el texto;
+// se da por terminado cuando lleva unos segundos sin trabajar.
+const IDLE_AFTER_MS = 3000
+const busy = ref(false)
+const doing = ref<Activity>()
+let idleTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => boss.value?.state, (state) => {
+  clearTimeout(idleTimer)
+  if (state === 'working') busy.value = true
+  else idleTimer = setTimeout(() => (busy.value = false), state === 'blocked' ? 0 : IDLE_AFTER_MS)
+}, { immediate: true })
+// Se conserva lo último que hizo mientras llega lo siguiente.
+watch(() => studio.doing.jefe, (a) => { if (a) doing.value = a }, { immediate: true })
+watch(busy, (b) => { if (!b) doing.value = undefined })
+onBeforeUnmount(() => clearTimeout(idleTimer))
 
 const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
 const context = computed(() => Math.round(studio.board?.context.jefe ?? boss.value?.context ?? 0))
@@ -200,15 +218,14 @@ const pending = computed(() => {
             <span class="who">{{ m.who }} · {{ hour(m.at) }}</span>
             <p>{{ m.text }}</p>
           </div>
-          <!-- Mientras trabaja: qué está haciendo ahora, leído de su terminal -->
-          <div v-if="boss?.state === 'working'" class="msg doing">
-            <span class="who">Jefe · ahora</span>
-            <p>
-              <b>{{ doing?.label ?? 'Trabajando' }}</b><i class="dots" />
-              <span v-if="doing?.detail" class="what">{{ doing.detail }}</span>
-              <span v-if="doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
-            </p>
-          </div>
+        </div>
+        <!-- Qué está haciendo ahora, leído de su terminal: siempre en el mismo lugar -->
+        <div class="now" :class="{ off: !busy }">
+          <span class="who">Jefe · ahora</span>
+          <b>{{ busy ? (doing?.label ?? 'Trabajando') : boss?.state === 'blocked' ? 'Detenido' : 'En espera' }}</b>
+          <i v-if="busy" class="dots" />
+          <span class="what">{{ busy ? doing?.detail : '' }}</span>
+          <span v-if="busy && doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
         </div>
         <form class="say" @submit.prevent="send">
           <input v-model="message" placeholder="Háblale al Jefe…" />
@@ -289,12 +306,13 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .msg .who { font-size: 10px; font-weight: 700; color: var(--pv-claude); }
 .msg.mine .who { color: var(--text-secondary); }
 .msg p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
-.msg.doing { border-left-style: dashed; background: none; }
-.msg.doing p { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.msg.doing b { color: var(--st-work); }
-.msg.doing .what { color: var(--text-secondary); word-break: break-all; }
-.msg.doing .secs { font-size: 10px; color: var(--text-secondary); }
-/* Tres puntos que se van encendiendo, en pasos: no un desvanecido. */
+.now { flex: none; display: flex; align-items: baseline; gap: 8px; height: 30px; padding: 6px 10px; overflow: hidden; white-space: nowrap; font-size: 12px; border-left: 3px dashed var(--st-work); }
+.now .who { font-size: 10px; color: var(--text-secondary); }
+.now b { color: var(--st-work); }
+.now .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
+.now .secs { font-size: 10px; color: var(--text-secondary); }
+.now.off { border-left-color: var(--border-light); }
+.now.off b { color: var(--text-secondary); font-weight: 400; }
 .dots { display: inline-block; width: 18px; height: 4px; margin-left: -4px; background: radial-gradient(circle, var(--st-work) 0 1.5px, transparent 2px) 0 0 / 6px 4px repeat-x; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 -34% 0 0); } }
 .say { display: flex; gap: 8px; }
