@@ -8,6 +8,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
+import { listPlans } from './plans.js'
 
 const run = promisify(execFile)
 
@@ -19,6 +20,8 @@ export interface ProjectDocument {
   size: number
   /** Nuevo o cambiado respecto al último commit; undefined si está igual. */
   status?: 'nuevo' | 'cambiado'
+  /** Es un plan que el jefe guardó (`guardar_plan`). */
+  plan?: boolean
 }
 
 const DOC = /\.(md|mdx|txt)$/i
@@ -41,10 +44,12 @@ export async function listDocuments(root: string): Promise<ProjectDocument[]> {
   }
   const docs: ProjectDocument[] = []
   for (const path of new Set(listed)) {
-    if (!DOC.test(path) || SKIP.test(path) || path.startsWith('.orquest/oficinas/')) continue
+    if (!DOC.test(path) || SKIP.test(path) || path.startsWith('.orquest/')) continue
     const info = await stat(join(root, path)).catch(() => null)
     if (info?.isFile()) docs.push({ path, at: info.mtimeMs, size: info.size, status: changed.get(path) })
   }
+  // Los planes del jefe viven en .orquest, que git no mira: se suman aparte.
+  for (const p of await listPlans(root)) docs.push({ path: p.file, at: p.at, size: p.size, plan: true })
   return docs.sort((a, b) => b.at - a.at)
 }
 

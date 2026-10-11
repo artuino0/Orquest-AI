@@ -51,12 +51,13 @@ watch(
   { immediate: true },
 )
 const goal = ref(studio.board?.goal ?? '')
+const bossName = ref(studio.board?.boss?.name ?? '')
 const message = ref('')
 const busy = ref(false)
 
 async function hire() {
   busy.value = true
-  const ok = await studio.hireBoss({ provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value })
+  const ok = await studio.hireBoss({ name: bossName.value.trim() || undefined, provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value })
   busy.value = false
   if (ok) studio.overlay = null
 }
@@ -73,7 +74,7 @@ const chat = computed(() =>
     // Solo lo que se dicen el usuario y el jefe. Lo que el jefe habla con cada empleado
     // está en la pestaña Actividad de ese empleado; lo que la app teclea ([Orquest] …) no es conversación.
     .filter((m) => (m.from === 'usuario' && m.to === 'jefe') || (m.from === 'jefe' && m.to === 'usuario'))
-    .map((m) => ({ ...m, mine: m.from === 'usuario', who: m.from === 'usuario' ? 'Tú' : 'Jefe' })),
+    .map((m) => ({ ...m, mine: m.from === 'usuario', who: m.from === 'usuario' ? 'Tú' : studio.nameOf('jefe') })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
 
@@ -196,6 +197,10 @@ const pending = computed(() => {
       antes de que lleguen a tu bandeja.
     </p>
     <label class="field">
+      <span>Nombre <small>· cómo quieres llamarlo; si lo dejas vacío será «Jefe»</small></span>
+      <input v-model="bossName" maxlength="24" placeholder="Jefe" />
+    </label>
+    <label class="field">
       <span>Objetivo del proyecto</span>
       <textarea v-model="goal" rows="4" placeholder="Qué quieres construir y para cuándo" />
     </label>
@@ -282,7 +287,7 @@ const pending = computed(() => {
           </div>
           <!-- Qué está haciendo ahora, leído de su terminal: el último globo del chat, que no se quita entre un paso y otro -->
           <div v-if="atWork" class="msg doing">
-            <span class="who">Jefe · ahora</span>
+            <span class="who">{{ studio.nameOf('jefe') }} · ahora</span>
             <p>
               <b>{{ doing?.label ?? 'Trabajando' }}</b><i class="dots" />
               <span class="what">{{ doing?.detail }}</span>
@@ -293,7 +298,7 @@ const pending = computed(() => {
         <QuestionsCard />
         <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread }} {{ unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos' }}</button>
         <form class="say" @submit.prevent="send">
-          <input v-model="message" placeholder="Háblale al Jefe…" />
+          <input v-model="message" :placeholder="`Háblale a ${studio.board?.boss?.name || 'tu jefe'}…`" />
           <button type="submit" class="btn primary"><Send /> Enviar</button>
         </form>
         <p v-if="studio.error" class="err">{{ studio.error }}</p>

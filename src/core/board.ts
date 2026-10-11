@@ -139,6 +139,8 @@ export interface QuestionDraft {
 
 /** Con quién y cómo se contrató al jefe, para retomarlo al reabrir. */
 export interface BossRecord {
+  /** Cómo le puso el usuario; sin nombre es "Jefe". */
+  name?: string
   provider: ProviderId
   model?: string
   effort?: Effort

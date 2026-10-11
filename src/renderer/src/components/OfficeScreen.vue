@@ -32,10 +32,12 @@ function look(e: (typeof studio.employees)[number]) {
   const h = studio.board?.hints[e.id]
   // Jugando gana siempre: su CLI se está reiniciando.
   if (h?.state === 'gaming') return 'gaming' as const
-  const quiet = e.state === 'idle' || e.state === 'starting'
+  // Sin los parpadeos entre paso y paso: sigue "trabajando" hasta que de verdad para.
+  const state = studio.calmStateOf(e)
+  const quiet = state === 'idle' || state === 'starting'
   if (quiet && h?.state === 'waiting') return 'waiting' as const
   if (quiet && h?.state === 'delivering') return 'delivering' as const
-  return e.state
+  return state
 }
 
 /** El lienzo del modo creativo: la misma gente, sobre el mapa que se dibuja. */

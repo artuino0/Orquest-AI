@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
@@ -94,14 +94,44 @@ export const useStudio = defineStore('studio', () => {
     return cast.value[id]
   }
 
+  // ── Estado en calma: entre un paso y otro una CLI se queda quieta un instante.
+  // Para lo que se cuenta a la vista sigue trabajando hasta que de verdad para;
+  // si no, la barra parpadea con cada paso. Pedir algo o cerrarse sí se nota al momento.
+  const CALM_MS = 3000
+  const calm = ref<Record<string, EmployeeState>>({})
+  const calmTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  watch(
+    () => employees.value.map((e) => `${e.id}:${e.state}`).join(),
+    () => {
+      for (const e of employees.value) {
+        const pause = calm.value[e.id] === 'working' && (e.state === 'idle' || e.state === 'starting')
+        if (pause) {
+          if (calmTimers.has(e.id)) continue
+          calmTimers.set(e.id, setTimeout(() => {
+            calmTimers.delete(e.id)
+            const now = employees.value.find((x) => x.id === e.id)
+            if (now) calm.value[e.id] = now.state
+          }, CALM_MS))
+        } else {
+          clearTimeout(calmTimers.get(e.id))
+          calmTimers.delete(e.id)
+          calm.value[e.id] = e.state
+        }
+      }
+    },
+    { immediate: true },
+  )
+  /** El estado de alguien sin los parpadeos entre paso y paso. */
+  const calmStateOf = (e: Employee): EmployeeState => calm.value[e.id] ?? e.state
+
   const usable = computed(() => clis.value.filter((c) => c.installed && c.session !== false))
   const canHire = computed(() => usable.value.length > 0 && !!repo.value)
   const selectedEmployee = computed(() => employees.value.find((e) => e.id === selected.value))
   const proposal = computed(() => board.value?.slots.filter((s) => s.status === 'proposed') ?? [])
   const inbox = computed(() => board.value?.tasks.filter((t) => t.status === 'approved') ?? [])
   const bossOnline = computed(() => !!board.value?.bossOnline)
-  /** Nombre del empleado (el jefe es "Jefe"). */
-  const nameOf = (id: string): string => (id === 'jefe' ? 'Jefe' : board.value?.staff.find((m) => m.id === id)?.name ?? id)
+  /** Nombre del empleado; el jefe lleva el que le pusiste o, si no, "Jefe". */
+  const nameOf = (id: string): string => (id === 'jefe' ? board.value?.boss?.name || 'Jefe' : board.value?.staff.find((m) => m.id === id)?.name ?? id)
   const gamingCount = computed(() => Object.values(board.value?.hints ?? {}).filter((h) => h.state === 'gaming').length)
   const rest = (id: string) => attempt(() => window.orquest.rest(id))
   const bringBack = (id: string) => attempt(() => window.orquest.bringBack(id))
@@ -259,7 +289,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
-    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
+    usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
   }
 })

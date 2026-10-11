@@ -51,6 +51,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | `store.ts` | SQLite local: tablero por proyecto, expedientes, manuales, historial. |
 | `prompts.ts` | Prompt del jefe y del empleado (armado con su manual). |
 | `accounts.ts` | Cuentas de un mismo proveedor: cada carpeta hermana con sesión (`~/.codex`, `~/.codex2`, `~/.claude-2`) es una cuenta. Las lista, da el entorno con que se lanza cada una (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`) y lo que lleva usado de su límite (Codex: lo que anota en sus sesiones; Claude Code: lo que manda su barra de estado). No lee los archivos de sesión. La cuenta viaja en el puesto, el empleado y el jefe (`account`); el panel Cuentas la muestra. |
+| `plans.ts` | Los planes del jefe: Markdown en `<repo>/.orquest/planes/`, fuera de git como las bitácoras. Los guarda con `guardar_plan` (el título decide el archivo; mismo título, lo reemplaza) y los recibe listados en `leer_proyecto`. Se ven en Planes y en la pestaña Archivos del jefe. |
 | `officefeed.ts` | Lo que la oficina de píxel necesita del estudio, en su idioma: quién está y en qué anda (`officeState`) y qué pasó entre dos fotos del tablero (`officeEvents`: asignada, reporte, revisión). Puro, sin Node: lo importa el panel. |
 
 Renderer (`src/renderer/src/world/`, lógica pura con pruebas en `test/world.test.ts` salvo `scene.ts` y `sprites.ts`):
@@ -80,7 +81,7 @@ El modo creativo dibuja otra oficina, la de PixiJS, que hoy no es la que se ve: 
 
 ## Herramientas MCP
 
-Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `preguntar_al_usuario`, `cerrar_pregunta`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
+Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_empleado`, `asignar_tarea`, `decir_al_usuario`, `preguntar_al_usuario`, `cerrar_pregunta`, `guardar_plan`, `hablar_con`, `revisar_entrega`, `mandar_a_qa`. Empleado: `leer_tarea`, `preguntar_al_jefe`, `reportar_estado`, `entregar`. Ambos: `escribir_traspaso`.
 
 ## Decisiones tomadas
 
@@ -89,6 +90,8 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 - CLI interactiva en PTY (como Orca), no modo headless.
 - Toda comunicación pasa por el jefe; los empleados no se hablan.
 - Lo que el jefe necesita del usuario no va como mensaje suelto: es una pregunta del tablero (`Board.ask`, `Question`), con respuestas sugeridas, la recomendada y qué detiene. Queda pendiente a la vista (`QuestionsCard.vue`, aviso en la oficina) hasta que el usuario la conteste o el jefe la cierre; al jefe se le recuerda en `leer_proyecto` (`preguntas_pendientes`) y en cada mensaje del usuario mientras siga esperando.
+- El jefe puede llevar nombre (`BossRecord.name`, se le pone al contratarlo junto con su personaje); sin nombre es «Jefe». Sus planes no se quedan en su terminal: los guarda con `guardar_plan`, que no depende de los permisos de su CLI.
+- Lo que se cuenta a la vista (leyenda de la barra) usa el estado en calma (`calmStateOf` en `stores/studio.ts`): quien trabaja sigue «trabajando» hasta llevar 3 s quieto, para que no parpadee entre paso y paso.
 - Integración: merge `--no-ff` a la rama actual del repo principal, solo con aprobación del usuario; al integrar se liberan las tareas que esperaban.
 - Oficinas y bitácoras dentro del repo en `.orquest/` (heredan la confianza que Claude Code dio al repo; antes preguntaba por cada worktree).
 - Permisos de Claude Code por `--settings` JSON (`permissions.allow/deny`) para que reglas con espacios no se partan. Codex: solo sandbox `workspace-write` / `read-only`.

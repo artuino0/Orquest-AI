@@ -14,7 +14,7 @@ import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
 import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
-import { Studio } from '../core/studio.js'
+import { BOSS_ID, Studio } from '../core/studio.js'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 
@@ -197,9 +197,13 @@ handle('employee:rest', (id: string) => {
 handle('employee:journal', (id: string) => studio().readJournal(id))
 handle('employee:list', () => manager.list())
 handle('employee:scrollback', (id: string) => manager.scrollback(id))
-handle('employee:changes', (id: string) => {
+handle('employee:changes', async (id: string) => {
   const emp = manager.get(id)
-  return emp ? officeChanges(emp.office) : []
+  if (!emp) return []
+  const changes = await officeChanges(emp.office)
+  // Los archivos del jefe empiezan por sus planes guardados, que git no mira.
+  const plans = id === BOSS_ID ? ((await current?.plans()) ?? []).map((p) => ({ status: 'plan', path: p.file })) : []
+  return [...plans, ...changes]
 })
 handle('employee:captures', async (id: string) => {
   const emp = manager.get(id)

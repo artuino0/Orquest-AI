@@ -42,7 +42,7 @@ const using = (a: Account) => {
   const b = studio.board
   if (!b) return []
   const names = b.staff.filter((m) => !m.gone && m.provider === a.provider && (m.account ?? '') === key).map((m) => m.name)
-  if (b.boss && b.boss.provider === a.provider && (b.boss.account ?? '') === key) names.unshift('Jefe')
+  if (b.boss && b.boss.provider === a.provider && (b.boss.account ?? '') === key) names.unshift(studio.nameOf('jefe'))
   return names
 }
 const groups = computed(() => {

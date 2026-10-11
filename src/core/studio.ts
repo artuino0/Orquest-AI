@@ -6,6 +6,7 @@
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
 import { access } from 'node:fs/promises'
+import { join } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import type { CliStatus } from './detect.js'
@@ -13,7 +14,8 @@ import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
-import { ASK_REMINDER, bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
+import { listPlans, savePlan } from './plans.js'
+import { ASK_REMINDER, PLAN_REMINDER, bossPrompt, employeePrompt, oneLine, type Channel } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
@@ -340,14 +342,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   /** Contrata al jefe: trabaja en el repo principal, sin worktree. */
-  async hireBoss(req: { provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }) {
+  async hireBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }) {
     if (this.bossOnline) throw new RuleError('El jefe ya está en su oficina.')
     await this.launchBoss(req, false)
     this.fact(BOSS_ID, `contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
     this.changed()
   }
 
-  private async launchBoss(req: { provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean) {
+  private async launchBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean) {
     const adapter = getProvider(req.provider)
     const env = accountEnv(req.provider, req.account, this.opts.home)
     const channel = this.channel(req.provider)
@@ -355,14 +357,15 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.board.goal = req.goal
     const token = this.newToken({ kind: 'boss' })
     const office = { path: this.root, branch: await currentBranch(this.root) }
-    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID), channel)
+    const name = bossName(req.name)
+    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID), channel, name)
     const viaArg = takesSystemPrompt(adapter)
-    const owner: JournalOwner = { id: BOSS_ID, name: 'Jefe', role: 'jefe', provider: req.provider, model: req.model }
+    const owner: JournalOwner = { id: BOSS_ID, name: name ?? 'Jefe', role: 'jefe', provider: req.provider, model: req.model }
     await this.journal.open(owner)
     const previous = this.board.tasks.length > 0
     const journal = this.journal.path(BOSS_ID)
     // Para que `launch` sepa qué conversación retomar; si es nuevo, parte sin ninguna.
-    this.board.boss = { provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined }
+    this.board.boss = { name, provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined }
     await this.launch(BOSS_ID, {
       token,
       owner,
@@ -382,11 +385,11 @@ export class Studio extends EventEmitter<StudioEvents> {
       intro: () => (viaArg ? [] : [prompt]),
     }, (emp) => [
       emp.resumed
-        ? `La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${ASK_REMINDER}`
+        ? `La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${PLAN_REMINDER} ${ASK_REMINDER}`
         : resume
-          ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${ASK_REMINDER}`
+          ? `La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${PLAN_REMINDER} ${ASK_REMINDER}`
           : previous
-            ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${journal}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas.`
+            ? `Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${journal}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas. ${PLAN_REMINDER}`
             : 'Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.',
     ], resume)
   }
@@ -661,7 +664,14 @@ export class Studio extends EventEmitter<StudioEvents> {
     const b = this.board
     switch (tool) {
       case 'leer_proyecto':
-        return JSON.stringify(this.projectView(), null, 2)
+        return JSON.stringify({ ...this.projectView(), planes: await this.plansView() }, null, 2)
+
+      case 'guardar_plan': {
+        const plan = await savePlan(this.root, String(a.titulo ?? ''), String(a.contenido ?? ''))
+        this.fact(BOSS_ID, `guardó el plan "${plan.title}" (${plan.file})`)
+        this.changed()
+        return `Plan guardado en ${join(this.root, plan.file)}. El usuario lo ve en Planes. Guárdalo otra vez con el mismo título cuando cambie.`
+      }
 
       case 'leer_expedientes': {
         const clis = await this.opts.detect()
@@ -1044,6 +1054,16 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.changed()
   }
 
+  /** Los planes guardados del jefe, el más reciente primero. */
+  plans() {
+    return listPlans(this.root)
+  }
+
+  /** Lo mismo, como lo lee el jefe: para tenerlos a mano cada vez que mira el proyecto. */
+  private async plansView() {
+    return (await this.plans()).map((p) => ({ titulo: p.title, archivo: join(this.root, p.file), guardado_hace_min: Math.max(0, Math.round((Date.now() - p.at) / 60000)) }))
+  }
+
   private projectView() {
     const b = this.board
     return {
@@ -1124,6 +1144,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 }
 
+/** El nombre que el usuario le puso al jefe, limpio; sin nombre se queda como "Jefe". */
+function bossName(raw?: string): string | undefined {
+  const name = raw?.trim().replace(/\s+/g, ' ')
+  if (!name) return undefined
+  if (name.length > 24) throw new RuleError('El nombre del jefe es muy largo (máximo 24 caracteres).')
+  return name
+}
+
 export const BOSS_TOOLS = new Set([
   'leer_proyecto',
   'leer_expedientes',
@@ -1133,6 +1161,7 @@ export const BOSS_TOOLS = new Set([
   'decir_al_usuario',
   'preguntar_al_usuario',
   'cerrar_pregunta',
+  'guardar_plan',
   'hablar_con',
   'revisar_entrega',
   'mandar_a_qa',

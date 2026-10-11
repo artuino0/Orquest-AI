@@ -18,6 +18,8 @@ export type { Activity, Capture, InstalledTool, ProjectDocument }
 export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
+  /** Cómo se llama; sin nombre es "Jefe". */
+  name?: string
   provider: ProviderId
   model?: string
   effort?: Effort

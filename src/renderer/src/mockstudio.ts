@@ -89,6 +89,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const employees: Employee[] = []
   const tasks: Task[] = []
   let bossOnline = false
+  let bossName: string | undefined
   let proposed = [...PROPOSED]
   const messages: StudioSnapshot['messages'] = [
     // Una conversación de ejemplo entre el jefe y una empleada, para ver su pestaña Chat.
@@ -117,7 +118,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       if (tasks.some((t) => t.assignee === e.id && ['delivered', 'in_qa', 'approved'].includes(t.status))) hints[e.id] = { state: 'delivering' }
     }
     return {
-      resumable: [], repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline,
+      resumable: [], repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline, boss: { provider: 'claude', name: bossName },
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
@@ -212,7 +213,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     pickRepo: async () => MOCK_REPO,
     openProject: async () => snapshot(),
     list: async () => employees.map((e) => ({ ...e })),
-    hireBoss: async () => {
+    hireBoss: async (req) => {
+      bossName = req.name
       if (!bossOnline) start()
     },
     answerQuestion: async (id, text) => {
@@ -271,7 +273,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     rest: async () => {},
     scrollback: async (id) => `\x1b[32m${id}@oficina\x1b[0m ~/worktrees/${id} (orquest/${id})\r\n$ claude --resume\r\n\x1b[37m●\x1b[0m Leyendo src/components/AltaForm.tsx\r\n\x1b[32m●\x1b[0m Edité AltaForm.tsx  (+48 -12)\r\n\x1b[33m●\x1b[0m Corriendo pruebas: 14 pasan · 1 falla (validación de RFC)\r\n\x1b[37m●\x1b[0m Necesito validar el esquema con zod.\r\n$ `,
     journal: async () => '## Traspaso\n- Endpoint POST /sesiones listo; falta refresh token.\n- La migración 0042 asume que usuarios.email es único: confirmar con DBA.\n- Siguiente paso: pruebas de expiración con reloj falso.\n\n## Hechos\n- Contratada por el jefe (oficina be-12).\n- Entregó BE-11 → QA aprobó → integrada a la primera.\n- Contexto al 82 % → descansó → contexto 9 %.\n',
-    changes: async () => [{ path: 'scripts/seed.ts', status: 'M' }, { path: 'package.json', status: 'M' }] as never,
+    changes: async (id) => [...(id === 'jefe' ? [{ path: '.orquest/planes/plan-de-la-tienda.md', status: 'plan' }] : []), { path: 'scripts/seed.ts', status: 'M' }, { path: 'package.json', status: 'M' }] as never,
     diff: async () => DIFF,
     // Capturas de ejemplo: imágenes del propio proyecto, para ver la pestaña con algo.
     captures: async () => ['escena/fondo.png', 'sprites/billar.png', 'sprites/camioneta-frente.png'].map((path, i) => ({ path: `docs/capturas/T3/${path.split('/').pop()}`, at: Date.now() - i * 60000, size: 1000 })),
@@ -285,6 +287,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     onHired: on(listeners.hired),
     onActivity: on(activityListeners),
     documents: async () => [
+      { path: '.orquest/planes/plan-de-la-tienda.md', at: Date.now() - 60000, size: 2400, plan: true },
       { path: 'docs/plan-fase-1.md', at: Date.now() - 120000, size: 1800, status: 'nuevo' },
       { path: 'docs/decisiones.md', at: Date.now() - 3600000, size: 900, status: 'cambiado' },
       { path: 'README.md', at: Date.now() - 86400000, size: 400 },

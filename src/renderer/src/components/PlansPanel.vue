@@ -22,8 +22,10 @@ async function load() {
   docs.value = await window.orquest.documents().catch(() => [])
   if (!docs.value.some((d) => d.path === picked.value)) picked.value = shown.value[0]?.path ?? docs.value[0]?.path ?? ''
 }
-/** "Recientes": lo nuevo o cambiado desde el último commit, que es lo que el jefe acaba de escribir. */
-const shown = computed(() => (only.value === 'recientes' && docs.value.some((d) => d.status) ? docs.value.filter((d) => d.status) : docs.value))
+/** "Recientes": los planes que guardó el jefe y lo nuevo o cambiado desde el último commit. */
+const fresh = (d: ProjectDocument) => !!d.status || !!d.plan
+const shown = computed(() => (only.value === 'recientes' && docs.value.some(fresh) ? docs.value.filter(fresh) : docs.value))
+const plans = computed(() => docs.value.filter((d) => d.plan).length)
 const recent = computed(() => docs.value.filter((d) => d.status).length)
 
 watch(picked, async (path) => {
@@ -55,13 +57,13 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <PanelFrame title="Planes y documentos" :subtitle="docs.length ? `${docs.length} en el proyecto · ${recent} ${recent === 1 ? 'nuevo o cambiado' : 'nuevos o cambiados'} desde el último commit` : 'Lo que el jefe deja escrito en el repo'">
+  <PanelFrame title="Planes y documentos" :subtitle="docs.length ? `${plans} ${plans === 1 ? 'plan del jefe' : 'planes del jefe'} · ${docs.length} documentos en el proyecto · ${recent} ${recent === 1 ? 'nuevo o cambiado' : 'nuevos o cambiados'} desde el último commit` : 'Lo que el jefe deja escrito en el repo'">
     <template #actions><button class="btn" @click="load"><RefreshCw /> Actualizar</button></template>
 
     <div v-if="!docs.length" class="blank">
       <FileText />
       <h2>Aún no hay documentos</h2>
-      <p>Cuando el jefe escriba un plan o unas notas en el repo (archivos .md o .txt), aparecen aquí. Pídeselo: «escribe el plan en docs/plan.md».</p>
+      <p>El jefe guarda aquí cada plan que arma, y también aparecen las notas del repo (archivos .md o .txt). Si aún no hay ninguno, pídeselo: «guarda el plan».</p>
     </div>
 
     <div v-else class="split">
@@ -74,7 +76,8 @@ const lines = computed(() =>
           <li v-for="d in shown" :key="d.path" :class="{ on: d.path === picked }" @click="picked = d.path">
             <b>{{ d.path.split('/').pop() }}</b>
             <small>{{ d.path.includes('/') ? d.path.slice(0, d.path.lastIndexOf('/')) + ' · ' : '' }}{{ ago(d.at, now) }}</small>
-            <span v-if="d.status" class="chip" :class="d.status">{{ d.status }}</span>
+            <span v-if="d.plan" class="chip plan">plan</span>
+            <span v-else-if="d.status" class="chip" :class="d.status">{{ d.status }}</span>
           </li>
         </ul>
       </div>
@@ -106,6 +109,7 @@ const lines = computed(() =>
 .list b { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 70px; }
 .list small { display: block; margin-top: 2px; font-size: 10px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list .chip { position: absolute; right: 8px; top: 8px; text-transform: uppercase; font-size: 9px; padding: 1px 5px; }
+.chip.plan { color: var(--st-work); }
 .chip.nuevo { color: var(--st-idle); }
 .chip.cambiado { color: var(--accent); }
 .doc { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); border: 2px solid var(--border); }

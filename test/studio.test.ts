@@ -126,7 +126,7 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
     s.on('notice', (n) => notices.push(n))
 
     // Contratar al jefe.
-    await s.hireBoss({ provider: 'claude', goal: 'Tienda con API de productos y página que los lista' })
+    await s.hireBoss({ name: '  Jhonny ', provider: 'claude', goal: 'Tienda con API de productos y página que los lista' })
     expect(launched.get(BOSS_ID)).toContain('--mcp-config')
     expect(launched.get(BOSS_ID)!.join(' ')).toContain('--append-system-prompt')
     await tick()
@@ -269,6 +269,14 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
     expect(view.preguntas_pendientes).toEqual([])
     expect(view.respuestas_del_usuario).toMatchObject([{ id: 'P1', respuesta: 'Stripe' }, { id: 'P2', respuesta: 'tienda.mx' }])
     expect((await frontend.call('preguntar_al_usuario', { preguntas: [{ pregunta: '¿Me das permiso de todo?' }] })).error).toBe(true)
+
+    // El jefe lleva el nombre que le pusieron, y sus planes quedan guardados y a la mano cada vez que mira el proyecto.
+    expect(studio.snapshot().boss?.name).toBe('Jhonny')
+    expect((await boss.call('guardar_plan', { titulo: 'Plan de la tienda', contenido: 'luego' })).error).toBe(true)
+    expect((await boss.call('guardar_plan', { titulo: 'Plan de la tienda', contenido: '1. Backend arma la API de productos.\n2. Frontend la consume.' })).text).toContain('plan-de-la-tienda.md')
+    expect(JSON.parse((await boss.call('leer_proyecto')).text).planes).toMatchObject([{ titulo: 'Plan de la tienda' }])
+    expect(await studio.plans()).toMatchObject([{ file: '.orquest/planes/plan-de-la-tienda.md' }])
+    expect((await frontend.call('guardar_plan', { titulo: 'Mi plan', contenido: 'x'.repeat(60) })).error).toBe(true)
 
     // El jefe pregunta y el empleado responde por su herramienta.
     const asking = boss.call('hablar_con', { empleado: ids.frontend, mensaje: '¿Cuánto te falta?' })

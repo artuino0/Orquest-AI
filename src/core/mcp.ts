@@ -105,6 +105,15 @@ export const TOOLS: Record<string, ToolDef> = {
       motivo: z.string().optional().describe('Por qué ya no hace falta que conteste'),
     },
   },
+  guardar_plan: {
+    who: 'boss',
+    description:
+      'Guarda un plan tuyo como documento del proyecto (Markdown). El usuario lo lee en Planes y tú lo recuperas en leer_proyecto. Guardar otra vez con el mismo título lo reemplaza.',
+    input: {
+      titulo: z.string().describe('De qué trata, corto: "Plan de la tienda", "Fase 2: pagos"'),
+      contenido: z.string().describe('El plan completo en Markdown: objetivo, pasos, quién hace cada uno, dependencias y qué falta decidir'),
+    },
+  },
   hablar_con: {
     who: 'boss',
     description: 'Manda una instrucción o pregunta a un empleado y espera su respuesta.',

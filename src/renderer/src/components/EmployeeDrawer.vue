@@ -127,9 +127,12 @@ onBeforeUnmount(() => urls.forEach((u) => URL.revokeObjectURL(u)))
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
 }
-async function showDiff(path: string) {
+/** Un plan guardado se lee tal cual; lo demás, como diferencia contra lo que había. */
+const openPlan = ref(false)
+async function showDiff(path: string, status = '') {
   openFile.value = path
-  diff.value = await window.orquest.diff(e.value.id, path)
+  openPlan.value = status === 'plan'
+  diff.value = openPlan.value ? await window.orquest.documentText(path) : await window.orquest.diff(e.value.id, path)
 }
 
 let timer: ReturnType<typeof setInterval> | undefined
@@ -207,10 +210,10 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 
       <div v-if="tab === 'archivos'" class="files">
         <ul>
-          <li v-if="!changes.length" class="dim">Sin cambios en su oficina.</li>
-          <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path)"><code>{{ c.status }}</code> {{ c.path }}</li>
+          <li v-if="!changes.length" class="dim">{{ e.id === 'jefe' ? 'Sin planes guardados ni cambios en el repo.' : 'Sin cambios en su oficina.' }}</li>
+          <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path, c.status)"><code>{{ c.status }}</code> {{ c.path }}</li>
         </ul>
-        <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="mark(l)">{{ l || ' ' }}
+        <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="openPlan ? '' : mark(l)">{{ l || ' ' }}
 </span></pre>
       </div>
 
