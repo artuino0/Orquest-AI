@@ -23,6 +23,8 @@ export interface OfficePerson {
   model?: string
   isBoss: boolean
   status: OfficeStatus
+  /** Tiene una tarea sin terminar (aunque espere a otro): no se levanta de su lugar. */
+  busy: boolean
 }
 
 /** Lo que alguien está haciendo, para su globo. */
@@ -63,6 +65,9 @@ const brief = (text: string | undefined, fallback: string, max = 60): string => 
   return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
+/** Estados de una tarea que su dueño todavía no termina. */
+const OPEN = new Set(['waiting', 'ready', 'in_progress'])
+
 /** Quién está y en qué anda. */
 export function officeState(input: OfficeInput): OfficeState {
   const people: OfficePerson[] = []
@@ -77,7 +82,7 @@ export function officeState(input: OfficeInput): OfficeState {
       else if (e.state === 'blocked') status = 'blocked'
       else if (hint === 'delivering') status = 'done' // entregó y espera el veredicto
     }
-    people.push({ id: e.id, name: input.names[e.id] ?? e.id, role: e.role, provider: e.provider, model: e.model, isBoss: e.id === BOSS, status })
+    people.push({ id: e.id, name: input.names[e.id] ?? e.id, role: e.role, provider: e.provider, model: e.model, isBoss: e.id === BOSS, status, busy: input.tasks.some((t) => t.assignee === e.id && OPEN.has(t.status)) })
     if (status === 'working') {
       const task = input.tasks.find((t) => t.assignee === e.id && t.status === 'in_progress')
       if (task) activities[e.id] = { emoji: task.kind === 'qa' ? '🧪' : '⌨️', text: brief(task.title, task.id, 28), task: task.id }

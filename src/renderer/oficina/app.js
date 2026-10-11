@@ -222,16 +222,39 @@ function ruta(desde, hasta) {
 
 // Lugares apartados para que no se encimen: quien -> [x, y]
 const reservas = new Map();
-function reservarCerca(quien, p, separacion = 14) {
+// Lo que ocupa alguien de pie, con su etiqueta, a lo ancho y a lo alto: quien
+// se pare más cerca que eso lo tapa o queda tapado.
+const HUECO = [22, 26];
+const seTapan = (a, b) => Math.hypot((a[0] - b[0]) / HUECO[0], (a[1] - b[1]) / HUECO[1]) < 1;
+// Dónde está (o hacia dónde va) cada uno de los demás: los lugares apartados y,
+// de quien no apartó ninguno, donde está parado o sentado.
+function ocupados(quien) {
+  const pts = [];
+  for (const [k, r] of reservas) if (k !== quien) pts.push(r);
+  for (const o of personajes.values()) {
+    if (o.agent === quien || o.estado === 'gone' || reservas.has(o.agent) || o.x === undefined) continue;
+    // quien camina sin lugar apartado va de regreso a su asiento
+    pts.push(o.enViaje ? o.asiento() : [o.x, o.y]);
+  }
+  return pts;
+}
+// El lugar libre más cercano a `p` donde no se encima con nadie. Con
+// `separacion` (un juego, la impresora) basta esa distancia: ahí hay que
+// pararse justo enfrente.
+function reservarCerca(quien, p, separacion) {
   reservas.delete(quien);
+  const otros = ocupados(quien);
+  const cabe = separacion
+    ? (q) => otros.every(r => distancia(r, q) >= separacion)
+    : (q) => !otros.some(r => seTapan(r, q));
+  let lugar = null;
   for (const { c } of celdasLibresPorDistancia(p)) {
     const q = centro(c);
-    if ([...reservas.values()].every(r => distancia(r, q) >= separacion)) {
-      reservas.set(quien, q);
-      return q;
-    }
+    if (cabe(q)) { lugar = q; break; }
   }
-  return centro(libreMasCercana(p));
+  lugar ??= centro(libreMasCercana(p));
+  reservas.set(quien, lugar);
+  return lugar;
 }
 const liberar = (quien) => reservas.delete(quien);
 
@@ -340,7 +363,7 @@ class Personaje {
       els.luces.appendChild(this.brillo);
     } else {
       // sin puesto: se queda de pie cerca de la cafetera
-      this.lugar = reservarCerca(agent, CAFETERA, 16);
+      this.lugar = reservarCerca(agent, CAFETERA);
       reservas.delete(agent);
       reservas.set('fijo:' + agent, this.lugar);
     }
@@ -552,15 +575,22 @@ class Personaje {
       // Primero pasa a la impresora por su reporte y se lo lleva.
       const impresora = JUEGOS.find(j => j.impresora);
       if (impresora) {
-        const lugar = reservarCerca(this.agent, [impresora.x, impresora.y], 6);
-        await this.caminar(lugar);
-        this.deEspaldas = true;
-        this.refrescar();
-        usarJuego(lugar, 1);
-        await esperar(IMPRIMIR_MS);
-        usarJuego(lugar, -1);
-        this.deEspaldas = false;
-        this.carga.hidden = false;
+        // A la impresora, de uno en uno: los demás esperan sentados con su ✅.
+        await esperarHasta(() => !impresora.ocupado, 60000);
+        impresora.ocupado = true;
+        try {
+          const lugar = reservarCerca(this.agent, [impresora.x, impresora.y], 6);
+          await this.caminar(lugar);
+          this.deEspaldas = true;
+          this.refrescar();
+          usarJuego(lugar, 1);
+          await esperar(IMPRIMIR_MS);
+          usarJuego(lugar, -1);
+          this.deEspaldas = false;
+          this.carga.hidden = false;
+        } finally {
+          impresora.ocupado = false;
+        }
       }
       await this.caminar(reservarCerca(this.agent, boss.asiento()));
       await esperarHasta(() => boss.enSilla(), 20000);
@@ -1009,7 +1039,8 @@ setInterval(() => {
   if (QUIETO || !hayJefe()) return; // sin jefe contratado no hay a quién mandar
   const boss = jefe();
   const golf = JUEGOS.find(j => j.jefe && !j.ocupado);
-  if (!boss || !golf || boss.ocio || !boss.enSilla() || boss.pendientes > 0) return;
+  // Solo cuando de verdad no tiene nada entre manos.
+  if (!boss || !golf || boss.ocio || boss.estado !== 'idle' || !boss.enSilla() || boss.pendientes > 0) return;
   if ([...personajes.values()].some(p => p.avisando || p.avisoEnCola) || Math.random() > 0.15) return;
   boss.irAJugar(golf);
 }, CAFE_CADA_MS);
@@ -1019,7 +1050,8 @@ setInterval(() => {
   if (QUIETO) return;
   const todos = [...personajes.values()];
   if (todos.filter(p => p.ocio).length >= DESCANSANDO_MAX) return;
-  const sinTrabajo = todos.filter(p => !p.meta.isBoss && p.puesto && p.estado === 'idle' && p.enSilla() && p.pendientes === 0);
+  // Quien tiene una tarea sin terminar no se levanta, aunque su terminal esté quieta un momento.
+  const sinTrabajo = todos.filter(p => !p.meta.isBoss && p.puesto && p.estado === 'idle' && !p.meta.ocupado && p.enSilla() && p.pendientes === 0);
   if (!sinTrabajo.length || Math.random() > CAFE_PROBABILIDAD) return;
   const quien = sinTrabajo[Math.floor(Math.random() * sinTrabajo.length)];
   const juegos = JUEGOS.filter(j => !j.ocupado && !j.jefe);

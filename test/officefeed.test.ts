@@ -32,6 +32,16 @@ describe('officeState', () => {
     expect(s.people.map((p) => p.status)).toEqual(['done', 'idle'])
     expect(s.activities).toEqual({})
   })
+
+  it('quien tiene una tarea sin terminar sale como ocupado, aunque su terminal esté quieta o espere a otro', () => {
+    const busy = (status: Task['status'], assignee = 'e1') =>
+      officeState({ employees: [emp('e1', 'idle'), emp('e2', 'idle')], names: {}, tasks: [task({ status, assignee })], hints: {} }).people.map((p) => p.busy)
+    expect(busy('in_progress')).toEqual([true, false])
+    expect(busy('waiting')).toEqual([true, false])
+    expect(busy('ready', 'e2')).toEqual([false, true])
+    // Ya entregó: lo que falta no es suyo.
+    for (const done of ['delivered', 'in_qa', 'approved', 'merged', 'done'] as const) expect(busy(done)).toEqual([false, false])
+  })
 })
 
 describe('officeEvents', () => {

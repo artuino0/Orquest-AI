@@ -21,7 +21,7 @@ let actividades = {}
 function recibirEstado({ people, activities, sprites = {} }) {
   for (const p of people) {
     agentes[p.id] ??= { isBoss: p.isBoss }
-    Object.assign(agentes[p.id], { nombre: p.name, role: p.role, model: p.model || p.provider, sprite: sprites[p.id] || agentes[p.id].sprite || 'CHAR1' })
+    Object.assign(agentes[p.id], { nombre: p.name, role: p.role, model: p.model || p.provider, sprite: sprites[p.id] || agentes[p.id].sprite || 'CHAR1', ocupado: !!p.busy })
     if (estadoDe[p.id] !== p.status) {
       estadoDe[p.id] = p.status
       seq[p.id] = (seq[p.id] || 0) + 1
