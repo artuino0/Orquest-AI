@@ -5,6 +5,7 @@
  * (core/accounts): no calcula nada.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RefreshCw } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { ago } from '../format'
 import type { Account } from '../../../core/accounts'
@@ -13,12 +14,15 @@ import PanelFrame from './PanelFrame.vue'
 const studio = useStudio()
 const accounts = ref<Account[]>([])
 const loading = ref(true)
+const refreshing = ref(false)
 const now = ref(Date.now())
 
 async function load() {
+  refreshing.value = true
   accounts.value = await window.orquest.accounts().catch(() => accounts.value)
   now.value = Date.now()
   loading.value = false
+  refreshing.value = false
 }
 // El uso cambia mientras trabajan: se vuelve a mirar cada tanto.
 let timer: ReturnType<typeof setInterval> | undefined
@@ -56,6 +60,7 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
 
 <template>
   <PanelFrame title="Cuentas" subtitle="Cada sesión iniciada en esta máquina y lo que lleva usado de su límite">
+    <template #actions><button class="btn" :disabled="refreshing" @click="load"><RefreshCw /> {{ refreshing ? 'Actualizando…' : 'Actualizar' }}</button></template>
     <p v-if="loading" class="blank">Buscando cuentas…</p>
     <div v-else-if="!accounts.length" class="blank">
       <h2>No hay cuentas con sesión iniciada</h2>

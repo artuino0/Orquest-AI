@@ -145,10 +145,10 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
         <button class="btn" :class="{ on: studio.overlay === 'board' }" @click="toggle('board')"><Kanban /> Tablero</button>
         <button class="btn" :class="{ on: studio.overlay === 'plans' }" title="Planes y documentos que el jefe deja en el repo" @click="toggle('plans')"><FileText /> Planes</button>
         <button class="btn" :class="{ on: studio.overlay === 'library' }" @click="toggle('library')"><FolderOpen /> Expedientes</button>
-        <button class="btn" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas de cada CLI y lo que llevan usado de su límite" @click="toggle('accounts')"><Gauge /> Cuentas</button>
         <button class="btn" :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
           <Inbox /> Entregas<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
         </button>
+        <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite" @click="toggle('accounts')"><Gauge /></button>
         <button class="btn icon" :class="{ on: editing }" title="Dibujar la oficina (modo creativo)" @click="toggleEdit"><PencilRuler /></button>
         <ThemeToggle />
       </nav>
