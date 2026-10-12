@@ -4,6 +4,7 @@
   --superficie: #221d2c;
   --superficie-2: #2f2839;
   --borde: #08070b;
+  --borde-claro: #4a4159;
   --texto: #f4eadb;
   --tenue: #a89db6;
   --acento: #f2b544;
@@ -21,6 +22,35 @@ h1, h2, h3, h4, p, ul, ol, figure { margin: 0; padding: 0; }
 ul, ol { list-style: none; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: var(--acento); }
+
+/* Barra de desplazamiento en píxel, la misma de la app: cuadrada, con borde duro,
+   bisel de dos tonos y tres rayitas de agarre. */
+::-webkit-scrollbar { width: 16px; height: 16px; }
+::-webkit-scrollbar-track { background: var(--fondo); box-shadow: inset 2px 0 0 var(--borde), inset -2px 0 0 var(--borde); }
+::-webkit-scrollbar-track:horizontal { box-shadow: inset 0 2px 0 var(--borde), inset 0 -2px 0 var(--borde); }
+::-webkit-scrollbar-thumb {
+  min-height: 28px; min-width: 28px;
+  border: 2px solid var(--borde);
+  background:
+    linear-gradient(var(--borde), var(--borde)) center calc(50% - 4px) / 6px 2px no-repeat,
+    linear-gradient(var(--borde), var(--borde)) center 50% / 6px 2px no-repeat,
+    linear-gradient(var(--borde), var(--borde)) center calc(50% + 4px) / 6px 2px no-repeat,
+    var(--borde-claro);
+  box-shadow: inset 2px 2px 0 #ffffff40, inset -2px -2px 0 #00000059;
+}
+::-webkit-scrollbar-thumb:horizontal {
+  background:
+    linear-gradient(var(--borde), var(--borde)) calc(50% - 4px) center / 2px 6px no-repeat,
+    linear-gradient(var(--borde), var(--borde)) 50% center / 2px 6px no-repeat,
+    linear-gradient(var(--borde), var(--borde)) calc(50% + 4px) center / 2px 6px no-repeat,
+    var(--borde-claro);
+}
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: var(--acento); }
+::-webkit-scrollbar-corner { background: var(--fondo); }
+/* Firefox no deja dibujarla: al menos lleva los colores. */
+@supports not selector(::-webkit-scrollbar) {
+  html { scrollbar-color: var(--borde-claro) var(--fondo); }
+}
 
 /* Un sprite: --w y --h son el tamaño de un cuadro en píxeles del arte; --k, la escala.
    Las tiras son horizontales y el cuadro 1 es el de la izquierda. */
