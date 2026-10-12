@@ -142,7 +142,7 @@ describe('editar en la oficina de alguien', () => {
     await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
     const stamp = (await readText(dir, 'nota.md')).stamp
     // No se cuentan milisegundos: se espera a ver cada estado, que en una máquina cargada tarda más.
-    const state = () => manager.get('jefe')?.state
+    const state = () => manager?.get('jefe')?.state
     terminals[0].feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
     await expect.poll(state, { timeout: 5000 }).toBe('working')
     await expect(studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)).rejects.toThrow(RuleError)
