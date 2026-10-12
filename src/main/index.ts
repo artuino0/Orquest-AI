@@ -7,6 +7,7 @@ import { listAccounts } from '../core/accounts.js'
 import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
+import { listDir, readText } from '../core/files.js'
 import { listDocuments, listGroupDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
@@ -54,6 +55,12 @@ function createWindow() {
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
   const state = () => send('window:state', { maximized: !!win?.isMaximized() })
+  // F11: la ventana a pantalla completa, y de regreso.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || input.key !== 'F11') return
+    event.preventDefault()
+    win?.setFullScreen(!win.isFullScreen())
+  })
   win.on('closed', () => (win = null))
   win.on('maximize', state)
   win.on('unmaximize', state)
@@ -244,6 +251,15 @@ handle('employee:diff', (id: string, path: string) => {
   const emp = manager.get(id)
   if (!emp) return ''
   return current?.repos.length ? current.fileDiff(id, path) : officeDiff(emp.office, path)
+})
+handle('employee:tree', (id: string, dir: string) => {
+  const emp = manager.get(id)
+  return emp ? listDir(emp.office.path, dir) : []
+})
+handle('employee:file', (id: string, path: string) => {
+  const emp = manager.get(id)
+  if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
+  return readText(emp.office.path, path)
 })
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))

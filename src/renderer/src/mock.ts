@@ -145,6 +145,14 @@ export function installMock(caso: string) {
     captures: async () => [],
     capture: todo('capturas'),
     diff: async () => '',
+    tree: async (_id, dir) =>
+      (({
+        '': [['src', true], ['test', true], ['package.json', false], ['README.md', false]],
+        src: [['components', true], ['main.ts', false], ['style.css', false]],
+        'src/components': [['Cart.vue', false], ['Checkout.vue', false]],
+        test: [['cart.test.ts', false]],
+      } as Record<string, [string, boolean][]>)[dir] ?? []).map(([name, isDir]) => ({ name, path: dir ? `${dir}/${name}` : name, dir: isDir })),
+    fileText: async (_id, path) => ({ text: `// ${path}\nimport { createApp } from 'vue'\nimport App from './App.vue'\n\ncreateApp(App).mount('#app')\n`, binary: false, truncated: false, size: 90 }),
     write: () => {},
     resize: () => {},
     onData: nothing,

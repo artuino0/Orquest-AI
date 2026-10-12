@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
+import { AlertTriangle, AppWindow, ChevronRight, Columns2, File, Folder, FolderOpen, Gamepad2, Maximize2, Minimize2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
-import type { Capture, FileChange } from '../../../shared/ipc'
+import type { Capture, FileChange, FileEntry } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
 import { T } from '../../../core/i18n'
 
@@ -128,35 +128,83 @@ onBeforeUnmount(() => urls.forEach((u) => URL.revokeObjectURL(u)))
 async function loadChanges() {
   changes.value = await window.orquest.changes(e.value.id)
 }
-/** Un plan guardado se lee tal cual; lo demás, como diferencia contra lo que había. */
+/** Un plan guardado o un archivo del explorador se leen tal cual; un cambio, como diferencia contra lo que había. */
 const openPlan = ref(false)
 async function showDiff(path: string, status = '') {
   openFile.value = path
   openPlan.value = status === 'plan'
+  tab.value = 'archivos'
   diff.value = openPlan.value ? await window.orquest.documentText(path) : await window.orquest.diff(e.value.id, path)
 }
 
+// Explorador: el árbol de su oficina. Cada carpeta se pide al abrirla.
+const filesView = ref<'changes' | 'tree'>('changes')
+const kids = ref<Record<string, FileEntry[]>>({})
+const opened = ref(new Set<string>())
+/** Las filas a la vista: cada carpeta abierta trae las suyas debajo, con sangría. */
+const rows = computed(() => {
+  const out: (FileEntry & { depth: number })[] = []
+  const walk = (dir: string, depth: number) => {
+    for (const f of kids.value[dir] ?? []) {
+      out.push({ ...f, depth })
+      if (f.dir && opened.value.has(f.path)) walk(f.path, depth + 1)
+    }
+  }
+  walk('', 0)
+  return out
+})
+async function loadDir(dir: string) {
+  const id = e.value.id
+  const list = await window.orquest.tree(id, dir).catch(() => [] as FileEntry[])
+  if (id === e.value.id) kids.value = { ...kids.value, [dir]: list }
+}
+const loadTree = () => Promise.all(['', ...opened.value].map(loadDir))
+function toggleDir(path: string) {
+  const next = new Set(opened.value)
+  if (next.has(path)) next.delete(path)
+  else {
+    next.add(path)
+    void loadDir(path)
+  }
+  opened.value = next
+}
+async function showFile(path: string) {
+  openFile.value = path
+  openPlan.value = true
+  tab.value = 'archivos'
+  try {
+    const f = await window.orquest.fileText(e.value.id, path)
+    diff.value = f.binary ? T`Este archivo no es de texto: no se muestra aquí.` : f.truncated ? `${f.text}\n${T`… el archivo es largo: aquí solo sale el principio.`}` : f.text
+  } catch (err) {
+    diff.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+/** Los archivos van en su pestaña o, a pantalla completa, siempre a la vista en una columna. */
+const filesOn = computed(() => studio.drawerFull || tab.value === 'archivos')
+function refresh() {
+  if (filesOn.value) {
+    void loadChanges()
+    void loadTree()
+  }
+  if (tab.value === 'capturas') void loadCaptures()
+  if (tab.value === 'bitacora') void loadJournal()
+}
 let timer: ReturnType<typeof setInterval> | undefined
 watch(
-  tab,
-  (t) => {
+  [tab, filesOn],
+  () => {
     clearInterval(timer)
-    if (t === 'archivos') {
-      loadChanges()
-      timer = setInterval(loadChanges, 3000)
-    }
-    if (t === 'capturas') {
-      loadCaptures()
-      timer = setInterval(loadCaptures, 4000)
-    }
-    if (t === 'bitacora') {
-      loadJournal()
-      timer = setInterval(loadJournal, 3000)
-    }
+    refresh()
+    if (filesOn.value || tab.value === 'capturas' || tab.value === 'bitacora') timer = setInterval(refresh, 3000)
   },
   { immediate: true },
 )
 onBeforeUnmount(() => clearInterval(timer))
+function close() {
+  studio.drawerFull = false
+  studio.select(null)
+}
 
 // Escribirle sin entrar a la terminal: el texto y Enter van directo a su CLI.
 const message = ref('')
@@ -172,7 +220,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 </script>
 
 <template>
-  <aside class="drawer panel" :class="studio.drawerMode">
+  <aside class="drawer panel" :class="[studio.drawerMode, { full: studio.drawerFull }]">
     <header>
       <img class="avatar" :src="avatar" alt="" />
       <div class="who">
@@ -186,10 +234,16 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
         <p v-if="hot" class="over">{{ T`Pasó el umbral de ${burnoutAt} %. Mándalo a Descanso para limpiar contexto.` }}</p>
       </div>
       <div class="actions">
-        <button class="btn" @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'">
+        <select v-if="studio.drawerFull && studio.employees.length > 1" class="switch" :value="e.id" :title="T`Ver la oficina de otra persona`" @change="studio.select(($event.target as HTMLSelectElement).value)">
+          <option v-for="p in studio.employees" :key="p.id" :value="p.id">{{ studio.nameOf(p.id) }} · {{ p.role }}</option>
+        </select>
+        <button class="btn" :title="T`Sus archivos y su terminal ocupando toda la ventana`" @click="studio.drawerFull = !studio.drawerFull">
+          <template v-if="studio.drawerFull"><Minimize2 /> {{ T`Reducir` }}</template><template v-else><Maximize2 /> {{ T`Pantalla completa` }}</template>
+        </button>
+        <button v-if="!studio.drawerFull" class="btn" @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'">
           <template v-if="studio.drawerMode === 'float'"><Columns2 /> {{ T`Dividir` }}</template><template v-else><AppWindow /> {{ T`Flotante` }}</template>
         </button>
-        <button class="btn" @click="studio.select(null)"><X /> {{ T`Cerrar` }}</button>
+        <button class="btn" @click="close"><X /> {{ T`Cerrar` }}</button>
         <button class="btn" :disabled="gaming || e.state === 'exited'" :title="T`Escribe su traspaso y se reinicia con el contexto limpio`" @click="studio.rest(e.id)"><Gamepad2 /> {{ T`Descanso` }}</button>
         <button class="btn" :disabled="gaming" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.`" @click="studio.restart(e.id)"><RotateCcw /> {{ T`Reiniciar` }}</button>
         <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> {{ T`Despedir` }}</button>
@@ -200,6 +254,23 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       <button v-for="[id, label] in TABS" :key="id" :class="{ on: tab === id }" @click="tab = id">{{ label }}</button>
     </nav>
 
+    <div class="work" :class="{ ide: studio.drawerFull }">
+    <div v-if="filesOn" class="side">
+      <nav class="seg">
+        <button :class="{ on: filesView === 'changes' }" @click="filesView = 'changes'">{{ T`Cambios` }}<template v-if="changes.length"> · {{ changes.length }}</template></button>
+        <button :class="{ on: filesView === 'tree' }" @click="filesView = 'tree'">{{ T`Explorador` }}</button>
+      </nav>
+      <ul v-if="filesView === 'changes'">
+        <li v-if="!changes.length" class="dim">{{ e.id === 'jefe' ? T`Sin planes guardados ni cambios en el repo.` : T`Sin cambios en su oficina.` }}</li>
+        <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" :title="c.path" @click="showDiff(c.path, c.status)"><code>{{ c.status }}</code> {{ c.path }}</li>
+      </ul>
+      <ul v-else>
+        <li v-if="!rows.length" class="dim">{{ T`No hay archivos en su oficina.` }}</li>
+        <li v-for="f in rows" :key="f.path" :class="{ on: openFile === f.path }" :style="{ paddingLeft: `${8 + f.depth * 14}px` }" :title="f.path" @click="f.dir ? toggleDir(f.path) : showFile(f.path)">
+          <component :is="f.dir ? (opened.has(f.path) ? FolderOpen : Folder) : File" :class="{ folder: f.dir }" />{{ f.name }}
+        </li>
+      </ul>
+    </div>
     <div class="body">
       <template v-if="tab === 'terminal'">
         <p v-if="e.state === 'blocked'" class="needs"><AlertTriangle /> <b>{{ T`${studio.nameOf(e.id)} te necesita.` }}</b> {{ T`Su CLI pide algo: respóndele aquí abajo, en su terminal.` }}</p>
@@ -211,10 +282,8 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       </template>
 
       <div v-if="tab === 'archivos'" class="files">
-        <ul>
-          <li v-if="!changes.length" class="dim">{{ e.id === 'jefe' ? T`Sin planes guardados ni cambios en el repo.` : T`Sin cambios en su oficina.` }}</li>
-          <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path, c.status)"><code>{{ c.status }}</code> {{ c.path }}</li>
-        </ul>
+        <p v-if="!openFile" class="dim">{{ T`Elige un archivo para verlo.` }}</p>
+        <p v-else class="path"><code>{{ openFile }}</code></p>
         <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="openPlan ? '' : mark(l)">{{ l || ' ' }}
 </span></pre>
       </div>
@@ -282,6 +351,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
         </article>
       </div>
     </div>
+    </div>
   </aside>
 </template>
 
@@ -289,6 +359,26 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 .drawer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .drawer.float { position: fixed; right: 16px; top: 96px; bottom: 16px; width: min(640px, 56vw); z-index: 6; }
 .drawer.split { grid-row: 2; grid-column: 2; border-width: 0 0 0 3px; box-shadow: none; }
+/* Pantalla completa: toda la ventana bajo su encabezado (32 px). */
+.drawer.full { position: fixed; inset: 32px 0 0 0; width: auto; z-index: 8; border-width: 0; box-shadow: none; }
+.switch { font: 700 12px var(--font); padding: 6px 8px; background: var(--bg); color: var(--text-primary); border: 2px solid var(--border-light); max-width: 220px; }
+.work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.work.ide { flex-direction: row; }
+.side { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 0; min-height: 0; }
+.work.ide .side { width: 300px; flex: none; padding: 14px 0 14px 14px; }
+.seg { display: flex; gap: 4px; }
+.seg button { border: 2px solid var(--border); background: var(--surface-2); color: var(--text-secondary); padding: 4px 10px; font: 700 11px var(--font); }
+.seg button.on { background: var(--accent); color: var(--on-accent); }
+.side ul { list-style: none; margin: 0; padding: 6px; font-size: 12px; background: var(--bg); border: 2px solid var(--border); max-height: 180px; overflow: auto; }
+.work.ide .side ul { max-height: none; flex: 1; }
+.side li { padding: 4px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side li:hover, .side li.on { background: var(--surface-2); }
+.side li.dim { cursor: default; white-space: normal; }
+.side li.dim:hover { background: none; }
+.side code { color: var(--accent); margin-right: 6px; }
+.side li svg { width: 13px; height: 13px; margin-right: 6px; vertical-align: -2px; color: var(--text-secondary); }
+.side li svg.folder { color: var(--accent); }
+.path { margin: 0; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
 .avatar { width: 48px; height: 56px; object-fit: contain; image-rendering: pixelated; background: var(--bg); border: 2px solid var(--border); padding: 4px; flex: none; }
 .who { flex: 1; min-width: 0; }
@@ -300,6 +390,8 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .now b { color: var(--st-work); }
 .over { margin: 6px 0 0; font-size: 11px; color: var(--st-block); }
 .actions { display: grid; grid-template-columns: auto auto; gap: 6px; flex: none; }
+/* A pantalla completa sobra ancho: los botones van en un renglón y el encabezado no crece. */
+.drawer.full .actions { display: flex; align-items: center; }
 .tabs { display: flex; gap: 4px; padding: 10px 14px 0; border-bottom: 3px solid var(--border); background: var(--surface); }
 .tabs button { border: 2px solid var(--border); border-bottom: 0; background: var(--surface-2); color: var(--text-secondary); padding: 7px 12px; font: 700 12px var(--font); }
 .tabs button.on { background: var(--accent); color: var(--on-accent); }
@@ -327,10 +419,6 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .viewer img { display: block; max-width: none; margin: 0 auto; }
 .viewer img.fit { max-width: 100%; height: auto; }
 .files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
-.files ul { list-style: none; margin: 0; padding: 6px; font-size: 12px; background: var(--bg); border: 2px solid var(--border); max-height: 180px; overflow: auto; }
-.files li { padding: 4px 8px; cursor: pointer; }
-.files li:hover, .files li.on { background: var(--surface-2); }
-.files code { color: var(--accent); margin-right: 6px; }
 .diff { margin: 0; overflow: auto; font: 12px/1.6 var(--font); background: var(--term-bg); border: 2px solid var(--border); }
 .diff span { display: block; padding: 0 10px; white-space: pre; }
 .diff .add { background: var(--tint-ok); }

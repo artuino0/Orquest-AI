@@ -61,6 +61,8 @@ export const useStudio = defineStore('studio', () => {
   const selected = ref<string | null>(null)
   const overlay = ref<Overlay>(null)
   const drawerMode = ref<DrawerMode>('float')
+  /** El panel del empleado a pantalla completa, como un IDE: archivos a un lado, su terminal al otro. */
+  const drawerFull = ref(false)
   const error = ref<string | null>(null)
   const activity = ref<Record<string, ActivityItem[]>>({})
   const board = ref<StudioSnapshot | null>(null)
@@ -364,7 +366,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     blocks, answerBlock, restart,
     version,
-    screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
+    screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
