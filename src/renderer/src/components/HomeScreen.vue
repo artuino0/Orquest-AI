@@ -69,12 +69,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   clearInterval(clock)
 })
+import LangToggle from './LangToggle.vue'
 import ThemeToggle from './ThemeToggle.vue'
 </script>
 
 <template>
   <div class="home">
-    <ThemeToggle class="theme-corner" />
+    <div class="theme-corner"><LangToggle /><ThemeToggle /></div>
     <section class="left">
       <div class="team">
         <img v-for="(src, i) in team" :key="i" :src="src" alt="" @load="double" />
@@ -209,5 +210,5 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .agents footer small { font-size: 10px; color: var(--text-secondary); }
 .spin { animation: spin 0.8s steps(8) infinite; }
 @keyframes spin { to { rotate: 360deg; } }
-.theme-corner { position: fixed; top: 46px; right: 14px; z-index: 2; }
+.theme-corner { position: fixed; top: 46px; right: 14px; z-index: 2; display: flex; gap: 8px; }
 </style>

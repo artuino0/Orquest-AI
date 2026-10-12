@@ -14,6 +14,7 @@ import MapEditor from './MapEditor.vue'
 import PixelOffice from './PixelOffice.vue'
 import PlansPanel from './PlansPanel.vue'
 import AccountsPanel from './AccountsPanel.vue'
+import LangToggle from './LangToggle.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import CHAR1 from '../../../../assets/herdr-oficina/sprites/char1.png'
 
@@ -160,6 +161,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
         </button>
         <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite" @click="toggle('accounts')"><Gauge /></button>
         <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" title="Dibujar la oficina (modo creativo)" @click="toggleEdit"><PencilRuler /></button>
+        <LangToggle />
         <ThemeToggle />
       </nav>
     </header>

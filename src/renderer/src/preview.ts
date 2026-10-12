@@ -2,6 +2,7 @@
 //   npx vite src/renderer   →   /preview.html                    con las CLIs de esta máquina
 //                               /preview.html?caso=normal        con las del diseño
 //                               /preview.html?caso=sin-agentes
+//                               /preview.html?lang=en            en inglés (o es); sin él, el del navegador
 //                               /preview.html?proyecto=1         oficina con un proyecto de mentira (ver mockstudio.ts)
 import { installMock, RECENTS } from './mock'
 
@@ -15,6 +16,8 @@ await import('@fontsource/jetbrains-mono/400.css')
 await import('@fontsource/jetbrains-mono/700.css')
 await import('@fontsource/pixelify-sans/700.css')
 await import('./style.css')
+const { startLanguage } = await import('./lang')
+await startLanguage()
 const { default: App } = await import('./App.vue')
 createApp(App).use(createPinia()).mount('#app')
 

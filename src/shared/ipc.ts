@@ -1,4 +1,5 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
+import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
 import type { CliStatus } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
@@ -41,6 +42,10 @@ export interface LibraryView {
 export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
 
 export interface OrquestApi {
+  /** El idioma de la app y si lo eligió el usuario (si no, es el de su sistema). */
+  language(): Promise<{ lang: Lang; chosen: boolean }>
+  /** Fija el idioma elegido por el usuario. Lo que Orquest les diga a los agentes desde ahora va en ese idioma. */
+  setLanguage(lang: Lang): Promise<void>
   detectClis(): Promise<CliStatus[]>
   /** Modelos que ofrece cada CLI lista, según ella misma. Tarda más que detectClis: se pide aparte. */
   cliModels(): Promise<Partial<Record<ProviderId, string[]>>>

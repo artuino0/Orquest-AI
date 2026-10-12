@@ -4,6 +4,7 @@
  * Los proyectos son los del diseño. Las CLIs son las de verdad de esta máquina,
  * salvo con ?caso=normal (las del diseño) o ?caso=sin-agentes.
  */
+import { pickLang } from '../../core/i18n'
 import type { CliStatus, OrquestApi, ProjectSummary } from '../../shared/ipc'
 
 const cli = (id: CliStatus['id'], name: string, version: string | null, session: boolean | null, login: string, install: CliStatus['install']): CliStatus => ({
@@ -55,7 +56,21 @@ export function installMock(caso: string) {
   const todo = (what: string) => async (): Promise<never> => {
     throw new Error(`La vista previa no tiene ${what}.`)
   }
+  // Idioma: ?lang=en manda; si no, el que se eligió aquí; si no, el del navegador.
+  const LANG_KEY = 'orquest.lang'
+  const saved = () => new URLSearchParams(location.search).get('lang') ?? localStorage.getItem(LANG_KEY)
   const api: OrquestApi = {
+    language: async () => {
+      const chosen = saved()
+      return { lang: chosen === 'es' || chosen === 'en' ? chosen : pickLang(navigator.languages), chosen: !!chosen }
+    },
+    setLanguage: async (lang) => {
+      localStorage.setItem(LANG_KEY, lang)
+      // Que ?lang no gane a lo recién elegido.
+      const url = new URL(location.href)
+      url.searchParams.delete('lang')
+      history.replaceState(null, '', url)
+    },
     detectClis: async () => {
       // Sin ?caso, las CLIs son las de verdad de esta máquina (las detecta el servidor de vista previa).
       if (!(caso in CLIS)) {

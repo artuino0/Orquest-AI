@@ -17,6 +17,8 @@ async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api: OrquestApi = {
+  language: () => invoke('language:get'),
+  setLanguage: (lang) => invoke('language:set', lang),
   detectClis: () => invoke('clis:detect'),
   cliModels: () => invoke('clis:models'),
   accounts: () => invoke('accounts:list'),

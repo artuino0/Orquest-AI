@@ -14,6 +14,9 @@ import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
 import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
+import { addDictionary, getLang, setLang, type Lang } from '../core/i18n.js'
+import en from '../core/lang/en.js'
+import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
@@ -224,10 +227,23 @@ handle('employee:diff', (id: string, path: string) => {
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))
 
+// ── Idioma: el que eligió el usuario o, si no ha elegido, el de su sistema.
+addDictionary('en', en)
+const settingsFile = join(app.getPath('userData'), 'ajustes.json')
+let settings: Settings = {}
+handle('language:get', () => ({ lang: getLang(), chosen: !!settings.lang }))
+handle('language:set', async (lang: Lang) => {
+  settings = { ...settings, lang }
+  setLang(lang)
+  await saveSettings(settingsFile, settings)
+})
+
 // Que Windows agrupe la ventana bajo Orquest AI y no bajo Electron.
 app.setAppUserModelId('ai.orquest.app')
 
 app.whenReady().then(async () => {
+  settings = await loadSettings(settingsFile)
+  setLang(startLang(settings, app.getPreferredSystemLanguages()))
   store = new StudioStore(join(app.getPath('userData'), 'studio.db'))
   library = new Library(store)
   mcp = await startMcpServer((token) => {
