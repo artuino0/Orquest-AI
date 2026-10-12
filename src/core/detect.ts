@@ -141,7 +141,31 @@ async function modelsOf(p: ProviderAdapter, binary: string, home: string): Promi
   return [...new Set(found)].slice(0, 300)
 }
 
-export async function detectProvider(p: ProviderAdapter, home = homedir()): Promise<CliStatus> {
+/**
+ * ¿Hay una entrada con ese nombre en el almacén de credenciales del sistema?
+ * Solo se pregunta si existe: su contenido nunca se pide ni se lee. `null` si
+ * no se pudo saber (no está la herramienta, o no hay almacén).
+ */
+export async function keyringHas(service: string, user: string, platform: NodeJS.Platform = process.platform, run: typeof runCli = runCli): Promise<boolean | null> {
+  const name = `${service}:${user}`
+  if (platform === 'win32') {
+    const out = await run('cmdkey', [`/list:${name}`])
+    if (out.code === -1) return null
+    // El encabezado nombra lo buscado y, si existe, su renglón lo nombra otra vez. Así no depende del idioma de Windows.
+    return out.stdout.split(name).length - 1 >= 2
+  }
+  if (platform === 'darwin') {
+    // Sin -g ni -w: contesta los datos de la entrada, no su secreto.
+    const out = await run('security', ['find-generic-password', '-s', service, '-a', user])
+    return out.code === -1 ? null : out.code === 0
+  }
+  // Linux: se le pregunta al servicio de secretos qué entradas coinciden; contesta sus direcciones, no su contenido.
+  const out = await run('gdbus', ['call', '--session', '--dest', 'org.freedesktop.secrets', '--object-path', '/org/freedesktop/secrets', '--method', 'org.freedesktop.Secret.Service.SearchItems', `{'service': '${service}', 'username': '${user}'}`])
+  if (out.code !== 0) return null
+  return out.stdout.includes('/org/freedesktop/secrets/')
+}
+
+export async function detectProvider(p: ProviderAdapter, home = homedir(), keyring: typeof keyringHas = keyringHas): Promise<CliStatus> {
   const base = { id: p.id, name: p.name, login: p.login, manualLogin: p.manualLogin, install: p.install, signup: p.signup, efforts: p.efforts }
   let binary: string | undefined
   for (const b of p.binaries) {
@@ -165,6 +189,8 @@ export async function detectProvider(p: ProviderAdapter, home = homedir()): Prom
       account = r.account
     }
   }
+  // Si el almacén dice que sí, hay sesión. Si dice que no o no se sabe, todavía puede estar en un archivo.
+  if (session === null && p.sessionKeyring && (await keyring(p.sessionKeyring.service, p.sessionKeyring.user)) === true) session = true
   if (session === null && p.sessionPaths.length) {
     session = false
     for (const rel of p.sessionPaths) {

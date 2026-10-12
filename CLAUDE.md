@@ -38,7 +38,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | Archivo | Qué hace |
 | --- | --- |
 | `providers.ts` | Adaptador por CLI: binario, args de modelo/esfuerzo/manual, conexión MCP + permisos (`mcpArgs`), patrones de pantalla (working/blocked/idle/contexto). Solo Claude Code está `verified`. |
-| `detect.ts` | Qué CLIs hay instaladas y con sesión. |
+| `detect.ts` | Qué CLIs hay instaladas y con sesión: se le pregunta a la propia CLI si tiene comando para eso; si no, se mira si existe su entrada en el almacén de credenciales del sistema (`keyringHas`: solo si existe, nunca su contenido) o su archivo de sesión. Antigravity (`agy`) guarda la suya en el almacén, con el nombre `gemini:antigravity`. |
 | `worktree.ts` | Oficinas = `git worktree` en `<repo>/.orquest/oficinas/<id>` (excluido con `.git/info/exclude`), commit de entrega, diff, merge `--no-ff` con abort si hay conflicto. |
 | `state.ts` | `ScreenReader`: emula la terminal con `@xterm/headless` y lee la pantalla real; señal OSC 7777 de hooks gana sobre la pantalla. |
 | `employees.ts` | `EmployeeManager`: CLIs en `node-pty`, estado, `atPrompt` (prompt visible y pantalla quieta 800 ms), contexto. |

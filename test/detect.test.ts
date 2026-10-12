@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { canHire, detectProvider, detectRequirements, findBinary, isReady, runCli } from '../src/core/detect.js'
+import { canHire, detectProvider, detectRequirements, findBinary, isReady, keyringHas, runCli } from '../src/core/detect.js'
 import { PROVIDERS } from '../src/core/providers.js'
 
 const WIN = process.platform === 'win32'
@@ -85,6 +85,49 @@ describe('detección de CLIs', () => {
       expect(await detectProvider(PROVIDERS.grok, home)).toMatchObject({ installed: true, version: '1.0.41', session: null })
     })
     await rm(dir, { recursive: true, force: true })
+  })
+
+  it('sabe si hay una entrada en el almacén de credenciales del sistema, sin leerla', async () => {
+    const answers = (stdout: string, code = 0) => async () => ({ stdout, stderr: '', code })
+    // Windows, en inglés y en español: el encabezado nombra lo buscado; si existe, su renglón lo repite.
+    expect(await keyringHas('gemini', 'antigravity', 'win32', answers('Currently stored credentials for gemini:antigravity:\r\n\r\n    Target: gemini:antigravity\r\n    Type: Generic\r\n    User: antigravity\r\n'))).toBe(true)
+    expect(await keyringHas('gemini', 'antigravity', 'win32', answers('Credenciales almacenadas actualmente para gemini:antigravity:\r\n\r\n    Destino: gemini:antigravity\r\n    Tipo: Genérico\r\n'))).toBe(true)
+    expect(await keyringHas('gemini', 'antigravity', 'win32', answers('Currently stored credentials for gemini:antigravity:\r\n\r\n* NONE *\r\n'))).toBe(false)
+    // macOS: el código de salida dice si está. Linux: contesta la dirección de la entrada, o ninguna.
+    expect(await keyringHas('gemini', 'antigravity', 'darwin', answers('keychain: "login.keychain-db"', 0))).toBe(true)
+    expect(await keyringHas('gemini', 'antigravity', 'darwin', answers('', 44))).toBe(false)
+    expect(await keyringHas('gemini', 'antigravity', 'linux', answers("([objectpath '/org/freedesktop/secrets/collection/login/7'], @ao [])"))).toBe(true)
+    expect(await keyringHas('gemini', 'antigravity', 'linux', answers('(@ao [], @ao [])'))).toBe(false)
+    // Sin la herramienta no se sabe: no es un «no».
+    for (const os of ['win32', 'darwin', 'linux'] as const) expect(await keyringHas('gemini', 'antigravity', os, answers('', -1))).toBeNull()
+    // Lo que se le pregunta al sistema: la entrada por su nombre, nunca su secreto.
+    const asked: string[][] = []
+    const spy = async (bin: string, args: string[]) => (asked.push([bin, ...args]), { stdout: '', stderr: '', code: 1 })
+    for (const os of ['win32', 'darwin', 'linux'] as const) await keyringHas('gemini', 'antigravity', os, spy)
+    expect(asked[0]).toEqual(['cmdkey', '/list:gemini:antigravity'])
+    expect(asked.flat().join(' ')).not.toMatch(/-w\b|-g\b|secret-tool|GetSecret/)
+  })
+
+  it('Antigravity guarda su sesión en el almacén del sistema: sin su archivo, igual se detecta', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'orq-agy-'))
+    const home = await mkdtemp(join(tmpdir(), 'orq-agy-home-'))
+    const oldPath = process.env.PATH
+    try {
+      await fakeCli(dir, 'agy', { version: '1.3.3', ask: 'nada', yes: '', no: '' })
+      process.env.PATH = dir
+      // Máquina nueva: no hay ningún archivo de Gemini. El almacén es el que sabe.
+      expect((await detectProvider(PROVIDERS.antigravity, home, async () => true)).session).toBe(true)
+      expect((await detectProvider(PROVIDERS.antigravity, home, async () => false)).session).toBe(false)
+      expect((await detectProvider(PROVIDERS.antigravity, home, async () => null)).session).toBe(false)
+      // Sin almacén (o sin poder preguntarle), su archivo cifrado también cuenta.
+      await mkdir(join(home, '.gemini', 'antigravity-cli'), { recursive: true })
+      await writeFile(join(home, '.gemini', 'antigravity-cli', 'authstore.enc'), 'x')
+      expect((await detectProvider(PROVIDERS.antigravity, home, async () => null)).session).toBe(true)
+    } finally {
+      process.env.PATH = oldPath
+      await rm(dir, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
   })
 
   it('una CLI que no existe o no arranca contesta código -1, sin lanzar', async () => {

@@ -132,6 +132,12 @@ export interface ProviderAdapter {
    * se cae a sessionPaths.
    */
   sessionCheck?: SessionCheck
+  /**
+   * La CLI guarda su sesión en el almacén de credenciales del sistema (el de
+   * Windows, el llavero de macOS, el servicio de secretos de Linux) con este
+   * nombre. Solo se pregunta si la entrada existe; nunca se lee.
+   */
+  sessionKeyring?: { service: string; user: string }
   /** Qué hacer para iniciar sesión, dicho para el usuario. */
   login: string
   /** `login` es una indicación y no un comando que copiar: la CLI pide la sesión al abrirla. */
@@ -403,9 +409,13 @@ ${stderr}`
     },
     verified: false,
   },
-  // agy no tiene comando para preguntar por la sesión; guarda su acceso de Google junto al de Gemini.
+  // agy no tiene comando para preguntar por la sesión. La guarda en el almacén de credenciales del sistema
+  // (visto con agy 1.3.3 en Windows: entrada «gemini:antigravity») y, si no hay almacén, en un archivo cifrado.
+  // `.gemini/oauth_creds.json` es de Gemini CLI: se deja por si una versión anterior lo usaba, aunque en una
+  // máquina donde solo hay agy no existe (por eso salía «sin sesión»).
   // `agy models` lista "id<tab>nombre"; el esfuerzo va en el propio id (…-high, …-low).
-  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/oauth_creds.json'], {
+  antigravity: generic('antigravity', 'Antigravity', ['agy', 'antigravity'], { url: 'https://antigravity.google' }, ['.gemini/antigravity-cli/authstore.enc', '.gemini/authstore.enc', '.gemini/oauth_creds.json'], {
+    sessionKeyring: { service: 'gemini', user: 'antigravity' },
     models: { command: { args: ['models'], read: modelIds } },
     sessions: CONTINUE,
   }),
