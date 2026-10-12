@@ -18,6 +18,7 @@ const control = (action: 'minimize' | 'maximize' | 'close') => window.orquest.wi
   <header class="titlebar">
     <span class="mark" />
     <b class="app">Orquest AI</b>
+    <span v-if="studio.version" class="version">· v{{ studio.version }}</span>
     <template v-if="project"><i class="sep" /><span class="project">{{ project }}</span></template>
     <span class="grow" />
     <button :title="T`Minimizar`" @click="control('minimize')">
@@ -36,6 +37,7 @@ const control = (action: 'minimize' | 'maximize' | 'close') => window.orquest.wi
 </template>
 
 <style scoped>
+.version { font-size: 10px; opacity: 0.6; }
 .titlebar { height: 32px; flex: none; display: flex; align-items: center; gap: 8px; padding-left: 10px; background: var(--border); color: var(--text-secondary); -webkit-app-region: drag; user-select: none; border-bottom: 2px solid var(--border); }
 :root[data-theme='light'] .titlebar { color: #cdd9e2; }
 .mark { width: 10px; height: 10px; background: var(--accent); box-shadow: 2px 2px 0 #00000080; }

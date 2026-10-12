@@ -109,7 +109,7 @@ import ThemeToggle from './ThemeToggle.vue'
       </div>
 
       <div class="brand">
-        <h1>ORQUEST AI</h1>
+        <h1>ORQUEST AI <small v-if="studio.version">v{{ studio.version }}</small></h1>
         <p>{{ T`Tu estudio de agentes de código. Cada animación es un estado real.` }}</p>
       </div>
 
@@ -221,6 +221,7 @@ import ThemeToggle from './ThemeToggle.vue'
 .team img { image-rendering: pixelated; }
 .brand { display: grid; gap: 6px; }
 h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
+.brand h1 small { font: 400 13px var(--font); letter-spacing: 0; color: var(--text-secondary); text-shadow: none; vertical-align: baseline; }
 .brand p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
 
 .alert { display: flex; gap: 12px; padding: 14px; background: var(--tint-danger); border: 3px solid var(--st-block); box-shadow: 4px 4px 0 var(--shadow); }

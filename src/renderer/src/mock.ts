@@ -78,6 +78,7 @@ export function installMock(caso: string) {
     checkRepo: async (path) => ({ state: caso === 'sin-repo' || caso === 'varios-repos' ? 'no-repo' : caso === 'sin-commits' ? 'no-commits' : 'ok', inside: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => `${path}/${n}`) : [], gitignore: false }),
     prepareRepo: async () => {},
     checkGroup: async (path) => ({ repos: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => ({ name: n, path: `${path}/${n}` })) : [], empty: [] }),
+    version: async () => '0.0.0',
     // ?actualiza=1: como si hubiera una versión nueva publicada.
     checkUpdate: async () => (new URLSearchParams(location.search).get('actualiza') ? { version: '9.9.9', url: 'https://github.com/artuino0/Orquest-AI/releases' } : null),
     detectClis: async () => {

@@ -46,6 +46,9 @@ function saveRecents(list: Recent[]) {
 
 export const useStudio = defineStore('studio', () => {
   const screen = ref<'home' | 'office'>('home')
+  /** La versión instalada, para mostrarla junto al nombre de la app. */
+  const version = ref('')
+  void window.orquest.version().then((v) => (version.value = v), () => {})
   const clis = ref<CliStatus[]>([])
   /** Lo que hace falta instalado además de las CLIs (git). */
   const requirements = ref<Requirement[]>([])
@@ -346,6 +349,7 @@ export const useStudio = defineStore('studio', () => {
 
   return {
     blocks, answerBlock, restart,
+    version,
     screen, clis, requirements, repoIssue, prepareAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,

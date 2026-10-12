@@ -48,6 +48,8 @@ export interface OrquestApi {
   language(): Promise<{ lang: Lang; chosen: boolean }>
   /** Fija el idioma elegido por el usuario. Lo que Orquest les diga a los agentes desde ahora va en ese idioma. */
   setLanguage(lang: Lang): Promise<void>
+  /** La versión instalada de la app (0.3.1). */
+  version(): Promise<string>
   /** Si hay una versión más nueva publicada: cuál y de dónde bajar su instalador. */
   checkUpdate(): Promise<UpdateInfo | null>
   detectClis(): Promise<CliStatus[]>

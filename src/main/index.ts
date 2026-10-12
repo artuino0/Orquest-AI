@@ -106,6 +106,7 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
   })
 }
 
+handle('app:version', () => app.getVersion())
 handle('update:check', () => checkUpdate(app.getVersion()))
 handle('clis:detect', () => detectAll())
 handle('requirements:detect', () => detectRequirements())
