@@ -92,7 +92,11 @@ const alerts = computed(() => {
     if (why === 'trust') {
       // La CLI pregunta si confías en la carpeta y espera: se puede contestar desde aquí.
       list.push({ danger: true, text: T`${name} no puede empezar: su CLI pregunta si confías en esta carpeta · Abrir su terminal`, go: open })
-      list.push({ text: T`Confiar en esta carpeta y que ${name} continúe`, go: () => void studio.trust(e.id) })
+      list.push({ text: T`Confiar en esta carpeta y que ${name} continúe`, go: () => void studio.answerBlock(e.id) })
+    } else if (why === 'offer') {
+      // Su CLI le ofrece otro modelo: «ahora no» lo deja con el que lo contrataste.
+      list.push({ danger: true, text: T`${name} está detenido: su CLI le ofrece cambiar de modelo · Abrir su terminal`, go: open })
+      list.push({ text: T`Decirle «ahora no» y que ${name} siga con su modelo`, go: () => void studio.answerBlock(e.id) })
     } else if (why === 'update') list.push({ danger: true, text: T`${name} está detenido: su CLI ofrece actualizarse · Abre su terminal y elige`, go: open })
     else if (why === 'login') list.push({ danger: true, text: T`${name} está detenido: su CLI pide iniciar sesión · Abre su terminal`, go: open })
     else list.push({ danger: true, text: T`${name} te necesita: abre su terminal`, go: open })

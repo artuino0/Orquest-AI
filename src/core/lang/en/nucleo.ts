@@ -170,6 +170,9 @@ const en: Record<string, string> = {
   "No hay proyecto abierto.": "No project is open.",
   "Elige el repositorio del proyecto": "Choose the project's repository",
   "Ya no está en la oficina.": "They're no longer in the office.",
+  '{0} está descansando: espera a que vuelva.': '{0} is taking a break: wait until they are back.',
+  'Tu terminal se reinició y esta es una conversación nueva. Lee tu bitácora ({0}) y sigue donde ibas ({1}).': 'Your terminal was restarted and this is a new conversation. Read your journal ({0}) and pick up where you left off ({1}).',
+  'el usuario reinició su terminal': 'the user restarted their terminal',
 }
 
 export default en

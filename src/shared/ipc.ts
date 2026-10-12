@@ -110,8 +110,10 @@ export interface OrquestApi {
   bringBack(id: string): Promise<void>
   /** Por qué está detenida una terminal, si es una pantalla conocida (confiar en la carpeta, actualizar, iniciar sesión). */
   blockedBy(id: string): Promise<BlockKind | null>
-  /** El usuario confía en la carpeta: se contesta eso en la terminal de quien lo pregunta. */
-  trust(id: string): Promise<void>
+  /** Contesta desde la app la pantalla que lo detiene: confiar en la carpeta, o «ahora no» a la oferta de otro modelo. */
+  answerBlock(id: string): Promise<void>
+  /** Reinicia su terminal: conversación nueva, con sus instrucciones y su bitácora. */
+  restart(id: string): Promise<void>
   journal(id: string): Promise<string>
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>

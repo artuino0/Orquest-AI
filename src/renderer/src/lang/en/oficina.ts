@@ -192,6 +192,8 @@ const en: Record<string, string> = {
   'Hay una versión nueva: {0}': 'A new version is available: {0}',
   'Descargar': 'Download',
   'Ahora no': 'Not now',
+  '{0} está detenido: su CLI le ofrece cambiar de modelo · Abrir su terminal': '{0} is stopped: its CLI offers to switch models · Open its terminal',
+  'Decirle «ahora no» y que {0} siga con su modelo': 'Say "not now" and let {0} keep its model',
 }
 
 export default en

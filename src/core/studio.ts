@@ -133,7 +133,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       this.changed()
     }
     const onExit = (id: string) => {
-      if (!this.isOurs(id) || this.resting.has(id)) return
+      if (!this.isOurs(id) || this.resting.has(id) || this.restarting.has(id)) return
       // Quiso retomar su conversación y la CLI se cerró sin haber llegado a servir: no había qué
       // retomar. Entra de nuevo, desde cero. No se mide con reloj: antes de cerrarse pudo quedarse
       // un rato en una pantalla de primer arranque (confiar en la carpeta) esperando al usuario.
@@ -630,6 +630,29 @@ export class Studio extends EventEmitter<StudioEvents> {
       this.fact(id, T`volvió de descansar`)
     } finally {
       this.resting.delete(id)
+      this.changed()
+    }
+  }
+
+  private restarting = new Set<string>()
+  /**
+   * Reinicia la terminal de alguien que quedó atorado: se cierra su CLI y entra otra en la
+   * misma oficina, con una conversación nueva, sus instrucciones y su bitácora. Lo que el
+   * usuario le había escrito y no alcanzó a llegar se le entrega al volver.
+   */
+  async restart(id: string) {
+    const l = this.launches.get(id)
+    if (!l) throw new RuleError(T`${this.nameOf(id)} no está en la oficina.`)
+    if (this.resting.has(id)) throw new RuleError(T`${this.nameOf(id)} está descansando: espera a que vuelva.`)
+    this.restarting.add(id)
+    try {
+      if (this.opts.manager.get(id)) await this.opts.manager.fire(id, this.root)
+      await this.launch(id, l, [
+        T`Tu terminal se reinició y esta es una conversación nueva. Lee tu bitácora (${this.journal.path(id)}) y sigue donde ibas (${id === BOSS_ID ? 'leer_proyecto' : 'leer_tarea'}).`,
+      ])
+      this.fact(id, T`el usuario reinició su terminal`)
+    } finally {
+      this.restarting.delete(id)
       this.changed()
     }
   }

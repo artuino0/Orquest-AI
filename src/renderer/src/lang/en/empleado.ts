@@ -96,6 +96,8 @@ const en: Record<string, string> = {
   '¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.': 'Running out of limit mid-day? Another account doubles it.',
   'El de {0} es enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.': "The {0} one is the author's referral link: it costs you nothing extra and helps support Orquest AI.",
   ' y ': ' and ',
+  'Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.': 'Closes their terminal and opens a new one: a new conversation, with their instructions and journal. Use it if it got stuck.',
+  'Reiniciar': 'Restart',
 }
 
 export default en

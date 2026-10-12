@@ -322,8 +322,10 @@ export const useStudio = defineStore('studio', () => {
       }, ms)
     }
   }
-  /** El usuario confía en la carpeta: se contesta en la terminal de quien lo pregunta. */
-  const trust = (id: string) => attempt(() => window.orquest.trust(id))
+  /** Contesta desde aquí la pantalla que lo detiene (confiar en la carpeta, «ahora no» a otro modelo). */
+  const answerBlock = (id: string) => attempt(() => window.orquest.answerBlock(id))
+  /** Reinicia su terminal cuando quedó atorada. */
+  const restart = (id: string) => attempt(() => window.orquest.restart(id))
 
   window.orquest.onState((id, state) => {
     const e = employees.value.find((x) => x.id === id)
@@ -338,7 +340,7 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    blocks, trust,
+    blocks, answerBlock, restart,
     screen, clis, requirements, repoIssue, prepareAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,

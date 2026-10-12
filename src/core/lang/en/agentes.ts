@@ -206,7 +206,7 @@ const en: Record<string, string> = {
   '# Creado por Orquest AI al iniciar el repositorio: lo que no se guarda en git.': "# Created by Orquest AI when starting the repository: what git doesn't keep.",
   'Esta carpeta tiene repositorios dentro: abre uno de ellos en vez de iniciar otro aquí.': 'This folder has repositories inside: open one of them instead of starting another one here.',
   'Primer commit': 'Initial commit',
-  'No encontré la pregunta de confianza en su pantalla. Ábrele la terminal y contesta ahí.': "I couldn't find the trust question on its screen. Open its terminal and answer there.",
+  'No encontré esa pregunta en su pantalla. Ábrele la terminal y contesta ahí.': "I couldn't find that question on its screen. Open its terminal and answer there.",
 }
 
 export default en

@@ -79,14 +79,23 @@ export interface ManagerEvents {
 }
 
 /** Una pantalla conocida que detiene a una CLI y espera al usuario. `permission`: cualquier otra pregunta. */
-export type BlockKind = 'trust' | 'update' | 'login' | 'permission'
+export type BlockKind = 'trust' | 'offer' | 'update' | 'login' | 'permission'
 const BLOCKS: [BlockKind, RegExp][] = [
   ['trust', /trust (this|the files in this|the contents of this) (folder|directory)|do you trust|one you trust/i],
+  // Claude Code ofrece pasarse a otro modelo: «Yes, try it» / «Not now».
+  ['offer', /yes, try it/i],
   ['update', /update available|skip until next version/i],
   ['login', /select login method|sign in to continue|log in to continue/i],
 ]
-/** La opción que dice «sí, confío en esta carpeta» en cada CLI (vistas en Claude Code y en Codex). */
-const TRUST_YES = /yes, i trust|trust and continue|yes, proceed/i
+/**
+ * Lo que el usuario puede contestar desde la app, sin abrir la terminal: la opción del menú
+ * que se elige en cada caso. Confiar: «sí, confío en esta carpeta» (vistas en Claude Code y
+ * en Codex). Oferta de otro modelo: «ahora no», que deja el modelo con que se le contrató.
+ */
+const ANSWERS: Partial<Record<BlockKind, RegExp>> = {
+  trust: /yes, i trust|trust and continue|yes, proceed/i,
+  offer: /^\W*(\d+\.\s*)?not now\s*$/i,
+}
 /** Renglón del menú donde está el cursor. */
 const MENU_CURSOR = /^\s*[❯›>]\s/
 
@@ -306,16 +315,19 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
   }
 
   /**
-   * El usuario confía en la carpeta: se elige esa opción en el menú de la CLI,
-   * moviendo el cursor hasta ella (en Claude Code la que viene marcada es «No, exit»).
-   * Si la pantalla no es la esperada no se teclea nada.
+   * Contesta la pantalla que la detiene eligiendo en su menú la opción que toca (ver ANSWERS),
+   * moviendo el cursor hasta ella: en Claude Code la que viene marcada al preguntar por la
+   * carpeta es «No, exit». Si la pantalla no es la esperada no se teclea nada.
    */
-  trust(id: string) {
+  answerBlock(id: string) {
     const e = this.mustGet(id)
+    const kind = this.blockedBy(id)
+    const wanted = kind && ANSWERS[kind]
     const lines = e.reader.screen().split('\n')
-    const target = lines.findIndex((l) => TRUST_YES.test(l))
-    const cursor = lines.findIndex((l) => MENU_CURSOR.test(l))
-    if (this.blockedBy(id) !== 'trust' || target < 0 || cursor < 0) throw new Error(T`No encontré la pregunta de confianza en su pantalla. Ábrele la terminal y contesta ahí.`)
+    const target = wanted ? lines.findIndex((l) => wanted.test(l)) : -1
+    // El cursor del menú es el más cercano a esa opción: más arriba puede verse el del prompt de la CLI.
+    const cursor = lines.map((l, i) => (MENU_CURSOR.test(l) ? i : -1)).filter((i) => i >= 0).sort((x, y) => Math.abs(x - target) - Math.abs(y - target))[0] ?? -1
+    if (target < 0 || cursor < 0) throw new Error(T`No encontré esa pregunta en su pantalla. Ábrele la terminal y contesta ahí.`)
     const steps = target - cursor
     e.pty.write((steps > 0 ? '\x1b[B' : '\x1b[A').repeat(Math.abs(steps)))
     setTimeout(() => this.live.get(id) === e && e.pty.write('\r'), 200)

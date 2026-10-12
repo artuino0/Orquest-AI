@@ -176,6 +176,9 @@ const PERMISSION = [
   /allow (this|command)\?/i,
   /\(y\/n\)/i,
   /approve\?/i,
+  // Cualquier menú abierto de la CLI: mientras esté ahí, lo que se le escriba cae en el menú, no en su prompt.
+  /enter to confirm/i,
+  /enter (to )?continue · esc/i,
 ]
 
 function generic(

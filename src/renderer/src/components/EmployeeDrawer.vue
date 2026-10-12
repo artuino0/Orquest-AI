@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, UserMinus, X } from 'lucide-vue-next'
+import { AlertTriangle, AppWindow, ChevronRight, Columns2, Gamepad2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
@@ -191,6 +191,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
         </button>
         <button class="btn" @click="studio.select(null)"><X /> {{ T`Cerrar` }}</button>
         <button class="btn" :disabled="gaming || e.state === 'exited'" :title="T`Escribe su traspaso y se reinicia con el contexto limpio`" @click="studio.rest(e.id)"><Gamepad2 /> {{ T`Descanso` }}</button>
+        <button class="btn" :disabled="gaming" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.`" @click="studio.restart(e.id)"><RotateCcw /> {{ T`Reiniciar` }}</button>
         <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> {{ T`Despedir` }}</button>
       </div>
     </header>

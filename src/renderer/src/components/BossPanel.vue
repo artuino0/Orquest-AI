@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, Send, Target, Terminal, Users } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
@@ -51,6 +51,8 @@ watch(
   },
   { immediate: true },
 )
+/** Qué pantalla detiene al jefe, si se reconoce: decide qué botón se ofrece. */
+const blockKind = computed(() => studio.blocks.jefe)
 /** El usuario prefiere contratar otro jefe en vez de retomar al que tenía. */
 const another = ref(false)
 const goal = ref(studio.board?.goal ?? '')
@@ -284,7 +286,13 @@ const pending = computed(() => {
         <!-- Detenido: su CLI pregunta algo y nada de lo que escribas le llega hasta que contestes. -->
         <div v-if="boss?.state === 'blocked'" class="stuck">
           <p><AlertTriangle /> <span><b>{{ T`El jefe está detenido: su CLI te pregunta algo.` }}</b> {{ T`Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.` }}</span></p>
-          <div class="mini"><TerminalView id="jefe" /></div>
+          <div class="stuck-actions">
+            <button v-if="blockKind === 'trust'" class="btn primary" @click="studio.answerBlock('jefe')">{{ T`Confiar en esta carpeta y continuar` }}</button>
+            <button v-if="blockKind === 'offer'" class="btn primary" @click="studio.answerBlock('jefe')">{{ T`Decirle «ahora no» y seguir` }}</button>
+            <button class="btn" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora.`" @click="studio.restart('jefe')"><RotateCcw /> {{ T`Reiniciar su terminal` }}</button>
+          </div>
+          <p v-if="studio.selected === 'jefe'" class="dim">{{ T`Su terminal está abierta en el panel de la derecha: contéstale ahí.` }}</p>
+          <div v-else class="mini"><TerminalView id="jefe" /></div>
         </div>
         <div ref="log" class="log" @scroll.passive="look">
           <div class="spacer" />
@@ -371,6 +379,7 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .goal > svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
 .goal div { flex: 1; min-width: 0; }
 .goal p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; }
+.stuck-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .stuck { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--tint-danger); border: 2px solid var(--st-block); }
 .stuck p { margin: 0; display: flex; gap: 10px; font-size: 12px; line-height: 1.5; }
 .stuck svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }

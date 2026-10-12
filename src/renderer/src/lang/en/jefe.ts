@@ -181,6 +181,11 @@ const en: Record<string, string> = {
   'Diff · {0} archivos': 'Diff · {0} files',
   'Notas si la regresas (las recibe {0} por medio del jefe)…': 'Notes if you send it back ({0} receives them through the boss)…',
   'Contratar otro jefe': 'Hire another boss',
+  'Confiar en esta carpeta y continuar': 'Trust this folder and continue',
+  'Decirle «ahora no» y seguir': 'Say "not now" and continue',
+  'Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora.': 'Closes their terminal and opens a new one: a new conversation, with their instructions and journal.',
+  'Reiniciar su terminal': 'Restart their terminal',
+  'Su terminal está abierta en el panel de la derecha: contéstale ahí.': 'Their terminal is open in the panel on the right: answer there.',
 }
 
 export default en
