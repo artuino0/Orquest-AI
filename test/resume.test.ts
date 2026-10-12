@@ -159,7 +159,7 @@ describe('corte al cerrar y pregunta al abrir', () => {
     expect(a.snapshot().messages.at(-1)?.text).toMatch(/La app se va a cerrar.*escribir_traspaso/)
   })
 
-  it('al abrir se dice quiénes volverían, y decir que no deja la oficina sin jefe', async () => {
+  it('al abrir se dice quiénes volverían, y decir «ahora no» no despide a nadie', async () => {
     const repo = await makeRepo()
     const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
     const a = await open(repo, store, recorder().spawn)
@@ -171,9 +171,53 @@ describe('corte al cerrar y pregunta al abrir', () => {
     const second = recorder()
     const b = await open(repo, store, second.spawn)
     expect(b.snapshot().resumable).toEqual(['Jefe'])
+    // Siguen contratados: se pueden retomar después, sin tener que contratar otro jefe.
     b.skipResume()
-    expect(b.snapshot().resumable).toEqual([])
-    await b.resume()
+    expect(b.snapshot().resumable).toEqual(['Jefe'])
     expect(second.launches).toHaveLength(0)
+    await b.resume()
+    expect(second.launches).toHaveLength(1)
+    expect(b.snapshot().resumable).toEqual([])
+  })
+
+  it('si la CLI del jefe se cierra, se le puede retomar o contratar otro: no queda atorado', async () => {
+    const repo = await makeRepo()
+    const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
+    // Cada terminal se puede cerrar desde la prueba, como cuando la CLI sale sola.
+    const exits: (() => void)[] = []
+    const launches: string[][] = []
+    const spawn: Spawner = (_file, args) => {
+      launches.push(args)
+      let onExit: (e: { exitCode: number }) => void = () => {}
+      exits.push(() => onExit({ exitCode: 1 }))
+      return { pid: 1, onData: () => {}, onExit: (cb) => (onExit = cb), write: () => {}, resize: () => {}, kill: () => onExit({ exitCode: 0 }) }
+    }
+    const s = await open(repo, store, spawn)
+    await s.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    expect(s.bossOnline).toBe(true)
+
+    // Se cierra (el usuario eligió «No, exit» en la pregunta de confianza, o la cerró por error).
+    exits[0]()
+    expect(s.bossOnline).toBe(false)
+    expect(s.snapshot().resumable).toEqual(['Jefe'])
+
+    // Retomar lo trae de vuelta con su conversación…
+    await s.resume()
+    expect(s.bossOnline).toBe(true)
+    expect(launches[1]).toContain('--resume')
+
+    // …y si esa conversación nunca existió, la CLI se cierra, tarde lo que tarde, y entra con una nueva.
+    await new Promise((r) => setTimeout(r, 50))
+    exits[1]()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(s.bossOnline).toBe(true)
+    expect(launches).toHaveLength(3)
+    expect(launches[2]).not.toContain('--resume')
+
+    // Cerrada otra vez, contratar un jefe nuevo también funciona (antes decía «Ya existe el empleado jefe»).
+    exits[2]()
+    expect(s.bossOnline).toBe(false)
+    await s.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    expect(s.bossOnline).toBe(true)
   })
 })

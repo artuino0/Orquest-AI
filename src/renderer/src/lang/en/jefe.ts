@@ -180,6 +180,7 @@ const en: Record<string, string> = {
   'Diff · {0} archivo': 'Diff · {0} file',
   'Diff · {0} archivos': 'Diff · {0} files',
   'Notas si la regresas (las recibe {0} por medio del jefe)…': 'Notes if you send it back ({0} receives them through the boss)…',
+  'Contratar otro jefe': 'Hire another boss',
 }
 
 export default en

@@ -129,6 +129,8 @@ export function installMock(caso: string) {
     fire: todo('empleados'),
     rest: todo('empleados'),
     bringBack: todo('empleados'),
+    blockedBy: async () => null,
+    trust: todo('empleados'),
     say: async () => {},
     journal: async () => '',
     list: async () => [],

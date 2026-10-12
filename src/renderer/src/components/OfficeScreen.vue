@@ -85,7 +85,17 @@ const legend = computed(() => {
 const alerts = computed(() => {
   const list: { danger?: boolean; text: string; go: () => void }[] = []
   for (const e of studio.employees) {
-    if (e.state === 'blocked') list.push({ danger: true, text: T`${studio.nameOf(e.id)} te necesita: abre su terminal`, go: () => studio.select(e.id) })
+    if (e.state !== 'blocked') continue
+    const name = studio.nameOf(e.id)
+    const open = () => studio.select(e.id)
+    const why = studio.blocks[e.id]
+    if (why === 'trust') {
+      // La CLI pregunta si confías en la carpeta y espera: se puede contestar desde aquí.
+      list.push({ danger: true, text: T`${name} no puede empezar: su CLI pregunta si confías en esta carpeta · Abrir su terminal`, go: open })
+      list.push({ text: T`Confiar en esta carpeta y que ${name} continúe`, go: () => void studio.trust(e.id) })
+    } else if (why === 'update') list.push({ danger: true, text: T`${name} está detenido: su CLI ofrece actualizarse · Abre su terminal y elige`, go: open })
+    else if (why === 'login') list.push({ danger: true, text: T`${name} está detenido: su CLI pide iniciar sesión · Abre su terminal`, go: open })
+    else list.push({ danger: true, text: T`${name} te necesita: abre su terminal`, go: open })
   }
   // El jefe te preguntó algo y no puede decidirlo sin ti.
   const asks = (studio.board?.questions ?? []).filter((q) => q.status === 'open').length

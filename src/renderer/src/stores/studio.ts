@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck } from '../../../shared/ipc'
+import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck, BlockKind } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
@@ -180,6 +180,7 @@ export const useStudio = defineStore('studio', () => {
     // Git da la raíz con diagonales y las oficinas se arman con las del sistema: se comparan parejas.
     const same = (p: string) => p.split('\\').join('/').toLowerCase()
     employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(root)))
+    for (const e of employees.value) if (e.state === 'blocked') readBlock(e.id)
   }
 
   /**
@@ -306,14 +307,38 @@ export const useStudio = defineStore('studio', () => {
       doing.value = rest
     }
   })
+  // ── Por qué está detenido cada quien, cuando es una pantalla conocida de su CLI
+  // (confiar en la carpeta, actualizar, iniciar sesión): el aviso lo dice en vez de
+  // un «te necesita» a secas.
+  const blocks = ref<Record<string, BlockKind>>({})
+  function readBlock(id: string) {
+    const still = () => employees.value.find((x) => x.id === id)?.state === 'blocked'
+    // La pantalla puede seguir dibujándose: se mira dos veces.
+    for (const ms of [300, 1500]) {
+      setTimeout(async () => {
+        if (!still()) return
+        const kind = await window.orquest.blockedBy(id).catch(() => null)
+        if (kind && still()) blocks.value = { ...blocks.value, [id]: kind }
+      }, ms)
+    }
+  }
+  /** El usuario confía en la carpeta: se contesta en la terminal de quien lo pregunta. */
+  const trust = (id: string) => attempt(() => window.orquest.trust(id))
+
   window.orquest.onState((id, state) => {
     const e = employees.value.find((x) => x.id === id)
     if (!e) return
     e.state = state
     log(id, LOOKS[state].label, state)
+    if (state === 'blocked') readBlock(id)
+    else if (blocks.value[id]) {
+      const { [id]: _gone, ...rest } = blocks.value
+      blocks.value = rest
+    }
   })
 
   return {
+    blocks, trust,
     screen, clis, requirements, repoIssue, prepareAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,

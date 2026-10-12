@@ -4,7 +4,7 @@ import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
 import type { CliStatus, Requirement } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
-import type { Employee } from '../core/employees.js'
+import type { Employee, BlockKind } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
 import type { Account } from '../core/accounts.js'
 import type { Activity } from '../core/activity.js'
@@ -105,6 +105,10 @@ export interface OrquestApi {
   rest(id: string): Promise<void>
   /** Vuelve a sentar a alguien cuya CLI se cerró. */
   bringBack(id: string): Promise<void>
+  /** Por qué está detenida una terminal, si es una pantalla conocida (confiar en la carpeta, actualizar, iniciar sesión). */
+  blockedBy(id: string): Promise<BlockKind | null>
+  /** El usuario confía en la carpeta: se contesta eso en la terminal de quien lo pregunta. */
+  trust(id: string): Promise<void>
   journal(id: string): Promise<string>
   list(): Promise<Employee[]>
   scrollback(id: string): Promise<string>
@@ -128,3 +132,4 @@ export interface OrquestApi {
 }
 
 export type { RepoCheck }
+export type { BlockKind }

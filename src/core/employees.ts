@@ -78,6 +78,18 @@ export interface ManagerEvents {
   activity: [id: string, activity: Activity | null]
 }
 
+/** Una pantalla conocida que detiene a una CLI y espera al usuario. `permission`: cualquier otra pregunta. */
+export type BlockKind = 'trust' | 'update' | 'login' | 'permission'
+const BLOCKS: [BlockKind, RegExp][] = [
+  ['trust', /trust (this|the files in this|the contents of this) (folder|directory)|do you trust|one you trust/i],
+  ['update', /update available|skip until next version/i],
+  ['login', /select login method|sign in to continue|log in to continue/i],
+]
+/** La opción que dice «sí, confío en esta carpeta» en cada CLI (vistas en Claude Code y en Codex). */
+const TRUST_YES = /yes, i trust|trust and continue|yes, proceed/i
+/** Renglón del menú donde está el cursor. */
+const MENU_CURSOR = /^\s*[❯›>]\s/
+
 interface Live {
   employee: Employee
   pty: Pty
@@ -281,7 +293,32 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     if (!e || e.employee.state !== 'idle') return false
     // La TUI sigue dibujando: lo tecleado ahora se puede perder.
     if (Date.now() - e.lastDataAt < (this.opts.settleMs ?? 800)) return false
-    return getProvider(e.employee.provider).verified ? e.reader.promptVisible() : true
+    // Sin patrones comprobados no se sabe leer su prompt: al menos que ya haya dibujado algo.
+    return getProvider(e.employee.provider).verified ? e.reader.promptVisible() : e.reader.screen().trim().length > 0
+  }
+
+  /** Por qué está detenida, si lo está por una pantalla que se reconoce. */
+  blockedBy(id: string): BlockKind | undefined {
+    const e = this.live.get(id)
+    if (!e || e.employee.state !== 'blocked') return undefined
+    const screen = e.reader.screen()
+    return BLOCKS.find(([, pattern]) => pattern.test(screen))?.[0] ?? 'permission'
+  }
+
+  /**
+   * El usuario confía en la carpeta: se elige esa opción en el menú de la CLI,
+   * moviendo el cursor hasta ella (en Claude Code la que viene marcada es «No, exit»).
+   * Si la pantalla no es la esperada no se teclea nada.
+   */
+  trust(id: string) {
+    const e = this.mustGet(id)
+    const lines = e.reader.screen().split('\n')
+    const target = lines.findIndex((l) => TRUST_YES.test(l))
+    const cursor = lines.findIndex((l) => MENU_CURSOR.test(l))
+    if (this.blockedBy(id) !== 'trust' || target < 0 || cursor < 0) throw new Error(T`No encontré la pregunta de confianza en su pantalla. Ábrele la terminal y contesta ahí.`)
+    const steps = target - cursor
+    e.pty.write((steps > 0 ? '\x1b[B' : '\x1b[A').repeat(Math.abs(steps)))
+    setTimeout(() => this.live.get(id) === e && e.pty.write('\r'), 200)
   }
 
   isLive(id: string): boolean {

@@ -8,7 +8,7 @@ import { randomBytes } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
-import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
+import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import { archiveCaptures } from './captures.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
@@ -27,7 +27,6 @@ import { commitDelivery, currentBranch, deliveryDiff, headOf, mergeOffice, nothi
 const SUBMIT_RETRY_MS = 1200
 
 /** Una CLI que se cierra antes de esto tras pedirle retomar, es que no tenía conversación que retomar. */
-const RESUME_GRACE_MS = 20_000
 
 const exists = (path: string) => access(path).then(() => true, () => false)
 
@@ -125,6 +124,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.board = saved ? Board.restore(saved) : new Board()
     const onState = (id: string, state: EmployeeState) => {
       if (!this.isOurs(id)) return
+      // Se puso a trabajar: la conversación que retomó sí existía.
+      if (state === 'working') this.resumeTries.delete(id)
       if (state === 'idle') {
         this.flush(id)
         if (this.restPending.has(id)) this.tryRest(id)
@@ -133,11 +134,12 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     const onExit = (id: string) => {
       if (!this.isOurs(id) || this.resting.has(id)) return
-      // Quiso retomar su conversación y la CLI se cerró enseguida: no había qué retomar. Entra de nuevo, desde cero.
-      const tried = this.resumeTries.get(id)
-      this.resumeTries.delete(id)
+      // Quiso retomar su conversación y la CLI se cerró sin haber llegado a servir: no había qué
+      // retomar. Entra de nuevo, desde cero. No se mide con reloj: antes de cerrarse pudo quedarse
+      // un rato en una pantalla de primer arranque (confiar en la carpeta) esperando al usuario.
+      const tried = this.resumeTries.delete(id)
       const l = this.launches.get(id)
-      if (tried && l && Date.now() - tried < RESUME_GRACE_MS) {
+      if (tried && l) {
         const journal = this.journal.path(id)
         const note = T`La app se reabrió y tu conversación anterior no se pudo retomar. Lee tu bitácora (${journal}) y sigue donde ibas (${id === BOSS_ID ? 'leer_proyecto' : 'leer_tarea'}).`
         // Igual que al volver de descansar: se retira la terminal cerrada y entra otra en la misma oficina.
@@ -257,6 +259,8 @@ export class Studio extends EventEmitter<StudioEvents> {
       return
     }
     this.stopRetry(id)
+    // Ya está en su prompt: si venía de retomar, la conversación cargó bien.
+    this.resumeTries.delete(id)
     // De uno en uno: texto, pausa y Enter. Las CLIs toman una ráfaga de teclas como pegado, y un
     // Enter que llega dentro de la ráfaga se queda como salto de línea en vez de enviar (Codex lo
     // hace con textos largos). Tampoco se encima el siguiente mensaje antes del Enter del anterior.
@@ -307,6 +311,9 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   /** Lanza (o relanza) la CLI de un agente con sus mensajes de arranque. */
   private async launch(id: string, l: Launch, extra: string[] | ((emp: Employee) => string[]) = [], resume = false) {
+    // Su terminal anterior se cerró pero sigue apuntada: se retira, o no dejaría entrar a nadie con ese id
+    // (un jefe cuya CLI se cerró no se podía volver a contratar).
+    if (this.opts.manager.get(id) && !this.opts.manager.isLive(id)) await this.opts.manager.fire(id, this.root)
     this.contextFloor.delete(id)
     const cli = this.opts.cli
     // Retomar es seguir la conversación de antes; si no, nace una nueva (así vuelve de descansar, con el contexto limpio).
@@ -321,7 +328,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     // La conversación cambia cada vez que nace una nueva: se guarda la vigente.
     if (id === BOSS_ID && this.board.boss) this.board.boss.sessionId = emp.sessionId
     else this.board.returned(id, emp.sessionId)
-    if (emp.resumed) this.resumeTries.set(id, Date.now())
+    if (emp.resumed) this.resumeTries.add(id)
     // Quien retomó ya trae su manual en la conversación.
     const intro = emp.resumed ? [] : l.intro(emp.office)
     for (const m of [...intro, ...(typeof extra === 'function' ? extra(emp) : extra)]) this.notify(id, m)
@@ -397,18 +404,27 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   /** Cuándo se intentó retomar la conversación de cada quien: si su CLI se cierra enseguida, entra con una nueva. */
-  private resumeTries = new Map<string, number>()
-  private resumedOnce = false
+  /** Quiénes están retomando su conversación y aún no se sabe si existía. */
+  private resumeTries = new Set<string>()
+  private resuming = false
   /**
    * Al reabrir un proyecto: el jefe y quienes seguían contratados vuelven a su
    * escritorio, cada uno retomando su conversación si su CLI sabe hacerlo.
    * Quien no pueda volver se queda fuera y se avisa; no frena a los demás.
    */
   async resume(): Promise<void> {
-    if (this.resumedOnce) return
-    this.resumedOnce = true
     const boss = this.board.boss
-    if (!boss || this.bossOnline) return
+    if (this.resuming || !boss || this.bossOnline) return
+    this.resuming = true
+    try {
+      await this.resumeAll(boss)
+    } finally {
+      this.resuming = false
+      this.changed()
+    }
+  }
+
+  private async resumeAll(boss: BossRecord): Promise<void> {
     try {
       await this.launchBoss({ ...boss, goal: this.board.goal }, true)
       this.fact(BOSS_ID, T`volvió al reabrir la app`)
@@ -419,8 +435,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     for (const m of this.board.staff) {
       const slot = this.board.slots.find((s) => s.employeeId === m.id)
-      // Sin oficina guardada o sin su carpeta ya no hay a dónde volver.
-      if (m.gone || !slot || !m.office || !(await exists(m.office.path))) continue
+      // Sin oficina guardada o sin su carpeta ya no hay a dónde volver; quien sigue en su escritorio no se toca.
+      if (m.gone || !slot || !m.office || this.opts.manager.isLive(m.id) || !(await exists(m.office.path))) continue
       try {
         await this.hireSlot(slot, m)
         this.fact(m.id, T`volvió al reabrir la app`)
@@ -563,13 +579,14 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   /** Quiénes volverían si se retoma el proyecto: nombres, con el jefe primero. Vacío si no hay a quién retomar. */
   get resumable(): string[] {
-    if (this.resumedOnce || this.bossOnline || !this.board.boss) return []
+    // Mientras el jefe siga contratado y su terminal esté cerrada (al reabrir la app, o porque
+    // se cerró por error), se puede retomar.
+    if (this.resuming || this.bossOnline || !this.board.boss) return []
     return [T`Jefe`, ...this.board.staff.filter((m) => !m.gone && m.office && this.board.slots.some((x) => x.employeeId === m.id)).map((m) => m.name)]
   }
 
   /** El usuario prefirió no retomar: se queda sin jefe hasta que contrate uno. */
   skipResume() {
-    this.resumedOnce = true
     this.changed()
   }
 

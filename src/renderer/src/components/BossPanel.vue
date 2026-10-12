@@ -51,6 +51,8 @@ watch(
   },
   { immediate: true },
 )
+/** El usuario prefiere contratar otro jefe en vez de retomar al que tenía. */
+const another = ref(false)
 const goal = ref(studio.board?.goal ?? '')
 const bossName = ref(studio.board?.boss?.name ?? '')
 const message = ref('')
@@ -188,11 +190,12 @@ const pending = computed(() => {
 
 <template>
   <!-- Sin jefe: contratarlo -->
-  <PanelFrame v-if="!studio.bossOnline && studio.board?.resumable.length" :title="T`Jefe`" :subtitle="T`Contratado, con su terminal cerrada`" narrow>
+  <PanelFrame v-if="!studio.bossOnline && studio.board?.resumable.length && !another" :title="T`Jefe`" :subtitle="T`Contratado, con su terminal cerrada`" narrow>
     <div class="blank">
       <h2>{{ T`Tu jefe y su equipo siguen contratados` }}</h2>
       <p>{{ T`Sus terminales están cerradas: ${studio.board.resumable.join(', ')}. Al retomar, cada quien vuelve a su escritorio con su conversación y lee el corte que dejó.` }}</p>
       <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)">{{ studio.resuming ? T`Volviendo…` : T`Retomar actividades` }}</button>
+      <button class="btn" :disabled="studio.resuming" @click="another = true">{{ T`Contratar otro jefe` }}</button>
       <p v-if="studio.error" class="err">{{ studio.error }}</p>
     </div>
   </PanelFrame>

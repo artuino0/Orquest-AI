@@ -185,6 +185,10 @@ const en: Record<string, string> = {
   'Preparando…': 'Preparing…',
   'Iniciar repositorio y abrir': 'Start repository and open',
   'Guardar el primer commit y abrir': 'Save the first commit and open',
+  '{0} no puede empezar: su CLI pregunta si confías en esta carpeta · Abrir su terminal': "{0} can't start: its CLI asks whether you trust this folder · Open its terminal",
+  'Confiar en esta carpeta y que {0} continúe': 'Trust this folder and let {0} continue',
+  '{0} está detenido: su CLI ofrece actualizarse · Abre su terminal y elige': '{0} is stopped: its CLI offers an update · Open its terminal and choose',
+  '{0} está detenido: su CLI pide iniciar sesión · Abre su terminal': '{0} is stopped: its CLI asks you to sign in · Open its terminal',
 }
 
 export default en
