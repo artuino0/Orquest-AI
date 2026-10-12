@@ -11,6 +11,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { T } from './i18n.js'
 
 export interface InstalledTool {
   /** Como se le nombra al agente (nombre de la skill o del servidor MCP). */
@@ -53,21 +54,21 @@ async function json(path: string): Promise<Record<string, unknown> | null> {
 const mcpNames = (config: Record<string, unknown> | null) => Object.keys((config?.mcpServers as Record<string, unknown> | undefined) ?? {})
 
 export async function listTools(repo?: string, home = homedir()): Promise<InstalledTool[]> {
-  const tools: InstalledTool[] = [...(await skillsIn(join(home, '.claude', 'skills'), 'tuyas'))]
+  const tools: InstalledTool[] = [...(await skillsIn(join(home, '.claude', 'skills'), T`tuyas`))]
 
   // Plugins de Claude Code: cada uno dice dónde quedó instalado.
   const installed = await json(join(home, '.claude', 'plugins', 'installed_plugins.json'))
   const plugins = ((installed?.plugins as Record<string, unknown> | undefined) ?? {}) as Record<string, { installPath?: string }[] | { installPath?: string }>
   for (const [key, entry] of Object.entries(plugins)) {
     const path = (Array.isArray(entry) ? entry[0] : entry)?.installPath
-    if (path) tools.push(...(await skillsIn(join(path, 'skills'), `plugin ${key.split('@')[0]}`)))
+    if (path) tools.push(...(await skillsIn(join(path, 'skills'), T`plugin ${key.split('@')[0]}`)))
   }
 
-  if (repo) tools.push(...(await skillsIn(join(repo, '.claude', 'skills'), 'del proyecto')))
+  if (repo) tools.push(...(await skillsIn(join(repo, '.claude', 'skills'), T`del proyecto`)))
   tools.push(...(await skillsIn(join(home, '.codex', 'skills'), 'Codex')))
 
-  for (const name of mcpNames(await json(join(home, '.claude.json')))) tools.push({ name, kind: 'mcp', source: 'MCP tuyo' })
-  if (repo) for (const name of mcpNames(await json(join(repo, '.mcp.json')))) tools.push({ name, kind: 'mcp', source: 'MCP del proyecto' })
+  for (const name of mcpNames(await json(join(home, '.claude.json')))) tools.push({ name, kind: 'mcp', source: T`MCP tuyo` })
+  if (repo) for (const name of mcpNames(await json(join(repo, '.mcp.json')))) tools.push({ name, kind: 'mcp', source: T`MCP del proyecto` })
 
   // La misma skill puede estar en dos lados: se queda la primera (las tuyas mandan).
   const seen = new Set<string>()

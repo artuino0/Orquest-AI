@@ -5,6 +5,7 @@
  * subtítulo y "Volver a la oficina".
  */
 import { X } from 'lucide-vue-next'
+import { T } from '../../../core/i18n'
 import { useStudio } from '../stores/studio'
 
 defineProps<{ title: string; subtitle?: string; narrow?: boolean }>()
@@ -20,7 +21,7 @@ const studio = useStudio()
           <p v-if="subtitle">{{ subtitle }}</p>
         </div>
         <slot name="actions" />
-        <button class="btn" @click="studio.overlay = null"><X /> Volver a la oficina</button>
+        <button class="btn" @click="studio.overlay = null"><X /> {{ T`Volver a la oficina` }}</button>
       </header>
       <div class="body"><slot /></div>
       <footer v-if="$slots.footer"><slot name="footer" /></footer>

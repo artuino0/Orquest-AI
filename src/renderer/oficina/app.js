@@ -16,6 +16,8 @@ const VELOCIDAD = 48; // px nativos por segundo al caminar
 
 // Configuracion de agentes: sprite = capa de PixelOfficeAssets.aseprite
 // La clave es el id del empleado en Orquest; `nombre` es el que se muestra.
+// ?lang=en: los pocos textos que la oficina pinta por su cuenta salen en inglés (lo demás llega ya traducido).
+const EN = new URLSearchParams(location.search).get('lang') === 'en';
 const AGENT_META = window.OFICINA.agentes;
 const JEFE = Object.keys(AGENT_META).find(k => AGENT_META[k].isBoss);
 const nombreDe = (agent) => AGENT_META[agent]?.nombre || agent;
@@ -596,7 +598,7 @@ class Personaje {
       await esperarHasta(() => boss.enSilla(), 20000);
       // el evento "reporte" puede llegar un poco después que el estado "done"
       await esperarHasta(() => this.reportePendiente, 3000);
-      const r = this.reportePendiente || { emoji: '✅', text: '¡Terminé!' };
+      const r = this.reportePendiente || { emoji: '✅', text: EN ? 'Done!' : '¡Terminé!' };
       this.reportePendiente = null;
       await this.decir(r.emoji, r.text, 3000);
       this.carga.hidden = true; // se lo deja al jefe
@@ -960,6 +962,8 @@ const DIGITOS = {
   A: ['.#.', '#.#', '###', '#.#'],
   D: ['##.', '#.#', '#.#', '##.'],
   M: ['#.#', '###', '###', '#.#'],
+  L: ['#..', '#..', '#..', '###'],
+  G: ['###', '#..', '#.#', '###'],
   ':': ['...', '#..', '...', '#..'],
   ' ': ['...', '...', '...', '...'],
 };
@@ -976,7 +980,7 @@ function pintarTextoPixel(ctx, texto, x, y, color, columnas = null) {
 }
 
 function pintarEstado(estado) {
-  const etiquetas = { vivo: ['EN VIVO', '#38b764'], reconectando: ['RECONECTANDO', '#ffcd75'], demo: ['DEMO', '#73eff7'] };
+  const etiquetas = { vivo: [EN ? 'LIVE' : 'EN VIVO', '#38b764'], reconectando: [EN ? 'RECONNECTING' : 'RECONECTANDO', '#ffcd75'], demo: ['DEMO', '#73eff7'] };
   const [texto, color] = etiquetas[estado];
   els.connLed.classList.toggle('on', estado === 'vivo');
   els.connLed.classList.toggle('off', estado !== 'vivo');

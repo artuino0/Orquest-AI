@@ -4,6 +4,7 @@
  * (behavior.ts) y lo pinta. En modo creativo además avisa en qué casilla anda
  * el cursor y muestra lo que la herramienta está por hacer.
  */
+import { T } from '../../../core/i18n'
 import 'pixi.js/unsafe-eval' // la CSP de la app no permite eval
 import { Application, Container, Graphics, Sprite, Text, TilingSprite } from 'pixi.js'
 import { Actor, type VisualState } from './behavior'
@@ -557,7 +558,7 @@ export class OfficeScene {
       if (kind !== 'entrance' && kind !== 'queue') continue
       const color = kind === 'entrance' ? 0x66bb6a : ACCENT
       g.rect(it.x * TILE + 4, it.y * TILE + 4, TILE - 8, TILE - 8).fill({ color, alpha: 0.45 }).stroke({ color, width: 3 })
-      this.plate(kind === 'entrance' ? 'ENTRADA' : 'FILA', it.x * TILE, it.y * TILE - 22, this.guides, 14, color)
+      this.plate(kind === 'entrance' ? T`ENTRADA` : T`FILA`, it.x * TILE, it.y * TILE - 22, this.guides, 14, color)
     }
   }
 

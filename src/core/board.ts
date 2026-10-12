@@ -12,6 +12,7 @@
  *
  * Las tareas de QA terminan en done: no tienen código que integrar.
  */
+import { T } from './i18n.js'
 import type { Check } from './library.js'
 import { nameKey, pickName } from './names.js'
 import type { Effort, ProviderId } from './providers.js'
@@ -203,10 +204,10 @@ export class Board {
    * Lo ya aprobado o contratado se queda.
    */
   propose(slots: Omit<Slot, 'id' | 'status' | 'name'>[], available: (p: ProviderId) => boolean, rule?: SlotRule): Slot[] {
-    if (!slots.length) throw new RuleError('La propuesta no tiene puestos.')
+    if (!slots.length) throw new RuleError(T`La propuesta no tiene puestos.`)
     for (const s of slots) {
       if (!available(s.provider)) {
-        throw new RuleError(`${s.provider} no está instalado o no tiene sesión; no se puede proponer para ${s.role}.`)
+        throw new RuleError(T`${s.provider} no está instalado o no tiene sesión; no se puede proponer para ${s.role}.`)
       }
     }
     const warnings = this.checkAll(slots, rule)
@@ -232,7 +233,7 @@ export class Board {
     const taken = this.takenNames(false)
     const names = final.map((f) => f.name?.trim() || (f.id ? proposed.get(f.id)?.name : undefined) || '')
     for (const n of names) {
-      if (n && taken.some((t) => nameKey(t) === nameKey(n))) throw new RuleError(`Ya hay alguien llamado ${n} en el proyecto.`)
+      if (n && taken.some((t) => nameKey(t) === nameKey(n))) throw new RuleError(T`Ya hay alguien llamado ${n} en el proyecto.`)
       if (n) taken.push(n)
     }
     this.slots = this.slots.filter((s) => s.status !== 'proposed')
@@ -285,8 +286,8 @@ export class Board {
       const pending = this.slots.some((s) => s.status === 'proposed')
       throw new RuleError(
         pending
-          ? `No hay un puesto aprobado para "${ref}". La plantilla espera la aprobación del usuario.`
-          : `No hay un puesto aprobado y libre para "${ref}". Propón la plantilla con proponer_plantilla.`,
+          ? T`No hay un puesto aprobado para "${ref}". La plantilla espera la aprobación del usuario.`
+          : T`No hay un puesto aprobado y libre para "${ref}". Propón la plantilla con proponer_plantilla.`,
       )
     }
     return slot
@@ -321,7 +322,7 @@ export class Board {
   member(ref: string): StaffMember {
     const byName = this.staff.filter((s) => nameKey(s.name) === nameKey(ref))
     const m = this.staff.find((s) => s.id === ref) ?? byName.find((s) => s.online) ?? byName[0]
-    if (!m) throw new RuleError(`No existe el empleado ${ref}. Usa leer_proyecto para ver la plantilla.`)
+    if (!m) throw new RuleError(T`No existe el empleado ${ref}. Usa leer_proyecto para ver la plantilla.`)
     return m
   }
 
@@ -334,14 +335,14 @@ export class Board {
 
   task(id: string): Task {
     const t = this.tasks.find((x) => x.id === id)
-    if (!t) throw new RuleError(`No existe la tarea ${id}.`)
+    if (!t) throw new RuleError(T`No existe la tarea ${id}.`)
     return t
   }
 
   /** Crea una tarea. Con dependencias abiertas no arranca. */
   assign(input: { assignee: string; title: string; description: string; deps?: string[] }): Task {
     const m = this.member(input.assignee)
-    if (!m.online) throw new RuleError(`${m.id} ya no está en la oficina.`)
+    if (!m.online) throw new RuleError(T`${m.id} ya no está en la oficina.`)
     const deps = [...new Set(input.deps ?? [])]
     for (const d of deps) this.task(d)
     const t: Task = {
@@ -356,7 +357,7 @@ export class Board {
       history: [],
     }
     this.tasks.push(t)
-    this.log(t, `asignada a ${m.id}`)
+    this.log(t, T`asignada a ${m.id}`)
     this.refresh(t)
     return t
   }
@@ -365,11 +366,11 @@ export class Board {
   setDeps(taskId: string, deps: string[]): Task {
     const t = this.task(taskId)
     if (!['waiting', 'ready'].includes(t.status)) {
-      throw new RuleError(`${t.id} ya empezó; no se le pueden cambiar dependencias.`)
+      throw new RuleError(T`${t.id} ya empezó; no se le pueden cambiar dependencias.`)
     }
     for (const d of deps) this.task(d)
     const cycle = this.findCycle(t.id, deps)
-    if (cycle) throw new RuleError(`Dependencia circular: ${cycle.join(' → ')}.`)
+    if (cycle) throw new RuleError(T`Dependencia circular: ${cycle.join(' → ')}.`)
     t.deps = [...new Set(deps)]
     t.status = 'waiting'
     this.refresh(t)
@@ -394,13 +395,13 @@ export class Board {
   reassign(taskId: string, assignee: string): Task {
     const t = this.task(taskId)
     if (!['waiting', 'ready', 'in_progress'].includes(t.status)) {
-      throw new RuleError(`${t.id} está ${t.status}; solo se reasigna una tarea abierta en un escritorio.`)
+      throw new RuleError(T`${t.id} está ${t.status}; solo se reasigna una tarea abierta en un escritorio.`)
     }
     const m = this.member(assignee)
-    if (!m.online) throw new RuleError(`${m.id} ya no está en la oficina.`)
+    if (!m.online) throw new RuleError(T`${m.id} ya no está en la oficina.`)
     t.assignee = m.id
     if (t.status === 'in_progress') t.status = 'ready'
-    this.log(t, `reasignada a ${m.id}`)
+    this.log(t, T`reasignada a ${m.id}`)
     return t
   }
 
@@ -412,7 +413,7 @@ export class Board {
   private refresh(t: Task): boolean {
     if (t.status === 'waiting' && !this.openDeps(t).length) {
       t.status = 'ready'
-      this.log(t, 'lista para empezar')
+      this.log(t, T`lista para empezar`)
       return true
     }
     return false
@@ -429,7 +430,7 @@ export class Board {
     const t = this.current(employeeId)
     if (t?.status === 'ready') {
       t.status = 'in_progress'
-      this.log(t, 'en curso')
+      this.log(t, T`en curso`)
     }
     return t
   }
@@ -440,43 +441,43 @@ export class Board {
       const waiting = this.tasks.find((x) => x.assignee === employeeId && x.status === 'waiting')
       throw new RuleError(
         waiting
-          ? `Tu tarea ${waiting.id} sigue esperando a ${this.openDeps(waiting).map((x) => x.id).join(', ')}; aún no puedes entregar.`
-          : 'No tienes una tarea en curso que entregar.',
+          ? T`Tu tarea ${waiting.id} sigue esperando a ${this.openDeps(waiting).map((x) => x.id).join(', ')}; aún no puedes entregar.`
+          : T`No tienes una tarea en curso que entregar.`,
       )
     }
     const delivery = { ...d, at: this.now() }
     if (t.kind === 'qa') {
-      if (!d.verdict) throw new RuleError('Una entrega de QA debe decir si la tarea pasa o no (veredicto).')
+      if (!d.verdict) throw new RuleError(T`Una entrega de QA debe decir si la tarea pasa o no (veredicto).`)
       t.delivery = delivery
       t.status = 'done'
-      this.log(t, `QA terminado: ${d.verdict === 'pass' ? 'pasa' : 'no pasa'}`)
+      this.log(t, d.verdict === 'pass' ? T`QA terminado: pasa` : T`QA terminado: no pasa`)
       const reviewed = this.task(t.reviewOf!)
       reviewed.qa = delivery
       if (d.verdict === 'pass') {
         reviewed.status = 'delivered'
-        this.log(reviewed, 'QA la aprobó; vuelve con el jefe')
+        this.log(reviewed, T`QA la aprobó; vuelve con el jefe`)
       } else {
-        this.sendBack(reviewed, `QA la rechazó: ${d.report}`)
+        this.sendBack(reviewed, T`QA la rechazó: ${d.report}`)
       }
       return { task: t, reviewed }
     }
     t.delivery = delivery
     t.qa = undefined
     t.status = 'delivered'
-    this.log(t, 'entregada')
+    this.log(t, T`entregada`)
     return { task: t }
   }
 
   /** Decisión del jefe sobre una entrega. */
   review(taskId: string, decision: 'approve' | 'return', notes = ''): Task {
     const t = this.task(taskId)
-    if (t.kind === 'qa') throw new RuleError(`${t.id} es una revisión de QA; revisa la tarea ${t.reviewOf}.`)
-    if (t.status !== 'delivered') throw new RuleError(`${t.id} no está entregada (estado: ${t.status}).`)
+    if (t.kind === 'qa') throw new RuleError(T`${t.id} es una revisión de QA; revisa la tarea ${t.reviewOf}.`)
+    if (t.status !== 'delivered') throw new RuleError(T`${t.id} no está entregada (estado: ${t.status}).`)
     if (decision === 'approve') {
       t.status = 'approved'
-      this.log(t, `el jefe la aprobó${notes ? `: ${notes}` : ''}; espera tu aprobación para integrar`)
+      this.log(t, notes ? T`el jefe la aprobó: ${notes}; espera tu aprobación para integrar` : T`el jefe la aprobó; espera tu aprobación para integrar`)
     } else {
-      this.sendBack(t, `el jefe la regresó: ${notes}`)
+      this.sendBack(t, T`el jefe la regresó: ${notes}`)
     }
     return t
   }
@@ -484,15 +485,15 @@ export class Board {
   /** Crea la revisión de QA de una entrega. */
   toQa(taskId: string, qaEmployee: string, instructions: string): Task {
     const t = this.task(taskId)
-    if (t.status !== 'delivered') throw new RuleError(`${t.id} no está entregada (estado: ${t.status}).`)
+    if (t.status !== 'delivered') throw new RuleError(T`${t.id} no está entregada (estado: ${t.status}).`)
     const qa = this.member(qaEmployee)
-    if (qa.role.toLowerCase() !== 'qa') throw new RuleError(`${qa.id} es de ${qa.role}, no de QA.`)
-    if (qa.id === t.assignee) throw new RuleError('Nadie revisa su propio trabajo.')
+    if (qa.role.toLowerCase() !== 'qa') throw new RuleError(T`${qa.id} es de ${qa.role}, no de QA.`)
+    if (qa.id === t.assignee) throw new RuleError(T`Nadie revisa su propio trabajo.`)
     if (!qa.online) throw new RuleError(`${qa.id} ya no está en la oficina.`)
     const review: Task = {
       id: `T${++this.seq.task}`,
       kind: 'qa',
-      title: `QA de ${t.id}: ${t.title}`,
+      title: T`QA de ${t.id}: ${t.title}`,
       description: instructions,
       assignee: qa.id,
       deps: [],
@@ -503,7 +504,7 @@ export class Board {
     }
     this.tasks.push(review)
     t.status = 'in_qa'
-    this.log(t, `enviada a QA (${review.id})`)
+    this.log(t, T`enviada a QA (${review.id})`)
     this.log(review, `asignada a ${qa.id}`)
     return review
   }
@@ -511,9 +512,9 @@ export class Board {
   /** El usuario decide sobre lo que el jefe aprobó. */
   merged(taskId: string): Task[] {
     const t = this.task(taskId)
-    if (t.status !== 'approved') throw new RuleError(`${t.id} no está aprobada por el jefe.`)
+    if (t.status !== 'approved') throw new RuleError(T`${t.id} no está aprobada por el jefe.`)
     t.status = 'merged'
-    this.log(t, 'integrada')
+    this.log(t, T`integrada`)
     // Libera a quien esperaba.
     return this.tasks.filter((x) => x.deps.includes(t.id) && this.refresh(x))
   }
@@ -525,16 +526,16 @@ export class Board {
    */
   closeEmpty(taskId: string): Task[] {
     const t = this.task(taskId)
-    if (t.status !== 'approved') throw new RuleError(`${t.id} no está aprobada por el jefe.`)
+    if (t.status !== 'approved') throw new RuleError(T`${t.id} no está aprobada por el jefe.`)
     t.status = 'done'
-    this.log(t, 'cerrada: no traía cambios que integrar')
+    this.log(t, T`cerrada: no traía cambios que integrar`)
     return this.tasks.filter((x) => x.deps.includes(t.id) && this.refresh(x))
   }
 
   userReturn(taskId: string, notes: string): Task {
     const t = this.task(taskId)
-    if (!['approved', 'delivered'].includes(t.status)) throw new RuleError(`${t.id} no está esperando tu revisión.`)
-    this.sendBack(t, `el usuario la regresó: ${notes}`)
+    if (!['approved', 'delivered'].includes(t.status)) throw new RuleError(T`${t.id} no está esperando tu revisión.`)
+    this.sendBack(t, T`el usuario la regresó: ${notes}`)
     return t
   }
 
@@ -572,7 +573,7 @@ export class Board {
   question(id: string): Question {
     const key = String(id).trim().toUpperCase()
     const q = this.questions.find((x) => x.id === key)
-    if (!q) throw new RuleError(`No existe la pregunta ${id}. Pendientes: ${this.openQuestions().map((x) => x.id).join(', ') || 'ninguna'}.`)
+    if (!q) throw new RuleError(T`No existe la pregunta ${id}. Pendientes: ${this.openQuestions().map((x) => x.id).join(', ') || T`ninguna`}.`)
     return q
   }
 
@@ -582,18 +583,18 @@ export class Board {
    * Una que ya está pendiente con las mismas palabras no se duplica: se devuelve la que había.
    */
   ask(drafts: QuestionDraft[]): { asked: Question[]; repeated: Question[] } {
-    if (!drafts.length) throw new RuleError('No mandaste ninguna pregunta.')
+    if (!drafts.length) throw new RuleError(T`No mandaste ninguna pregunta.`)
     const same = (a: string, b: string) => nameKey(a) === nameKey(b)
     const clean = drafts.map((d, i) => {
       const n = drafts.length > 1 ? ` ${i + 1}` : ''
       const text = String(d.text ?? '').replace(/\s+/g, ' ').trim()
-      if (text.length < 8) throw new RuleError(`La pregunta${n} va vacía o no se entiende sola. Escríbela completa, como la leería el usuario sin ver tu terminal.`)
+      if (text.length < 8) throw new RuleError(T`La pregunta${n} va vacía o no se entiende sola. Escríbela completa, como la leería el usuario sin ver tu terminal.`)
       const options = [...new Set((d.options ?? []).map((o) => String(o).replace(/\s+/g, ' ').trim()).filter(Boolean))]
-      if (options.length === 1) throw new RuleError(`La pregunta${n} trae una sola respuesta sugerida. Da al menos dos, o ninguna si es de respuesta libre.`)
-      if (options.length > MAX_OPTIONS) throw new RuleError(`La pregunta${n} trae ${options.length} respuestas sugeridas; el tope es ${MAX_OPTIONS}. Deja las que de verdad son opción.`)
+      if (options.length === 1) throw new RuleError(T`La pregunta${n} trae una sola respuesta sugerida. Da al menos dos, o ninguna si es de respuesta libre.`)
+      if (options.length > MAX_OPTIONS) throw new RuleError(T`La pregunta${n} trae ${options.length} respuestas sugeridas; el tope es ${MAX_OPTIONS}. Deja las que de verdad son opción.`)
       const rec = String(d.recommended ?? '').replace(/\s+/g, ' ').trim()
       const recommended = rec ? options.find((o) => same(o, rec)) : undefined
-      if (rec && !recommended) throw new RuleError(`La recomendada de la pregunta${n} ("${rec}") no está entre sus respuestas sugeridas (${options.join(' / ') || 'no diste ninguna'}).`)
+      if (rec && !recommended) throw new RuleError(T`La recomendada de la pregunta${n} ("${rec}") no está entre sus respuestas sugeridas (${options.join(' / ') || T`no diste ninguna`}).`)
       const tasks = [...new Set((d.tasks ?? []).map((t) => this.task(String(t)).id))]
       return { text, options, recommended, blocks: String(d.blocks ?? '').replace(/\s+/g, ' ').trim() || undefined, tasks }
     })
@@ -606,7 +607,7 @@ export class Board {
     })
     const open = this.openQuestions().length
     if (open + fresh.length > MAX_OPEN_QUESTIONS) {
-      throw new RuleError(`Ya hay ${open} preguntas esperando al usuario y el tope es ${MAX_OPEN_QUESTIONS}. Cierra las que ya no hagan falta (cerrar_pregunta) o junta las que son la misma decisión.`)
+      throw new RuleError(T`Ya hay ${open} preguntas esperando al usuario y el tope es ${MAX_OPEN_QUESTIONS}. Cierra las que ya no hagan falta (cerrar_pregunta) o junta las que son la misma decisión.`)
     }
     const asked = fresh.map((c): Question => ({ ...c, id: `P${(this.seq.question = (this.seq.question ?? 0) + 1)}`, askedAt: this.now(), status: 'open' }))
     this.questions.push(...asked)
@@ -622,9 +623,9 @@ export class Board {
   /** El usuario contesta (o el jefe registra lo que el usuario le contestó por chat). */
   answer(id: string, text: string): Question {
     const q = this.question(id)
-    if (q.status !== 'open') throw new RuleError(`${q.id} ya estaba ${q.status === 'answered' ? `contestada: "${q.answer}"` : 'retirada'}.`)
+    if (q.status !== 'open') throw new RuleError(q.status === 'answered' ? T`${q.id} ya estaba contestada: "${q.answer}".` : T`${q.id} ya estaba retirada.`)
     const answer = String(text ?? '').replace(/\s+/g, ' ').trim()
-    if (!answer) throw new RuleError('La respuesta va vacía.')
+    if (!answer) throw new RuleError(T`La respuesta va vacía.`)
     Object.assign(q, { status: 'answered', answer, closedAt: this.now() })
     return q
   }
@@ -632,9 +633,9 @@ export class Board {
   /** El jefe la retira: ya no hace falta que el usuario la conteste. */
   withdraw(id: string, note: string): Question {
     const q = this.question(id)
-    if (q.status !== 'open') throw new RuleError(`${q.id} ya estaba ${q.status === 'answered' ? `contestada: "${q.answer}"` : 'retirada'}.`)
+    if (q.status !== 'open') throw new RuleError(q.status === 'answered' ? T`${q.id} ya estaba contestada: "${q.answer}".` : T`${q.id} ya estaba retirada.`)
     const why = String(note ?? '').replace(/\s+/g, ' ').trim()
-    if (!why) throw new RuleError('Di por qué ya no hace falta: el usuario la tenía pendiente y lo va a ver.')
+    if (!why) throw new RuleError(T`Di por qué ya no hace falta: el usuario la tenía pendiente y lo va a ver.`)
     Object.assign(q, { status: 'withdrawn', note: why, closedAt: this.now() })
     return q
   }

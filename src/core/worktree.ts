@@ -3,6 +3,7 @@ import { appendFile, mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
+import { T } from './i18n.js'
 
 const run = promisify(execFile)
 
@@ -121,7 +122,7 @@ export async function currentBranch(repo: string): Promise<string> {
   // Un repositorio recién creado no tiene HEAD: las oficinas (worktrees) necesitan un commit del que partir.
   const born = await git(repo, 'rev-parse', '--verify', '--quiet', 'HEAD').then(() => true, () => false)
   if (!born) {
-    throw new RuleError('Este repositorio todavía no tiene ningún commit. Haz el primero (por ejemplo `git add . && git commit -m "Inicio"`) y vuelve a contratar: cada empleado trabaja en una copia que parte de ahí.')
+    throw new RuleError(T`Este repositorio todavía no tiene ningún commit. Haz el primero (por ejemplo \`git add . && git commit -m "Inicio"\`) y vuelve a contratar: cada empleado trabaja en una copia que parte de ahí.`)
   }
   return git(repo, 'rev-parse', '--abbrev-ref', 'HEAD')
 }
@@ -184,7 +185,7 @@ export type MergeResult = { ok: true; commit: string } | { ok: false; conflicts:
 export async function mergeOffice(repo: string, office: Office, message: string): Promise<MergeResult> {
   const root = await repoRoot(repo)
   const dirty = await git(root, 'status', '--porcelain', '--untracked-files=no')
-  if (dirty) return { ok: false, conflicts: [], reason: 'El repo principal tiene cambios sin commit; guárdalos antes de integrar.' }
+  if (dirty) return { ok: false, conflicts: [], reason: T`El repo principal tiene cambios sin commit; guárdalos antes de integrar.` }
   try {
     await run('git', ['-c', 'user.name=Orquest', '-c', 'user.email=orquest@localhost', 'merge', '--no-ff', '-m', message, office.branch], {
       cwd: root,
@@ -193,6 +194,10 @@ export async function mergeOffice(repo: string, office: Office, message: string)
   } catch {
     const conflicts = (await git(root, 'diff', '--name-only', '--diff-filter=U').catch(() => '')).split('\n').filter(Boolean)
     await git(root, 'merge', '--abort').catch(() => {})
-    return { ok: false, conflicts, reason: `Conflicto al integrar ${office.branch}${conflicts.length ? `: ${conflicts.join(', ')}` : ''}.` }
+    return {
+      ok: false,
+      conflicts,
+      reason: conflicts.length ? T`Conflicto al integrar ${office.branch}: ${conflicts.join(', ')}.` : T`Conflicto al integrar ${office.branch}.`,
+    }
   }
 }

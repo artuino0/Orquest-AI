@@ -1,4 +1,5 @@
 import type { Activity } from './activity.js'
+import { T } from './i18n.js'
 import { resolveLaunch } from './launch.js'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
@@ -115,7 +116,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
   async hire(req: HireRequest): Promise<Employee> {
     const adapter = getProvider(req.provider)
     const id = (req.id ?? `${req.role}-${req.provider}-${randomUUID().slice(0, 6)}`).toLowerCase().replace(/[^a-z0-9-]/g, '-')
-    if (this.live.has(id)) throw new Error(`Ya existe el empleado ${id}`)
+    if (this.live.has(id)) throw new Error(T`Ya existe el empleado ${id}`)
     const ownOffice = !req.office
     const office = req.office ?? (await createOffice(req.repo, id))
     const launch = { model: req.model, effort: req.effort, systemPrompt: req.systemPrompt }
@@ -317,7 +318,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
 
   private mustGet(id: string): Live {
     const entry = this.live.get(id)
-    if (!entry) throw new Error(`Empleado desconocido: ${id}`)
+    if (!entry) throw new Error(T`Empleado desconocido: ${id}`)
     return entry
   }
 }

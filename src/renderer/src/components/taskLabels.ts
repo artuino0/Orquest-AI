@@ -1,14 +1,15 @@
 import type { Task } from '../../../shared/ipc'
+import { T } from '../../../core/i18n'
 
 export const TASK_STATUS: Record<Task['status'], string> = {
-  waiting: 'esperando dependencia',
-  ready: 'lista',
-  in_progress: 'en curso',
-  delivered: 'entregada',
-  in_qa: 'en QA',
-  approved: 'espera tu aprobación',
-  merged: 'integrada',
-  done: 'terminada',
+  waiting: T`esperando dependencia`,
+  ready: T`lista`,
+  in_progress: T`en curso`,
+  delivered: T`entregada`,
+  in_qa: T`en QA`,
+  approved: T`espera tu aprobación`,
+  merged: T`integrada`,
+  done: T`terminada`,
 }
 
 /** Ficha de color (`--st-<color>`) del estado de una tarea. */
@@ -27,8 +28,8 @@ export const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** Qué dijo QA de una tarea, para su etiqueta. */
 export function qaOf(t: Task): { text: string; color: string } {
-  if (t.status === 'in_qa') return { text: 'En QA', color: 'play' }
-  if (t.qa?.verdict === 'pass') return { text: 'QA aprobó', color: 'idle' }
-  if (t.qa?.verdict === 'fail') return { text: 'QA rechazó', color: 'block' }
-  return { text: 'Sin QA', color: '' }
+  if (t.status === 'in_qa') return { text: T`En QA`, color: 'play' }
+  if (t.qa?.verdict === 'pass') return { text: T`QA aprobó`, color: 'idle' }
+  if (t.qa?.verdict === 'fail') return { text: T`QA rechazó`, color: 'block' }
+  return { text: T`Sin QA`, color: '' }
 }

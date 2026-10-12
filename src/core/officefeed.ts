@@ -6,6 +6,7 @@
  * traduce; es puro, sin Electron ni Node, para que lo use el panel tal cual.
  */
 import type { Task } from './board.js'
+import { T } from './i18n.js'
 import type { ProviderId } from './providers.js'
 import type { EmployeeState } from './state.js'
 
@@ -104,17 +105,17 @@ export function officeEvents(prev: Task[] | null, next: Task[], at: number): Off
     const started = (s: string | undefined) => s === 'ready' || s === 'in_progress'
     // Regresó al escritorio: gana sobre lo demás, aunque el estado vuelva a "lista".
     if (was && t.returns > was.returns) {
-      events.push({ at, agent: t.assignee, type: 'revision', verdict: 'rechazada', emoji: '😠', text: brief(t.history.at(-1)?.text, 'Regresa al escritorio') })
+      events.push({ at, agent: t.assignee, type: 'revision', verdict: 'rechazada', emoji: '😠', text: brief(t.history.at(-1)?.text, T`Regresa al escritorio`) })
       continue
     }
     if (started(t.status) && (!was || was.status === 'waiting' || was.assignee !== t.assignee)) {
       events.push({ at, agent: t.assignee, type: 'asignada', text: brief(`${t.id} ${t.title}`, t.id) })
     } else if (was && t.status === 'delivered' && was.status !== 'delivered') {
-      events.push({ at, agent: t.assignee, type: 'reporte', emoji: '📄', text: brief(t.delivery?.report, 'Entrega lista') })
+      events.push({ at, agent: t.assignee, type: 'reporte', emoji: '📄', text: brief(t.delivery?.report, T`Entrega lista`) })
     } else if (was && t.kind === 'qa' && t.status === 'done' && was.status !== 'done') {
-      events.push({ at, agent: t.assignee, type: 'reporte', emoji: '🧪', text: brief(t.delivery?.report, 'Revisión terminada') })
+      events.push({ at, agent: t.assignee, type: 'reporte', emoji: '🧪', text: brief(t.delivery?.report, T`Revisión terminada`) })
     } else if (was && ['approved', 'merged'].includes(t.status) && ['delivered', 'in_qa'].includes(was.status)) {
-      events.push({ at, agent: t.assignee, type: 'revision', verdict: 'aprobada', emoji: '👍', text: t.status === 'merged' ? 'Integrada' : 'Aprobada' })
+      events.push({ at, agent: t.assignee, type: 'revision', verdict: 'aprobada', emoji: '👍', text: t.status === 'merged' ? T`Integrada` : T`Aprobada` })
     }
   }
   return events

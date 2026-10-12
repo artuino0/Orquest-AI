@@ -6,6 +6,7 @@
  * donde alguien trabaja. No hay áreas: cualquier puesto sirve para cualquier
  * rol, y el rol lo trae cada quien. Lógica pura, sin dibujo.
  */
+import { T } from '../../../core/i18n'
 
 /** Lado de una casilla en píxeles del mundo: el de una loseta del piso. */
 export const TILE = 48
@@ -21,17 +22,17 @@ export interface Rect extends Point {
 }
 
 export const FLOORS = [
-  { id: 'madera', label: 'Madera' },
-  { id: 'espiga', label: 'Espiga' },
-  { id: 'alfombra_gris', label: 'Alfombra gris' },
-  { id: 'alfombra_azul', label: 'Alfombra azul' },
-  { id: 'concreto', label: 'Concreto' },
-  { id: 'loseta', label: 'Loseta' },
+  { id: 'madera', label: T`Madera` },
+  { id: 'espiga', label: T`Espiga` },
+  { id: 'alfombra_gris', label: T`Alfombra gris` },
+  { id: 'alfombra_azul', label: T`Alfombra azul` },
+  { id: 'concreto', label: T`Concreto` },
+  { id: 'loseta', label: T`Loseta` },
 ] as const
 
 export const WALLS = [
-  { id: 'pared', label: 'Pared' },
-  { id: 'ventanal', label: 'Ventanal' },
+  { id: 'pared', label: T`Pared` },
+  { id: 'ventanal', label: T`Ventanal` },
 ] as const
 
 /** Hueco en un muro: se camina por ahí. */
@@ -65,64 +66,64 @@ function piece(id: string, label: string, group: string, sprite: string | undefi
 }
 
 export const PIECES: Piece[] = [
-  piece('puesto', 'Puesto de espaldas', 'Puestos', 'puesto/escritorio', 2, 'station'),
-  piece('puesto_frente', 'Puesto de frente', 'Puestos', 'puesto_lados/escritorio_atras', 2, 'stationFront'),
-  piece('puesto_derecha', 'Puesto mirando a la derecha', 'Puestos', 'puesto_lados/escritorio_lado_izq', 2, 'stationRight', 2),
-  piece('puesto_izquierda', 'Puesto mirando a la izquierda', 'Puestos', 'puesto_lados/escritorio_lado_der', 2, 'stationLeft', 2),
-  piece('puesto_jefe', 'Escritorio del jefe', 'Puestos', 'puesto_lados/escritorio_atras', 2, 'boss'),
-  piece('escritorio_chico', 'Escritorio chico', 'Puestos', 'puesto/escritorio_chico', 2),
-  piece('silla', 'Silla', 'Puestos', 'puesto/silla_frente', 1),
+  piece('puesto', T`Puesto de espaldas`, T`Puestos`, 'puesto/escritorio', 2, 'station'),
+  piece('puesto_frente', T`Puesto de frente`, T`Puestos`, 'puesto_lados/escritorio_atras', 2, 'stationFront'),
+  piece('puesto_derecha', T`Puesto mirando a la derecha`, T`Puestos`, 'puesto_lados/escritorio_lado_izq', 2, 'stationRight', 2),
+  piece('puesto_izquierda', T`Puesto mirando a la izquierda`, T`Puestos`, 'puesto_lados/escritorio_lado_der', 2, 'stationLeft', 2),
+  piece('puesto_jefe', T`Escritorio del jefe`, T`Puestos`, 'puesto_lados/escritorio_atras', 2, 'boss'),
+  piece('escritorio_chico', T`Escritorio chico`, T`Puestos`, 'puesto/escritorio_chico', 2),
+  piece('silla', T`Silla`, T`Puestos`, 'puesto/silla_frente', 1),
 
-  piece('mesa_cafe', 'Mesa con sillas', 'Cafetería', 'cafeteria/mesa', 3, 'table'),
-  piece('barra', 'Barra de café', 'Cafetería', 'cafeteria/barra', 2),
-  piece('garrafon', 'Garrafón', 'Cafetería', 'cafeteria/garrafon', 1),
-  piece('silla_madera', 'Silla de madera', 'Cafetería', 'cafeteria/silla_madera', 1),
+  piece('mesa_cafe', T`Mesa con sillas`, T`Cafetería`, 'cafeteria/mesa', 3, 'table'),
+  piece('barra', T`Barra de café`, T`Cafetería`, 'cafeteria/barra', 2),
+  piece('garrafon', T`Garrafón`, T`Cafetería`, 'cafeteria/garrafon', 1),
+  piece('silla_madera', T`Silla de madera`, T`Cafetería`, 'cafeteria/silla_madera', 1),
 
-  piece('maquinita_azul', 'Maquinita azul', 'Juegos', 'juegos/maquinita_azul', 1, 'arcade'),
-  piece('maquinita_roja', 'Maquinita roja', 'Juegos', 'juegos/maquinita_roja', 1, 'arcade'),
-  piece('billar', 'Billar', 'Juegos', 'juegos/billar', 2, 'decor', 3),
-  piece('golfito', 'Golfito', 'Juegos', 'juegos/golfito', 2, 'decor', 3),
-  piece('futbolito', 'Futbolito', 'Juegos', 'juegos/futbolito', 2, 'decor', 2),
-  piece('dardos', 'Dardos', 'Juegos', 'juegos/dardos', 2, 'hang'),
+  piece('maquinita_azul', T`Maquinita azul`, T`Juegos`, 'juegos/maquinita_azul', 1, 'arcade'),
+  piece('maquinita_roja', T`Maquinita roja`, T`Juegos`, 'juegos/maquinita_roja', 1, 'arcade'),
+  piece('billar', T`Billar`, T`Juegos`, 'juegos/billar', 2, 'decor', 3),
+  piece('golfito', T`Golfito`, T`Juegos`, 'juegos/golfito', 2, 'decor', 3),
+  piece('futbolito', T`Futbolito`, T`Juegos`, 'juegos/futbolito', 2, 'decor', 2),
+  piece('dardos', T`Dardos`, T`Juegos`, 'juegos/dardos', 2, 'hang'),
 
-  piece('sofa', 'Sofá', 'Sala', 'cafeteria/sofa', 2),
-  piece('sillon', 'Sillón', 'Sala', 'cafeteria/sillon', 1),
-  piece('sofa_lado', 'Sofá de lado', 'Sala', 'cafeteria/sofa_lado', 1),
-  piece('sillon_lado', 'Sillón de lado', 'Sala', 'cafeteria/sillon_lado', 1),
-  piece('archivero', 'Archivero', 'Sala', 'cafeteria/archivero', 1),
-  piece('lampara', 'Lámpara', 'Sala', 'cafeteria/lampara', 1),
-  piece('pizarra_ruedas', 'Pizarra con ruedas', 'Sala', 'pared/pizarra_ruedas', 2),
-  piece('librero', 'Librero', 'Sala', 'sala/librero', 2),
-  piece('impresora', 'Impresora', 'Sala', 'sala/impresora', 1),
-  piece('mesa_centro', 'Mesa de centro', 'Sala', 'sala/mesa_centro', 2),
-  piece('mesa_juntas', 'Mesa de juntas', 'Sala', 'sala/mesa_juntas', 2, 'decor', 3),
+  piece('sofa', T`Sofá`, T`Sala`, 'cafeteria/sofa', 2),
+  piece('sillon', T`Sillón`, T`Sala`, 'cafeteria/sillon', 1),
+  piece('sofa_lado', T`Sofá de lado`, T`Sala`, 'cafeteria/sofa_lado', 1),
+  piece('sillon_lado', T`Sillón de lado`, T`Sala`, 'cafeteria/sillon_lado', 1),
+  piece('archivero', T`Archivero`, T`Sala`, 'cafeteria/archivero', 1),
+  piece('lampara', T`Lámpara`, T`Sala`, 'cafeteria/lampara', 1),
+  piece('pizarra_ruedas', T`Pizarra con ruedas`, T`Sala`, 'pared/pizarra_ruedas', 2),
+  piece('librero', T`Librero`, T`Sala`, 'sala/librero', 2),
+  piece('impresora', T`Impresora`, T`Sala`, 'sala/impresora', 1),
+  piece('mesa_centro', T`Mesa de centro`, T`Sala`, 'sala/mesa_centro', 2),
+  piece('mesa_juntas', T`Mesa de juntas`, T`Sala`, 'sala/mesa_juntas', 2, 'decor', 3),
 
-  piece('planta_piso', 'Planta', 'Plantas', 'plantas/planta_piso', 1),
-  piece('planta_palma', 'Palma', 'Plantas', 'plantas/planta_palma', 1),
-  piece('jardinera', 'Jardinera', 'Plantas', 'plantas/jardinera', 3),
-  piece('planta_escritorio', 'Planta de escritorio', 'Plantas', 'plantas/planta_escritorio', 1, 'top'),
+  piece('planta_piso', T`Planta`, T`Plantas`, 'plantas/planta_piso', 1),
+  piece('planta_palma', T`Palma`, T`Plantas`, 'plantas/planta_palma', 1),
+  piece('jardinera', T`Jardinera`, T`Plantas`, 'plantas/jardinera', 3),
+  piece('planta_escritorio', T`Planta de escritorio`, T`Plantas`, 'plantas/planta_escritorio', 1, 'top'),
 
-  piece('corcho', 'Tablón de corcho', 'En el muro', 'pared/corcho', 2, 'hang'),
-  piece('kanban', 'Kanban', 'En el muro', 'pared/kanban', 2, 'hang'),
-  piece('pizarra', 'Pizarra', 'En el muro', 'pared/pizarra', 2, 'hang'),
-  piece('ventana_noche', 'Ventana de noche', 'En el muro', 'pared/ventana_noche', 2, 'hang'),
-  piece('ventana_persiana', 'Ventana con persiana', 'En el muro', 'pared/ventana_persiana', 1, 'hang'),
-  piece('pantalla', 'Pantalla', 'En el muro', 'pared/pantalla', 2, 'hang'),
+  piece('corcho', T`Tablón de corcho`, T`En el muro`, 'pared/corcho', 2, 'hang'),
+  piece('kanban', T`Kanban`, T`En el muro`, 'pared/kanban', 2, 'hang'),
+  piece('pizarra', T`Pizarra`, T`En el muro`, 'pared/pizarra', 2, 'hang'),
+  piece('ventana_noche', T`Ventana de noche`, T`En el muro`, 'pared/ventana_noche', 2, 'hang'),
+  piece('ventana_persiana', T`Ventana con persiana`, T`En el muro`, 'pared/ventana_persiana', 1, 'hang'),
+  piece('pantalla', T`Pantalla`, T`En el muro`, 'pared/pantalla', 2, 'hang'),
 
-  piece('tapete', 'Tapete', 'Tapetes', 'alfombras/tapete', 1, 'rug'),
-  piece('alfombra_pasillo', 'Alfombra de pasillo', 'Tapetes', 'alfombras/pasillo', 2, 'rug'),
-  piece('alfombra_flecos', 'Alfombra con flecos', 'Tapetes', 'alfombras/flecos', 2, 'rug'),
-  piece('alfombra_triangulos', 'Alfombra de triángulos', 'Tapetes', 'alfombras/triangulos', 2, 'rug'),
-  piece('alfombra_redonda', 'Alfombra redonda', 'Tapetes', 'alfombras/redonda', 2, 'rug', 2),
-  piece('alfombra_grande', 'Alfombra grande', 'Tapetes', 'alfombras/grande', 2, 'rug', 3),
+  piece('tapete', T`Tapete`, T`Tapetes`, 'alfombras/tapete', 1, 'rug'),
+  piece('alfombra_pasillo', T`Alfombra de pasillo`, T`Tapetes`, 'alfombras/pasillo', 2, 'rug'),
+  piece('alfombra_flecos', T`Alfombra con flecos`, T`Tapetes`, 'alfombras/flecos', 2, 'rug'),
+  piece('alfombra_triangulos', T`Alfombra de triángulos`, T`Tapetes`, 'alfombras/triangulos', 2, 'rug'),
+  piece('alfombra_redonda', T`Alfombra redonda`, T`Tapetes`, 'alfombras/redonda', 2, 'rug', 2),
+  piece('alfombra_grande', T`Alfombra grande`, T`Tapetes`, 'alfombras/grande', 2, 'rug', 3),
 
-  piece('laptop', 'Laptop', 'Sobre la mesa', 'tecnologia/laptop', 1, 'top'),
-  piece('tablet', 'Tablet con soporte', 'Sobre la mesa', 'tecnologia/tablet_soporte', 1, 'top'),
-  piece('telefono', 'Teléfono', 'Sobre la mesa', 'tecnologia/telefono_fijo', 1, 'top'),
-  piece('diadema', 'Diadema', 'Sobre la mesa', 'tecnologia/diadema', 1, 'top'),
+  piece('laptop', T`Laptop`, T`Sobre la mesa`, 'tecnologia/laptop', 1, 'top'),
+  piece('tablet', T`Tablet con soporte`, T`Sobre la mesa`, 'tecnologia/tablet_soporte', 1, 'top'),
+  piece('telefono', T`Teléfono`, T`Sobre la mesa`, 'tecnologia/telefono_fijo', 1, 'top'),
+  piece('diadema', T`Diadema`, T`Sobre la mesa`, 'tecnologia/diadema', 1, 'top'),
 
-  piece('entrada', 'Entrada', 'Marcas', undefined, 1, 'entrance'),
-  piece('fila', 'Fila frente al jefe', 'Marcas', undefined, 1, 'queue'),
+  piece('entrada', T`Entrada`, T`Marcas`, undefined, 1, 'entrance'),
+  piece('fila', T`Fila frente al jefe`, T`Marcas`, undefined, 1, 'queue'),
 ]
 
 const BY_ID = new Map(PIECES.map((p) => [p.id, p]))
@@ -649,18 +650,18 @@ export function pointAlong(pts: Point[], dist: number): Point {
 export function mapIssues(plan: Plan): string[] {
   const { map, walk } = plan
   const issues: string[] = []
-  if (!walk.includes(1)) return ['Pinta piso: todavía no hay por dónde caminar.']
-  if (!plan.hasEntrance) issues.push('Marca la entrada: por ahí llega cada contratado.')
-  if (!plan.boss) issues.push('Falta el escritorio del jefe.')
+  if (!walk.includes(1)) return [T`Pinta piso: todavía no hay por dónde caminar.`]
+  if (!plan.hasEntrance) issues.push(T`Marca la entrada: por ahí llega cada contratado.`)
+  if (!plan.boss) issues.push(T`Falta el escritorio del jefe.`)
   const stations = plan.desks
-  if (!stations.length) issues.push('No hay puestos de trabajo.')
-  if (!plan.cafe.length) issues.push('Sin mesas con sillas: quien descanse se queda en la entrada.')
-  if (!plan.arcades.length) issues.push('Sin maquinitas: quien limpie contexto se queda en la entrada.')
+  if (!stations.length) issues.push(T`No hay puestos de trabajo.`)
+  if (!plan.cafe.length) issues.push(T`Sin mesas con sillas: quien descanse se queda en la entrada.`)
+  if (!plan.arcades.length) issues.push(T`Sin maquinitas: quien limpie contexto se queda en la entrada.`)
 
   const reach = (p: Point) => inside(map, p.x, p.y) && !!plan.reach[p.y * map.w + p.x]
   const lost = stations.filter((d) => !reach(d.seat)).length
-  if (lost) issues.push(`${lost} ${lost === 1 ? 'puesto no se alcanza' : 'puestos no se alcanzan'} desde la entrada.`)
-  if (plan.boss && !reach(plan.boss.seat)) issues.push('El escritorio del jefe no se alcanza desde la entrada.')
+  if (lost) issues.push(lost === 1 ? T`${lost} puesto no se alcanza desde la entrada.` : T`${lost} puestos no se alcanzan desde la entrada.`)
+  if (plan.boss && !reach(plan.boss.seat)) issues.push(T`El escritorio del jefe no se alcanza desde la entrada.`)
   return issues
 }
 

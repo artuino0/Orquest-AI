@@ -14,7 +14,7 @@ import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
 import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
-import { addDictionary, getLang, setLang, type Lang } from '../core/i18n.js'
+import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
@@ -89,7 +89,7 @@ manager.on('hired', (e) => send('employee:hired', e))
 manager.on('activity', (id, activity) => send('employee:activity', id, activity))
 
 function studio(): Studio {
-  if (!current) throw new Error('No hay proyecto abierto.')
+  if (!current) throw new Error(T`No hay proyecto abierto.`)
   return current
 }
 
@@ -109,7 +109,7 @@ handle('clis:models', async () => detectModels(await detectAll()))
 // Con un proyecto abierto se suma lo que cada CLI acaba de reportar; sin él, lo que dejaron en disco.
 handle('accounts:list', () => current?.accounts() ?? listAccounts())
 handle('repo:pick', async () => {
-  const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Elige el repositorio del proyecto' })
+  const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` })
   return r.canceled ? null : r.filePaths[0]
 })
 
@@ -217,7 +217,7 @@ handle('employee:captures', async (id: string) => {
 })
 handle('employee:capture', (id: string, path: string) => {
   const emp = manager.get(id)
-  if (!emp) throw new RuleError('Ya no está en la oficina.')
+  if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return readCapture(emp.office.path, path)
 })
 handle('employee:diff', (id: string, path: string) => {

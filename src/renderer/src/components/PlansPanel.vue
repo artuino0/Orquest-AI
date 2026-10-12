@@ -8,6 +8,7 @@ import { FileText, RefreshCw } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { ago } from '../format'
 import type { ProjectDocument } from '../../../shared/ipc'
+import { T } from '../../../core/i18n'
 import PanelFrame from './PanelFrame.vue'
 
 const studio = useStudio()
@@ -27,9 +28,18 @@ const fresh = (d: ProjectDocument) => !!d.status || !!d.plan
 const shown = computed(() => (only.value === 'recientes' && docs.value.some(fresh) ? docs.value.filter(fresh) : docs.value))
 const plans = computed(() => docs.value.filter((d) => d.plan).length)
 const recent = computed(() => docs.value.filter((d) => d.status).length)
+const subtitle = computed(() => {
+  if (!docs.value.length) return T`Lo que el jefe deja escrito en el repo`
+  const parts = [
+    plans.value === 1 ? T`${plans.value} plan del jefe` : T`${plans.value} planes del jefe`,
+    T`${docs.value.length} documentos en el proyecto`,
+    recent.value === 1 ? T`${recent.value} nuevo o cambiado desde el último commit` : T`${recent.value} nuevos o cambiados desde el último commit`,
+  ]
+  return parts.join(' · ')
+})
 
 watch(picked, async (path) => {
-  text.value = path ? await window.orquest.documentText(path).catch((e) => `No se pudo abrir: ${e instanceof Error ? e.message : e}`) : ''
+  text.value = path ? await window.orquest.documentText(path).catch((e) => T`No se pudo abrir: ${e instanceof Error ? e.message : e}`) : ''
 }, { immediate: true })
 
 // Mientras está abierto se vuelve a mirar: el jefe puede estar escribiendo ahora mismo.
@@ -57,27 +67,27 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <PanelFrame title="Planes y documentos" :subtitle="docs.length ? `${plans} ${plans === 1 ? 'plan del jefe' : 'planes del jefe'} · ${docs.length} documentos en el proyecto · ${recent} ${recent === 1 ? 'nuevo o cambiado' : 'nuevos o cambiados'} desde el último commit` : 'Lo que el jefe deja escrito en el repo'">
-    <template #actions><button class="btn" @click="load"><RefreshCw /> Actualizar</button></template>
+  <PanelFrame :title="T`Planes y documentos`" :subtitle="subtitle">
+    <template #actions><button class="btn" @click="load"><RefreshCw /> {{ T`Actualizar` }}</button></template>
 
     <div v-if="!docs.length" class="blank">
       <FileText />
-      <h2>Aún no hay documentos</h2>
-      <p>El jefe guarda aquí cada plan que arma, y también aparecen las notas del repo (archivos .md o .txt). Si aún no hay ninguno, pídeselo: «guarda el plan».</p>
+      <h2>{{ T`Aún no hay documentos` }}</h2>
+      <p>{{ T`El jefe guarda aquí cada plan que arma, y también aparecen las notas del repo (archivos .md o .txt). Si aún no hay ninguno, pídeselo: «guarda el plan».` }}</p>
     </div>
 
     <div v-else class="split">
       <div class="side">
         <div class="segments">
-          <button :class="{ on: only === 'recientes' }" @click="only = 'recientes'">Recientes</button>
-          <button :class="{ on: only === 'todos' }" @click="only = 'todos'">Todos</button>
+          <button :class="{ on: only === 'recientes' }" @click="only = 'recientes'">{{ T`Recientes` }}</button>
+          <button :class="{ on: only === 'todos' }" @click="only = 'todos'">{{ T`Todos` }}</button>
         </div>
         <ul class="list">
           <li v-for="d in shown" :key="d.path" :class="{ on: d.path === picked }" @click="picked = d.path">
             <b>{{ d.path.split('/').pop() }}</b>
             <small>{{ d.path.includes('/') ? d.path.slice(0, d.path.lastIndexOf('/')) + ' · ' : '' }}{{ ago(d.at, now) }}</small>
-            <span v-if="d.plan" class="chip plan">plan</span>
-            <span v-else-if="d.status" class="chip" :class="d.status">{{ d.status }}</span>
+            <span v-if="d.plan" class="chip plan">{{ T`plan` }}</span>
+            <span v-else-if="d.status" class="chip" :class="d.status">{{ d.status === 'nuevo' ? T`nuevo` : T`cambiado` }}</span>
           </li>
         </ul>
       </div>

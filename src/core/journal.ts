@@ -13,6 +13,7 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { T } from './i18n.js'
 
 export const MAX_FACTS = 60
 export const MAX_HANDOFF = 6000
@@ -76,13 +77,13 @@ export class Journal {
     await mkdir(this.dir(), { recursive: true })
     const who = `${owner.role} · ${owner.provider}${owner.model ? ` ${owner.model}` : ''}`
     const body = [
-      `# Bitácora de ${owner.name} (${who})`,
+      T`# Bitácora de ${owner.name} (${who})`,
       '',
-      `${HANDOFF} (lo escribe ${owner.name}; es su versión, no verdad)`,
+      `${HANDOFF} ${T`(lo escribe ${owner.name}; es su versión, no verdad)`}`,
       '',
-      p.handoff || '_Aún no hay traspaso._',
+      p.handoff || T`_Aún no hay traspaso._`,
       '',
-      `${FACTS} (los escribe Orquest)`,
+      `${FACTS} ${T`(los escribe Orquest)`}`,
       '',
       ...p.facts.slice(-MAX_FACTS),
       '',
@@ -107,9 +108,9 @@ export class Journal {
   /** Reemplaza el traspaso. Rechaza los que no caben: hay que resumir. */
   async handoff(owner: JournalOwner, text: string) {
     const clean = text.trim()
-    if (!clean) throw new Error('El traspaso está vacío.')
+    if (!clean) throw new Error(T`El traspaso está vacío.`)
     if (clean.length > MAX_HANDOFF) {
-      throw new Error(`El traspaso tiene ${clean.length} caracteres; el máximo es ${MAX_HANDOFF}. Resume: decisiones, pendientes y trampas.`)
+      throw new Error(T`El traspaso tiene ${clean.length} caracteres; el máximo es ${MAX_HANDOFF}. Resume: decisiones, pendientes y trampas.`)
     }
     return this.serial(owner.id, async () => {
       const p = await this.parse(owner.id)

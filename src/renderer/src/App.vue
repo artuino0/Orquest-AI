@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { T } from '../../core/i18n'
 import { useStudio } from './stores/studio'
 import './theme'
 import HomeScreen from './components/HomeScreen.vue'
@@ -25,16 +26,16 @@ const closeNow = () => window.orquest.closeNow()
   </div>
   <div v-if="closing" class="closing">
     <section class="panel">
-      <h1 class="title-pixel">Cerrando Orquest</h1>
+      <h1 class="title-pixel">{{ T`Cerrando Orquest` }}</h1>
       <p v-if="closing.asked.length">
-        Cada agente está dejando su corte para retomar después.
-        <b>{{ closing.done.length }} de {{ closing.asked.length }}</b> listos.
+        {{ T`Cada agente está dejando su corte para retomar después.` }}
+        <b>{{ T`${closing.done.length} de ${closing.asked.length}` }}</b> {{ T`listos.` }}
       </p>
-      <p v-else>Nadie está trabajando. Cerrando…</p>
+      <p v-else>{{ T`Nadie está trabajando. Cerrando…` }}</p>
       <ul>
         <li v-for="n in closing.asked" :key="n" :class="{ ok: closing.done.includes(n) }">{{ closing.done.includes(n) ? '✓' : '…' }} {{ n }}</li>
       </ul>
-      <button class="btn danger" @click="closeNow">Cerrar ya, sin esperar</button>
+      <button class="btn danger" @click="closeNow">{{ T`Cerrar ya, sin esperar` }}</button>
     </section>
   </div>
 </template>

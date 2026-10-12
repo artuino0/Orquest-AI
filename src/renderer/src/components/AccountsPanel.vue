@@ -10,6 +10,7 @@ import { useStudio } from '../stores/studio'
 import { ago } from '../format'
 import type { Account } from '../../../core/accounts'
 import PanelFrame from './PanelFrame.vue'
+import { T } from '../../../core/i18n'
 
 const studio = useStudio()
 const accounts = ref<Account[]>([])
@@ -55,51 +56,51 @@ const left = (at: number) => {
   const min = Math.max(1, Math.round((at - now.value) / 60000))
   if (min < 60) return `${min} min`
   if (min < 1440) return `${Math.floor(min / 60)} h ${min % 60} min`
-  return `${Math.round(min / 1440)} días`
+  return T`${Math.round(min / 1440)} días`
 }
 const BLOCKS = 20
 const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
 </script>
 
 <template>
-  <PanelFrame title="Cuentas" subtitle="Cada sesión iniciada en esta máquina y lo que lleva usado de su límite">
-    <template #actions><button class="btn" :disabled="refreshing" @click="load"><RefreshCw /> {{ refreshing ? 'Actualizando…' : 'Actualizar' }}</button></template>
-    <p v-if="loading" class="blank">Buscando cuentas…</p>
+  <PanelFrame :title="T`Cuentas`" :subtitle="T`Cada sesión iniciada en esta máquina y lo que lleva usado de su límite`">
+    <template #actions><button class="btn" :disabled="refreshing" @click="load"><RefreshCw /> {{ refreshing ? T`Actualizando…` : T`Actualizar` }}</button></template>
+    <p v-if="loading" class="blank">{{ T`Buscando cuentas…` }}</p>
     <div v-else-if="!accounts.length" class="blank">
-      <h2>No hay cuentas con sesión iniciada</h2>
-      <p>Aquí aparecen las de Codex y Claude Code en cuanto inicies sesión en su CLI.</p>
+      <h2>{{ T`No hay cuentas con sesión iniciada` }}</h2>
+      <p>{{ T`Aquí aparecen las de Codex y Claude Code en cuanto inicies sesión en su CLI.` }}</p>
       <p v-if="signups.length" class="more">
-        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> Crear cuenta de {{ c.name }}</button>
+        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> {{ T`Crear cuenta de ${c.name}` }}</button>
       </p>
     </div>
     <div v-else class="accounts">
       <section v-for="[provider, list] in groups" :key="provider">
-        <h3 class="cap"><i :style="{ background: `var(--pv-${provider})` }" /> {{ cliName(provider) }} · {{ list.length }} {{ list.length === 1 ? 'cuenta' : 'cuentas' }}</h3>
+        <h3 class="cap"><i :style="{ background: `var(--pv-${provider})` }" /> {{ cliName(provider) }} · {{ list.length === 1 ? T`1 cuenta` : T`${list.length} cuentas` }}</h3>
         <article v-for="a in list" :key="a.dir" class="account">
           <header>
-            <b>{{ a.main ? a.label : `Cuenta ${a.label}` }}</b>
+            <b>{{ a.main ? a.label : T`Cuenta ${a.label}` }}</b>
             <span class="dim">~/{{ a.dir }}</span>
-            <span class="who" :class="{ none: !using(a).length }">{{ using(a).length ? using(a).join(', ') : 'nadie la usa ahora' }}</span>
+            <span class="who" :class="{ none: !using(a).length }">{{ using(a).length ? using(a).join(', ') : T`nadie la usa ahora` }}</span>
           </header>
           <template v-if="a.usage">
             <div v-for="w in a.usage.windows" :key="w.minutes" class="gauge" :class="level(w.used)">
               <span class="label">{{ w.label }}</span>
-              <span class="bar" :title="`${Math.round(w.used)}% usado`"><i v-for="n in BLOCKS" :key="n" :class="{ on: w.used > 0 && n <= Math.max(1, Math.round((w.used / 100) * BLOCKS)) }" /></span>
+              <span class="bar" :title="T`${Math.round(w.used)}% usado`"><i v-for="n in BLOCKS" :key="n" :class="{ on: w.used > 0 && n <= Math.max(1, Math.round((w.used / 100) * BLOCKS)) }" /></span>
               <b class="pct">{{ Math.round(w.used) }}%</b>
-              <span class="dim reset">{{ w.resetsAt ? `se reinicia en ${left(w.resetsAt)}` : w.used === 0 ? 'recién reiniciado' : '' }}</span>
+              <span class="dim reset">{{ w.resetsAt ? T`se reinicia en ${left(w.resetsAt)}` : w.used === 0 ? T`recién reiniciado` : '' }}</span>
             </div>
-            <p class="dim age">Dato de {{ ago(a.usage.at, now) }}</p>
+            <p class="dim age">{{ T`Dato de ${ago(a.usage.at, now)}` }}</p>
           </template>
-          <p v-else class="dim">Sin datos todavía: aparecen cuando esta cuenta trabaje.</p>
+          <p v-else class="dim">{{ T`Sin datos todavía: aparecen cuando esta cuenta trabaje.` }}</p>
         </article>
       </section>
       <p class="dim hint">
-        Otra cuenta del mismo proveedor es otra carpeta con su propia sesión (por ejemplo <code>~/.codex2</code>): Orquest la detecta sola y la ofrece al contratar, y así dos cuentas trabajan al mismo tiempo.
+        {{ T`Otra cuenta del mismo proveedor es otra carpeta con su propia sesión (por ejemplo` }} <code>~/.codex2</code>{{ T`): Orquest la detecta sola y la ofrece al contratar, y así dos cuentas trabajan al mismo tiempo.` }}
       </p>
       <div v-if="signups.length" class="more">
-        <span class="dim">¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.</span>
-        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> Crear cuenta de {{ c.name }}</button>
-        <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">El de {{ signups.filter((c) => c.signup?.referral).map((c) => c.name).join(' y ') }} es enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</span>
+        <span class="dim">{{ T`¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.` }}</span>
+        <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> {{ T`Crear cuenta de ${c.name}` }}</button>
+        <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">{{ T`El de ${signups.filter((c) => c.signup?.referral).map((c) => c.name).join(T` y `)} es enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.` }}</span>
       </div>
     </div>
   </PanelFrame>

@@ -9,6 +9,7 @@ import { Minus, Plus } from 'lucide-vue-next'
 import { officeEvents, officeState } from '../../../core/officefeed'
 import type { Task } from '../../../shared/ipc'
 import { useStudio } from '../stores/studio'
+import { getLang, T } from '../../../core/i18n'
 import { spriteName } from '../characters'
 
 const studio = useStudio()
@@ -71,11 +72,11 @@ watch(
 
 <template>
   <div class="pixel-office">
-    <iframe ref="frame" src="oficina.html?fuente=app" title="Oficina" />
+    <iframe ref="frame" :src="`oficina.html?fuente=app&lang=${getLang()}`" :title="T`Oficina`" />
     <div class="zoom">
-      <button title="Alejar" @click="send({ type: 'zoom', delta: -0.25 })"><Minus /></button>
+      <button :title="T`Alejar`" @click="send({ type: 'zoom', delta: -0.25 })"><Minus /></button>
       <span>{{ scale }}×</span>
-      <button title="Acercar" @click="send({ type: 'zoom', delta: 0.25 })"><Plus /></button>
+      <button :title="T`Acercar`" @click="send({ type: 'zoom', delta: 0.25 })"><Plus /></button>
     </div>
   </div>
 </template>

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Ban, Bell, Check, FileText, Plug, Save, Sparkles, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { DossierView, InstalledTool, Manual, Role } from '../../../shared/ipc'
+import { T } from '../../../core/i18n'
 import PanelFrame from './PanelFrame.vue'
 
 /**
@@ -11,13 +12,13 @@ import PanelFrame from './PanelFrame.vue'
  */
 const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
 const ROLE_NAME: Record<Role, [string, string]> = {
-  desarrollo: ['Desarrollo', 'generalista'],
-  backend: ['Backend', 'API y servicios'],
-  frontend: ['Frontend', 'interfaz y capturas'],
-  dba: ['DBA', 'esquema y migraciones'],
-  infra: ['Infra', 'CI y despliegue'],
-  qa: ['QA', 'veredictos'],
-  diseno: ['Diseño', 'Pencil, Figma u otro'],
+  desarrollo: [T`Desarrollo`, T`generalista`],
+  backend: ['Backend', T`API y servicios`],
+  frontend: ['Frontend', T`interfaz y capturas`],
+  dba: ['DBA', T`esquema y migraciones`],
+  infra: ['Infra', T`CI y despliegue`],
+  qa: ['QA', T`veredictos`],
+  diseno: [T`Diseño`, T`Pencil, Figma u otro`],
 }
 type Row = DossierView & { allRoles: boolean }
 
@@ -55,8 +56,8 @@ const dossier = computed(() => dossiers.value.find((d) => key(d) === picked.valu
 const models = computed(() => dossiers.value.filter((d) => d.provider === dossier.value?.provider && d.model).map((d) => d.model))
 const summary = (d: Row) => {
   const blocked = ROLES.length - (d.allRoles ? ROLES.length : (d.allowedRoles ?? []).length)
-  if (d.model && blocked) return `${blocked} ${blocked === 1 ? 'puesto bloqueado' : 'puestos bloqueados'}`
-  return d.stats.aprobadas_a_la_primera === null ? 'sin historial' : `${d.stats.aprobadas_a_la_primera} % a la primera`
+  if (d.model && blocked) return blocked === 1 ? T`${blocked} puesto bloqueado` : T`${blocked} puestos bloqueados`
+  return d.stats.aprobadas_a_la_primera === null ? T`sin historial` : T`${d.stats.aprobadas_a_la_primera} % a la primera`
 }
 function toggleRole(d: Row, r: Role) {
   const list = new Set(d.allowedRoles ?? [])
@@ -98,8 +99,8 @@ const lines = (v: string[]) => v.join('\n')
 const split = (v: string) => v.split('\n').map((l) => l.trim()).filter(Boolean)
 const users = computed(() => {
   const who = (studio.board?.staff ?? []).filter((m) => m.role.toLowerCase() === role.value).map((m) => m.name)
-  if (!who.length) return 'nadie lo usa todavía'
-  return `lo ${who.length === 1 ? 'usa' : 'usan'} ${who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} y ${who.at(-1)}`}`
+  if (!who.length) return T`nadie lo usa todavía`
+  return who.length === 1 ? T`lo usa ${who[0]}` : T`lo usan ${who.slice(0, -1).join(', ')} y ${who.at(-1)}`
 })
 
 // Skills y servidores MCP instalados: se eligen por puesto en vez de escribirlos de memoria.
@@ -125,10 +126,10 @@ async function saveManual() {
 </script>
 
 <template>
-  <PanelFrame title="Expedientes y manuales" :subtitle="tab === 'expedientes' ? 'Reglas por proveedor y modelo · alimentan la Plantilla' : 'Qué recibe cada empleado al ocupar su puesto'">
+  <PanelFrame :title="T`Expedientes y manuales`" :subtitle="tab === 'expedientes' ? T`Reglas por proveedor y modelo · alimentan la Plantilla` : T`Qué recibe cada empleado al ocupar su puesto`">
     <nav class="tabs">
-      <button :class="{ on: tab === 'expedientes' }" @click="tab = 'expedientes'">Expedientes</button>
-      <button :class="{ on: tab === 'manuales' }" @click="tab = 'manuales'">Manuales de puesto</button>
+      <button :class="{ on: tab === 'expedientes' }" @click="tab = 'expedientes'">{{ T`Expedientes` }}</button>
+      <button :class="{ on: tab === 'manuales' }" @click="tab = 'manuales'">{{ T`Manuales de puesto` }}</button>
     </nav>
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
 
@@ -145,48 +146,48 @@ async function saveManual() {
         <header>
           <i class="sq big" :style="{ background: `var(--pv-${dossier.provider})` }" />
           <h2 class="title-pixel">{{ name(dossier.provider) }}</h2>
-          <span class="dim grow">{{ dossier.model || 'todos los modelos' }}<template v-if="!dossier.model && models.length"> · {{ models.join(', ') }} {{ models.length === 1 ? 'hereda' : 'heredan' }} estas reglas</template></span>
-          <form v-if="!dossier.model" class="add" @submit.prevent="addModel"><input v-model="newModel" placeholder="+ regla para un modelo" /></form>
-          <button class="btn primary" @click="saveDossier"><Check v-if="saved === 'expediente'" /><Save v-else /> {{ saved === 'expediente' ? 'Guardado' : 'Guardar' }}</button>
+          <span class="dim grow">{{ dossier.model || T`todos los modelos` }}<template v-if="!dossier.model && models.length"> · {{ models.length === 1 ? T`${models.join(', ')} hereda estas reglas` : T`${models.join(', ')} heredan estas reglas` }}</template></span>
+          <form v-if="!dossier.model" class="add" @submit.prevent="addModel"><input v-model="newModel" :placeholder="T`+ regla para un modelo`" /></form>
+          <button class="btn primary" @click="saveDossier"><Check v-if="saved === 'expediente'" /><Save v-else /> {{ saved === 'expediente' ? T`Guardado` : T`Guardar` }}</button>
         </header>
 
         <div class="rules">
           <div>
-            <span class="cap">Puestos permitidos</span>
+            <span class="cap">{{ T`Puestos permitidos` }}</span>
             <div class="checks">
               <label v-for="r in ROLES" :key="r" class="check"><input type="checkbox" :checked="(dossier.allowedRoles ?? []).includes(r)" @change="toggleRole(dossier, r)" /><i><Check /></i>{{ ROLE_NAME[r][0] }}</label>
             </div>
           </div>
           <div>
-            <span class="cap">Si no se permite</span>
+            <span class="cap">{{ T`Si no se permite` }}</span>
             <div class="segments">
-              <button :class="{ on: dossier.enforce === 'block', danger: true }" @click="dossier.enforce = 'block'"><Ban /> Bloquear</button>
-              <button :class="{ on: dossier.enforce === 'warn' }" @click="dossier.enforce = 'warn'"><Bell /> Avisar</button>
+              <button :class="{ on: dossier.enforce === 'block', danger: true }" @click="dossier.enforce = 'block'"><Ban /> {{ T`Bloquear` }}</button>
+              <button :class="{ on: dossier.enforce === 'warn' }" @click="dossier.enforce = 'warn'"><Bell /> {{ T`Avisar` }}</button>
             </div>
           </div>
         </div>
 
-        <label class="field"><span class="cap">Notas</span><textarea v-model="dossier.notes" rows="2" placeholder="Lo que has visto de este proveedor: el jefe lo lee al proponer" /></label>
+        <label class="field"><span class="cap">{{ T`Notas` }}</span><textarea v-model="dossier.notes" rows="2" :placeholder="T`Lo que has visto de este proveedor: el jefe lo lee al proponer`" /></label>
 
         <div class="cards">
           <div class="card">
-            <h3 class="title-pixel you">Contigo</h3>
+            <h3 class="title-pixel you">{{ T`Contigo` }}</h3>
             <div class="figures">
-              <div><b class="you">{{ dossier.stats.aprobadas_a_la_primera ?? '—' }}<template v-if="dossier.stats.aprobadas_a_la_primera !== null"> %</template></b><small>integradas a la primera</small></div>
-              <div><b class="good">{{ dossier.stats.integradas }}</b><small>integradas</small></div>
-              <div><b class="bad">{{ dossier.stats.rechazos_qa }}</b><small>rechazos de QA</small></div>
+              <div><b class="you">{{ dossier.stats.aprobadas_a_la_primera ?? '—' }}<template v-if="dossier.stats.aprobadas_a_la_primera !== null"> %</template></b><small>{{ T`integradas a la primera` }}</small></div>
+              <div><b class="good">{{ dossier.stats.integradas }}</b><small>{{ T`integradas` }}</small></div>
+              <div><b class="bad">{{ dossier.stats.rechazos_qa }}</b><small>{{ T`rechazos de QA` }}</small></div>
             </div>
-            <span class="cap">Por puesto <small>· integradas a la primera</small></span>
-            <p v-if="!byRole.length" class="dim">Sin historial contigo todavía.</p>
+            <span class="cap">{{ T`Por puesto` }} <small>· {{ T`integradas a la primera` }}</small></span>
+            <p v-if="!byRole.length" class="dim">{{ T`Sin historial contigo todavía.` }}</p>
             <div v-for="r in byRole" :key="r.role" class="bar">
               <span>{{ r.role }}</span>
               <i><b :style="{ width: `${r.pct}%`, background: r.pct >= 70 ? 'var(--st-idle)' : 'var(--accent)' }" /></i>
-              <small :class="{ bad: !r.a_la_primera }">{{ r.a_la_primera }} de {{ r.integradas }}</small>
+              <small :class="{ bad: !r.a_la_primera }">{{ T`${r.a_la_primera} de ${r.integradas}` }}</small>
             </div>
           </div>
           <div class="card">
-            <h3 class="title-pixel market">En el mercado</h3>
-            <p class="dim">Todavía no hay reporte de mercado. Cuando exista el reporte semanal, aquí saldrán sus posiciones y la opinión pública de este proveedor.</p>
+            <h3 class="title-pixel market">{{ T`En el mercado` }}</h3>
+            <p class="dim">{{ T`Todavía no hay reporte de mercado. Cuando exista el reporte semanal, aquí saldrán sus posiciones y la opinión pública de este proveedor.` }}</p>
           </div>
         </div>
       </section>
@@ -202,30 +203,30 @@ async function saveManual() {
 
       <section v-if="manual" class="detail">
         <header>
-          <h2 class="title-pixel grow">Manual · {{ ROLE_NAME[manual.role]?.[0] ?? manual.role }}</h2>
+          <h2 class="title-pixel grow">{{ T`Manual · ${ROLE_NAME[manual.role]?.[0] ?? manual.role}` }}</h2>
           <span class="dim">{{ users }}</span>
-          <button class="btn primary" @click="saveManual"><Check v-if="saved === 'manual'" /><Save v-else /> {{ saved === 'manual' ? 'Guardado' : 'Guardar' }}</button>
+          <button class="btn primary" @click="saveManual"><Check v-if="saved === 'manual'" /><Save v-else /> {{ saved === 'manual' ? T`Guardado` : T`Guardar` }}</button>
         </header>
 
         <div class="two">
-          <label class="field"><span class="cap">Prompt del puesto</span><textarea v-model="manual.prompt" rows="5" /></label>
+          <label class="field"><span class="cap">{{ T`Prompt del puesto` }}</span><textarea v-model="manual.prompt" rows="5" /></label>
           <div class="side">
-            <label class="field"><span class="cap"><FileText /> Documentación <small>· una ruta por línea</small></span>
+            <label class="field"><span class="cap"><FileText /> {{ T`Documentación` }} <small>· {{ T`una ruta por línea` }}</small></span>
               <textarea :value="lines(manual.docs)" rows="2" placeholder="docs/convenciones.md" @change="manual.docs = split(($event.target as HTMLTextAreaElement).value)" />
             </label>
           </div>
         </div>
 
         <div class="field">
-          <span class="cap"><Sparkles /> Skills y herramientas <small>· {{ manual.skills.length }} {{ manual.skills.length === 1 ? 'elegida' : 'elegidas' }} de {{ tools.length }} instaladas</small></span>
+          <span class="cap"><Sparkles /> {{ T`Skills y herramientas` }} <small>· {{ manual.skills.length === 1 ? T`${manual.skills.length} elegida de ${tools.length} instaladas` : T`${manual.skills.length} elegidas de ${tools.length} instaladas` }}</small></span>
           <div v-if="manual.skills.length" class="chosen">
-            <button v-for="n in manual.skills" :key="n" class="tag" :class="{ missing: !toolOf(n) }" :title="toolOf(n) ? 'Quitar' : 'No está instalada en esta máquina · quitar'" @click="toggleTool(n)">
+            <button v-for="n in manual.skills" :key="n" class="tag" :class="{ missing: !toolOf(n) }" :title="toolOf(n) ? T`Quitar` : T`No está instalada en esta máquina · quitar`" @click="toggleTool(n)">
               {{ n }}<X />
             </button>
           </div>
-          <input v-model="toolQuery" class="search" placeholder="Buscar: playwright, supabase, figma…" />
+          <input v-model="toolQuery" class="search" :placeholder="T`Buscar: playwright, supabase, figma…`" />
           <ul class="tools">
-            <li v-if="!tools.length" class="dim">No encontré skills ni servidores MCP instalados en esta máquina.</li>
+            <li v-if="!tools.length" class="dim">{{ T`No encontré skills ni servidores MCP instalados en esta máquina.` }}</li>
             <li v-for="t in offered" :key="t.kind + t.name" :class="{ on: has(t.name) }" :title="t.description" @click="toggleTool(t.name)">
               <i class="box"><Check /></i>
               <Plug v-if="t.kind === 'mcp'" /><Sparkles v-else />
@@ -236,27 +237,27 @@ async function saveManual() {
           </ul>
         </div>
 
-        <span class="cap">Permisos</span>
+        <span class="cap">{{ T`Permisos` }}</span>
         <div class="perms">
           <div class="perm edit">
-            <span class="cap">Puede editar</span>
-            <label class="check"><input v-model="manual.permissions.edit" type="checkbox" /><i><Check /></i>Archivos de su oficina, sin pedir permiso</label>
+            <span class="cap">{{ T`Puede editar` }}</span>
+            <label class="check"><input v-model="manual.permissions.edit" type="checkbox" /><i><Check /></i>{{ T`Archivos de su oficina, sin pedir permiso` }}</label>
           </div>
           <label class="perm allow">
-            <span class="cap">Comandos permitidos</span>
+            <span class="cap">{{ T`Comandos permitidos` }}</span>
             <textarea :value="lines(manual.permissions.allow)" rows="4" placeholder="npm test" @change="manual.permissions.allow = split(($event.target as HTMLTextAreaElement).value)" />
           </label>
           <label class="perm deny">
-            <span class="cap">Comandos prohibidos</span>
+            <span class="cap">{{ T`Comandos prohibidos` }}</span>
             <textarea :value="lines(manual.permissions.deny)" rows="4" placeholder="git push" @change="manual.permissions.deny = split(($event.target as HTMLTextAreaElement).value)" />
           </label>
         </div>
 
         <div class="two">
-          <label class="field"><span class="cap">Formato de entrega</span><textarea v-model="manual.delivery" rows="5" /></label>
+          <label class="field"><span class="cap">{{ T`Formato de entrega` }}</span><textarea v-model="manual.delivery" rows="5" /></label>
           <div class="side">
-            <span class="cap">Capturas obligatorias</span>
-            <label class="check"><input v-model="manual.requireScreenshots" type="checkbox" /><i><Check /></i>Exigir capturas para entregar</label>
+            <span class="cap">{{ T`Capturas obligatorias` }}</span>
+            <label class="check"><input v-model="manual.requireScreenshots" type="checkbox" /><i><Check /></i>{{ T`Exigir capturas para entregar` }}</label>
           </div>
         </div>
       </section>

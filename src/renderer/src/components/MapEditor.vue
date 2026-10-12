@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { applyTool, drags, itemAt, toolRect, type Tool } from '../world/editor'
 import { FLOORS, inside, MAX_SIZE, MIN_SIZE, PIECES, resizeMap, WALLS, type OfficeMap, type Point } from '../world/map'
@@ -29,16 +30,16 @@ const groups = computed(() => {
 
 const hint = computed(() => {
   const t = tool.value
-  if (t.type === 'floor') return t.id ? 'Arrastra para pintar un área de piso.' : 'Arrastra sobre el piso que quieras quitar.'
-  if (t.type === 'wall') return t.id ? 'Arrastra en línea recta para trazar el muro.' : 'Arrastra sobre el muro que quieras quitar.'
-  if (t.type === 'door') return 'Clic en un muro para abrir una puerta; otro clic la cierra.'
-  if (t.type === 'erase') return 'Clic o arrastra sobre los muebles que quieras quitar. En una casilla sin muebles quita el muro.'
+  if (t.type === 'floor') return t.id ? T`Arrastra para pintar un área de piso.` : T`Arrastra sobre el piso que quieras quitar.`
+  if (t.type === 'wall') return t.id ? T`Arrastra en línea recta para trazar el muro.` : T`Arrastra sobre el muro que quieras quitar.`
+  if (t.type === 'door') return T`Clic en un muro para abrir una puerta; otro clic la cierra.`
+  if (t.type === 'erase') return T`Clic o arrastra sobre los muebles que quieras quitar. En una casilla sin muebles quita el muro.`
   const p = PIECES.find((x) => x.id === t.piece)
-  if (p?.kind === 'hang') return 'Va colgado: ponlo sobre un muro. V lo voltea.'
-  if (p?.kind === 'entrance') return 'Por aquí llega cada contratado. Solo hay una.'
-  if (p?.kind === 'queue') return 'Lugar donde esperan quienes llevan su entrega al jefe. Pon varios.'
-  if (p?.kind === 'station') return 'Escritorio con su silla. Sirve para cualquier rol.'
-  return 'Clic para poner. V lo voltea.'
+  if (p?.kind === 'hang') return T`Va colgado: ponlo sobre un muro. V lo voltea.`
+  if (p?.kind === 'entrance') return T`Por aquí llega cada contratado. Solo hay una.`
+  if (p?.kind === 'queue') return T`Lugar donde esperan quienes llevan su entrega al jefe. Pon varios.`
+  if (p?.kind === 'station') return T`Escritorio con su silla. Sirve para cualquier rol.`
+  return T`Clic para poner. V lo voltea.`
 })
 
 // ── Dibujar ────────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ function resize() {
 }
 
 function clear() {
-  if (confirm('¿Empezar de cero? Se borra todo lo dibujado (puedes deshacerlo con Ctrl+Z).')) office.clear()
+  if (confirm(T`¿Empezar de cero? Se borra todo lo dibujado (puedes deshacerlo con Ctrl+Z).`)) office.clear()
 }
 
 onMounted(() => {
@@ -112,12 +113,12 @@ onBeforeUnmount(() => {
 <template>
   <aside class="editor">
     <header>
-      <strong>Modo creativo</strong>
-      <button class="primary" @click="emit('close')">Listo</button>
+      <strong>{{ T`Modo creativo` }}</strong>
+      <button class="primary" @click="emit('close')">{{ T`Listo` }}</button>
     </header>
 
     <nav class="tabs">
-      <button v-for="t in ['piso', 'muros', 'muebles'] as Tab[]" :key="t" :class="{ on: tab === t }" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['piso', 'muros', 'muebles'] as Tab[]" :key="t" :class="{ on: tab === t }" @click="tab = t">{{ t === 'piso' ? T`piso` : t === 'muros' ? T`muros` : T`muebles` }}</button>
     </nav>
 
     <div class="tools">
@@ -128,15 +129,15 @@ onBeforeUnmount(() => {
             <span>{{ f.label }}</span>
           </button>
         </div>
-        <button class="row" :class="{ on: same({ type: 'floor', id: '' }) }" @click="pick({ type: 'floor', id: '' })">Quitar piso</button>
+        <button class="row" :class="{ on: same({ type: 'floor', id: '' }) }" @click="pick({ type: 'floor', id: '' })">{{ T`Quitar piso` }}</button>
       </template>
 
       <template v-else-if="tab === 'muros'">
         <button v-for="w in WALLS" :key="w.id" class="row" :class="{ on: same({ type: 'wall', id: w.id }) }" @click="pick({ type: 'wall', id: w.id })">
           {{ w.label }}
         </button>
-        <button class="row" :class="{ on: tool.type === 'door' }" @click="pick({ type: 'door' })">Puerta</button>
-        <button class="row" :class="{ on: same({ type: 'wall', id: '' }) }" @click="pick({ type: 'wall', id: '' })">Quitar muro</button>
+        <button class="row" :class="{ on: tool.type === 'door' }" @click="pick({ type: 'door' })">{{ T`Puerta` }}</button>
+        <button class="row" :class="{ on: same({ type: 'wall', id: '' }) }" @click="pick({ type: 'wall', id: '' })">{{ T`Quitar muro` }}</button>
       </template>
 
       <template v-else>
@@ -158,26 +159,26 @@ onBeforeUnmount(() => {
 
     <footer>
       <div class="actions">
-        <button :class="{ on: tool.type === 'erase' }" @click="pick({ type: 'erase' })">Borrar</button>
-        <button :disabled="!office.canUndo" title="Ctrl+Z" @click="office.undo()">Deshacer</button>
+        <button :class="{ on: tool.type === 'erase' }" @click="pick({ type: 'erase' })">{{ T`Borrar` }}</button>
+        <button :disabled="!office.canUndo" title="Ctrl+Z" @click="office.undo()">{{ T`Deshacer` }}</button>
       </div>
       <div class="actions">
-        <button @click="clear">Empezar de cero</button>
-        <button @click="office.useExample()">Usar ejemplo</button>
+        <button @click="clear">{{ T`Empezar de cero` }}</button>
+        <button @click="office.useExample()">{{ T`Usar ejemplo` }}</button>
       </div>
       <label class="size">
-        Tamaño
+        {{ T`Tamaño` }}
         <input v-model.number="width" type="number" :min="MIN_SIZE" :max="MAX_SIZE" @change="resize" />
         ×
         <input v-model.number="height" type="number" :min="MIN_SIZE" :max="MAX_SIZE" @change="resize" />
-        casillas
+        {{ T`casillas` }}
       </label>
       <ul v-if="office.issues.length" class="issues">
         <li v-for="i in office.issues" :key="i">{{ i }}</li>
       </ul>
-      <p v-else class="ok">La oficina está completa.</p>
+      <p v-else class="ok">{{ T`La oficina está completa.` }}</p>
       <p v-if="office.error" class="issues">{{ office.error }}</p>
-      <p class="keys">clic izq.: dibujar · clic der.: mover el mapa · rueda: zoom</p>
+      <p class="keys">{{ T`clic izq.: dibujar · clic der.: mover el mapa · rueda: zoom` }}</p>
     </footer>
   </aside>
 </template>

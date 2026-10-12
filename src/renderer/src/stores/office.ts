@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
+import { T } from '../../../core/i18n'
 import { buildPlan, emptyMap, exampleMap, isOfficeMap, mapIssues, type OfficeMap } from '../world/map'
 
 const LOCAL_KEY = 'orquest.oficina'
@@ -37,7 +38,7 @@ export const useOffice = defineStore('office', () => {
     pending = setTimeout(() => {
       write(map.value).then(
         () => (error.value = null),
-        (err) => (error.value = `No se pudo guardar la oficina: ${(err as Error).message}`),
+        (err) => (error.value = T`No se pudo guardar la oficina: ${(err as Error).message}`),
       )
     }, 400)
   }

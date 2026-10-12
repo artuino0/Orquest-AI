@@ -4,6 +4,7 @@
  * sistema. Se arrastra de aquí; los tres botones hacen lo de siempre.
  */
 import { computed, ref } from 'vue'
+import { T } from '../../../core/i18n'
 import { useStudio } from '../stores/studio'
 
 const studio = useStudio()
@@ -19,14 +20,14 @@ const control = (action: 'minimize' | 'maximize' | 'close') => window.orquest.wi
     <b class="app">Orquest AI</b>
     <template v-if="project"><i class="sep" /><span class="project">{{ project }}</span></template>
     <span class="grow" />
-    <button title="Minimizar" @click="control('minimize')">
+    <button :title="T`Minimizar`" @click="control('minimize')">
       <svg viewBox="0 0 10 10" shape-rendering="crispEdges"><rect x="1" y="7" width="8" height="2" /></svg>
     </button>
-    <button :title="maximized ? 'Restaurar' : 'Maximizar'" @click="control('maximize')">
+    <button :title="maximized ? T`Restaurar` : T`Maximizar`" @click="control('maximize')">
       <svg v-if="!maximized" viewBox="0 0 10 10" shape-rendering="crispEdges"><path d="M1 1h8v8h-8z M2 3v5h6v-5z" fill-rule="evenodd" /></svg>
       <svg v-else viewBox="0 0 10 10" shape-rendering="crispEdges"><path d="M3 1h6v6h-2v-1h1v-3h-4v-1h-1z M1 3h6v6h-6z M2 5v3h4v-3z" fill-rule="evenodd" /></svg>
     </button>
-    <button class="close" title="Cerrar" @click="control('close')">
+    <button class="close" :title="T`Cerrar`" @click="control('close')">
       <svg viewBox="0 0 10 10" shape-rendering="crispEdges">
         <path d="M1 1h2v2h-2z M3 3h2v2h-2z M5 5h2v2h-2z M7 7h2v2h-2z M7 1h2v2h-2z M5 3h2v2h-2z M3 5h2v2h-2z M1 7h2v2h-2z" />
       </svg>

@@ -7,16 +7,17 @@ import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
 import type { Capture, FileChange } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
+import { T } from '../../../core/i18n'
 
 type Tab = 'terminal' | 'chat' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
 const TABS: [Tab, string][] = [
-  ['terminal', 'Terminal'],
-  ['chat', 'Chat'],
-  ['archivos', 'Archivos'],
-  ['capturas', 'Capturas'],
-  ['actividad', 'Actividad'],
-  ['tarea', 'Tarea'],
-  ['bitacora', 'Bitácora'],
+  ['terminal', T`Terminal`],
+  ['chat', T`Chat`],
+  ['archivos', T`Archivos`],
+  ['capturas', T`Capturas`],
+  ['actividad', T`Actividad`],
+  ['tarea', T`Tarea`],
+  ['bitacora', T`Bitácora`],
 ]
 const studio = useStudio()
 const e = computed(() => studio.selectedEmployee!)
@@ -32,7 +33,7 @@ const activity = computed(() => {
   // Lo que dijo y le dijeron por Orquest también es actividad.
   const said = (studio.board?.messages ?? [])
     .filter((m) => m.from === e.value.id || m.to === e.value.id)
-    .map((m) => ({ at: m.at, text: m.from === e.value.id ? `→ ${studio.nameOf(m.to)}: ${m.text}` : `← ${studio.nameOf(m.from)}: ${m.text}`, state: undefined }))
+    .map((m) => ({ at: m.at, text: m.from === e.value.id ? T`→ ${studio.nameOf(m.to)}: ${m.text}` : T`← ${studio.nameOf(m.from)}: ${m.text}`, state: undefined }))
   return [...mine, ...said].sort((a, b) => b.at - a.at)
 })
 /**
@@ -43,11 +44,11 @@ const activity = computed(() => {
  */
 const chat = computed(() =>
   (studio.board?.messages ?? [])
-    .filter((m) => (m.from === e.value.id || m.to === e.value.id) && !(m.from === 'orquest' && m.text.startsWith('[Orquest] El jefe dice:')))
+    .filter((m) => (m.from === e.value.id || m.to === e.value.id) && !(m.from === 'orquest' && m.text.startsWith(`[Orquest] ${T`El jefe dice:`}`)))
     .map((m) => ({
       at: m.at,
       kind: m.from === 'orquest' ? 'note' : m.from === e.value.id ? 'own' : 'other',
-      who: m.from === 'orquest' ? 'Orquest' : m.from === e.value.id ? (m.to === 'tablero' ? `${studio.nameOf(m.from)} · nota en el tablero` : studio.nameOf(m.from)) : m.from === 'usuario' ? 'Tú, en su terminal' : studio.nameOf(m.from),
+      who: m.from === 'orquest' ? 'Orquest' : m.from === e.value.id ? (m.to === 'tablero' ? T`${studio.nameOf(m.from)} · nota en el tablero` : studio.nameOf(m.from)) : m.from === 'usuario' ? T`Tú, en su terminal` : studio.nameOf(m.from),
       text: m.from === 'orquest' ? m.text.replace(/^\[Orquest\]\s*/, '') : m.text,
     })),
 )
@@ -83,11 +84,11 @@ const sections = computed(() => {
   for (const l of journal.value.split('\n')) {
     const h = /^#{1,3}\s+(.*)/.exec(l)
     if (h) out.push({ title: h[1].trim(), lines: [] })
-    else if (l.trim()) (out.at(-1) ?? (out.push({ title: 'Bitácora', lines: [] }), out[0])).lines.push(l.replace(/^[-*]\s+/, ''))
+    else if (l.trim()) (out.at(-1) ?? (out.push({ title: T`Bitácora`, lines: [] }), out[0])).lines.push(l.replace(/^[-*]\s+/, ''))
   }
   return out.filter((s) => s.lines.length)
 })
-const NOTE: Record<string, string> = { traspaso: 'lo escribe el agente', hechos: 'los escribe la app · solo lectura' }
+const NOTE: Record<string, string> = { traspaso: T`lo escribe el agente`, hechos: T`los escribe la app · solo lectura` }
 
 async function loadJournal() {
   journal.value = await window.orquest.journal(e.value.id)
@@ -176,21 +177,21 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       <img class="avatar" :src="avatar" alt="" />
       <div class="who">
         <h2><span class="title-pixel">{{ studio.nameOf(e.id) }}</span> <span class="chip" :style="{ color: `var(--st-${look.color})` }">■ {{ look.label }}</span></h2>
-        <p class="dim">{{ e.role }} · {{ cli }}<template v-if="e.model"> · {{ e.model }}</template><template v-if="e.effort"> · esfuerzo {{ EFFORT_LABEL[e.effort].toLowerCase() }}</template></p>
+        <p class="dim">{{ e.role }} · {{ cli }}<template v-if="e.model"> · {{ e.model }}</template><template v-if="e.effort"> · {{ T`esfuerzo ${EFFORT_LABEL[e.effort].toLowerCase()}` }}</template></p>
         <p class="ctx">
-          <span class="cap">Contexto</span>
-          <span class="meter" :class="{ hot }"><i><b :style="{ width: `${context ?? 0}%` }" /></i>{{ context === undefined ? 'sin dato' : `${Math.round(context)}%` }}</span>
+          <span class="cap">{{ T`Contexto` }}</span>
+          <span class="meter" :class="{ hot }"><i><b :style="{ width: `${context ?? 0}%` }" /></i>{{ context === undefined ? T`sin dato` : `${Math.round(context)}%` }}</span>
         </p>
         <p v-if="e.state === 'working' && studio.doing[e.id]" class="now"><b>{{ studio.doing[e.id].label }}…</b> {{ studio.doing[e.id].detail }}</p>
-        <p v-if="hot" class="over">Pasó el umbral de {{ burnoutAt }} %. Mándalo a Descanso para limpiar contexto.</p>
+        <p v-if="hot" class="over">{{ T`Pasó el umbral de ${burnoutAt} %. Mándalo a Descanso para limpiar contexto.` }}</p>
       </div>
       <div class="actions">
         <button class="btn" @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'">
-          <template v-if="studio.drawerMode === 'float'"><Columns2 /> Dividir</template><template v-else><AppWindow /> Flotante</template>
+          <template v-if="studio.drawerMode === 'float'"><Columns2 /> {{ T`Dividir` }}</template><template v-else><AppWindow /> {{ T`Flotante` }}</template>
         </button>
-        <button class="btn" @click="studio.select(null)"><X /> Cerrar</button>
-        <button class="btn" :disabled="gaming || e.state === 'exited'" title="Escribe su traspaso y se reinicia con el contexto limpio" @click="studio.rest(e.id)"><Gamepad2 /> Descanso</button>
-        <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> Despedir</button>
+        <button class="btn" @click="studio.select(null)"><X /> {{ T`Cerrar` }}</button>
+        <button class="btn" :disabled="gaming || e.state === 'exited'" :title="T`Escribe su traspaso y se reinicia con el contexto limpio`" @click="studio.rest(e.id)"><Gamepad2 /> {{ T`Descanso` }}</button>
+        <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> {{ T`Despedir` }}</button>
       </div>
     </header>
 
@@ -200,17 +201,17 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 
     <div class="body">
       <template v-if="tab === 'terminal'">
-        <p v-if="e.state === 'blocked'" class="needs"><AlertTriangle /> <b>{{ studio.nameOf(e.id) }} te necesita.</b> Su CLI pide algo: respóndele aquí abajo, en su terminal.</p>
+        <p v-if="e.state === 'blocked'" class="needs"><AlertTriangle /> <b>{{ T`${studio.nameOf(e.id)} te necesita.` }}</b> {{ T`Su CLI pide algo: respóndele aquí abajo, en su terminal.` }}</p>
         <div class="screen"><TerminalView :id="e.id" /></div>
         <form class="say" @submit.prevent="say">
           <ChevronRight />
-          <input v-model="message" :placeholder="`Escríbele a ${studio.nameOf(e.id)}…`" />
+          <input v-model="message" :placeholder="T`Escríbele a ${studio.nameOf(e.id)}…`" />
         </form>
       </template>
 
       <div v-if="tab === 'archivos'" class="files">
         <ul>
-          <li v-if="!changes.length" class="dim">{{ e.id === 'jefe' ? 'Sin planes guardados ni cambios en el repo.' : 'Sin cambios en su oficina.' }}</li>
+          <li v-if="!changes.length" class="dim">{{ e.id === 'jefe' ? T`Sin planes guardados ni cambios en el repo.` : T`Sin cambios en su oficina.` }}</li>
           <li v-for="c in changes" :key="c.path" :class="{ on: openFile === c.path }" @click="showDiff(c.path, c.status)"><code>{{ c.status }}</code> {{ c.path }}</li>
         </ul>
         <pre v-if="openFile" class="diff"><span v-for="(l, i) in diff.split('\n')" :key="i" :class="openPlan ? '' : mark(l)">{{ l || ' ' }}
@@ -218,11 +219,11 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       </div>
 
       <div v-if="tab === 'capturas'" class="shots">
-        <p v-if="searching" class="dim pad">Buscando capturas en su oficina…</p>
-        <p v-else-if="!captures.length" class="dim pad">Aún no hay capturas. Aquí aparecen las imágenes que deje en su oficina al probar la app.</p>
+        <p v-if="searching" class="dim pad">{{ T`Buscando capturas en su oficina…` }}</p>
+        <p v-else-if="!captures.length" class="dim pad">{{ T`Aún no hay capturas. Aquí aparecen las imágenes que deje en su oficina al probar la app.` }}</p>
         <figure v-for="c in captures" :key="c.path" @click="zoomed = c.url || null">
           <img v-if="c.url" :src="c.url" :alt="c.path" />
-          <div v-else class="wait">{{ c.url === '' ? 'No se pudo abrir' : 'Cargando…' }}</div>
+          <div v-else class="wait">{{ c.url === '' ? T`No se pudo abrir` : T`Cargando…` }}</div>
           <figcaption :title="c.path">{{ c.path.split('/').pop() }} <small>{{ time(c.at) }}</small></figcaption>
         </figure>
         <!-- Vista grande: la imagen a su ancho y, si es larga, se recorre hacia abajo -->
@@ -230,8 +231,8 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
           <div class="viewer">
             <header>
               <b>{{ zoomedName }}</b>
-              <button class="btn" :title="fit ? 'Ver a tamaño real' : 'Ajustar al ancho'" @click="fit = !fit">{{ fit ? 'Tamaño real' : 'Ajustar al ancho' }}</button>
-              <button class="btn" @click="zoomed = null"><X /> Cerrar</button>
+              <button class="btn" :title="fit ? T`Ver a tamaño real` : T`Ajustar al ancho`" @click="fit = !fit">{{ fit ? T`Tamaño real` : T`Ajustar al ancho` }}</button>
+              <button class="btn" @click="zoomed = null"><X /> {{ T`Cerrar` }}</button>
             </header>
             <div class="scroll"><img :src="zoomed" :class="{ fit }" alt="" /></div>
           </div>
@@ -241,39 +242,39 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
       <div v-if="tab === 'chat'" class="chat">
         <div ref="chatLog" class="chat-log" @scroll.passive="chatLook">
           <div class="spacer" />
-          <p v-if="!chat.length" class="dim">Aún no ha hablado con el jefe. Aquí sale lo que el jefe le pide, lo que pregunta y lo que contesta.</p>
+          <p v-if="!chat.length" class="dim">{{ T`Aún no ha hablado con el jefe. Aquí sale lo que el jefe le pide, lo que pregunta y lo que contesta.` }}</p>
           <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.kind">
             <span class="who">{{ m.who }} · {{ time(m.at) }}</span>
             <p>{{ m.text }}</p>
           </div>
         </div>
-        <p class="dim readonly">Solo lectura. Lo que quieras pedirle, díselo al jefe: él coordina y así el tablero no se desfasa.</p>
+        <p class="dim readonly">{{ T`Solo lectura. Lo que quieras pedirle, díselo al jefe: él coordina y así el tablero no se desfasa.` }}</p>
       </div>
 
       <ol v-if="tab === 'actividad'" class="timeline">
-        <li v-if="!activity.length" class="dim">Sin actividad todavía.</li>
+        <li v-if="!activity.length" class="dim">{{ T`Sin actividad todavía.` }}</li>
         <li v-for="(a, i) in activity" :key="i"><time>{{ time(a.at) }}</time><i :style="{ background: a.state ? `var(--st-${LOOK[a.state].color})` : 'var(--border-light)' }" />{{ a.text }}</li>
       </ol>
 
       <div v-if="tab === 'tarea'" class="task">
-        <span class="cap">Oficina</span>
-        <p><code>{{ e.office.path }}</code> · rama <code>{{ e.office.branch }}</code></p>
-        <span class="cap">Tareas</span>
-        <p v-if="!tasks.length" class="dim">Sin tareas. Se las asigna el jefe.</p>
+        <span class="cap">{{ T`Oficina` }}</span>
+        <p><code>{{ e.office.path }}</code> · {{ T`rama` }} <code>{{ e.office.branch }}</code></p>
+        <span class="cap">{{ T`Tareas` }}</span>
+        <p v-if="!tasks.length" class="dim">{{ T`Sin tareas. Se las asigna el jefe.` }}</p>
         <article v-for="t in tasks" :key="t.id" class="card">
           <h3><span class="id">{{ t.id }}</span> {{ t.title }} <span class="chip" :style="{ color: `var(--st-${TASK_COLOR[t.status]})` }">■ {{ capital(TASK_STATUS[t.status]) }}</span></h3>
           <p v-if="t.description && t.description !== t.title">{{ t.description }}</p>
-          <p v-if="t.deps.length" class="dim">Depende de: <span v-for="d in t.deps" :key="d">{{ d }} ({{ TASK_STATUS[taskById(d)?.status ?? 'waiting'] }}) </span></p>
+          <p v-if="t.deps.length" class="dim">{{ T`Depende de:` }} <span v-for="d in t.deps" :key="d">{{ d }} ({{ TASK_STATUS[taskById(d)?.status ?? 'waiting'] }}) </span></p>
           <p v-if="t.qa" :class="t.qa.verdict === 'pass' ? 'good' : 'bad'">QA: {{ t.qa.report }}</p>
         </article>
         <template v-if="e.warnings.length">
-          <span class="cap">Avisos</span>
+          <span class="cap">{{ T`Avisos` }}</span>
           <p v-for="w in e.warnings" :key="w" class="bad">{{ w }}</p>
         </template>
       </div>
 
       <div v-if="tab === 'bitacora'" class="journal">
-        <p v-if="!sections.length" class="dim">Aún no hay bitácora. Es su memoria entre reinicios y la capacitación de quien ocupe su puesto.</p>
+        <p v-if="!sections.length" class="dim">{{ T`Aún no hay bitácora. Es su memoria entre reinicios y la capacitación de quien ocupe su puesto.` }}</p>
         <article v-for="s in sections" :key="s.title" class="card">
           <h3><span class="title-pixel" :class="s.title.toLowerCase()">{{ s.title }}</span> <small class="dim">{{ NOTE[s.title.toLowerCase()] }}</small></h3>
           <p v-for="(l, i) in s.lines" :key="i">{{ l }}</p>

@@ -1,18 +1,19 @@
 /** Cómo se nombra y de qué color va cada estado de un empleado en los paneles. */
 import type { Employee, StudioSnapshot } from '../../shared/ipc'
+import { T } from '../../core/i18n'
 
 export type Look = 'working' | 'blocked' | 'waiting' | 'delivering' | 'gaming' | 'idle' | 'starting' | 'exited'
 
 /** Etiqueta y ficha de color (`--st-<color>`) de cada estado. */
 export const LOOK: Record<Look, { label: string; color: string }> = {
-  working: { label: 'Trabajando', color: 'work' },
-  blocked: { label: 'Te necesita', color: 'block' },
-  waiting: { label: 'Esperando a otro', color: 'dep' },
-  delivering: { label: 'Lista para revisar', color: 'review' },
-  gaming: { label: 'Jugando', color: 'play' },
-  idle: { label: 'En espera', color: 'idle' },
-  starting: { label: 'Llegando', color: 'arrive' },
-  exited: { label: 'Fuera', color: 'arrive' },
+  working: { label: T`Trabajando`, color: 'work' },
+  blocked: { label: T`Te necesita`, color: 'block' },
+  waiting: { label: T`Esperando a otro`, color: 'dep' },
+  delivering: { label: T`Lista para revisar`, color: 'review' },
+  gaming: { label: T`Jugando`, color: 'play' },
+  idle: { label: T`En espera`, color: 'idle' },
+  starting: { label: T`Llegando`, color: 'arrive' },
+  exited: { label: T`Fuera`, color: 'arrive' },
 }
 
 /**
@@ -30,8 +31,8 @@ export function lookOf(e: Pick<Employee, 'id' | 'state'>, hints: StudioSnapshot[
 }
 
 /** Cómo se le dice a cada nivel de esfuerzo. Cuáles hay depende de cada CLI (CliStatus.efforts). */
-export const EFFORT_LABEL: Record<string, string> = { low: 'Bajo', medium: 'Medio', high: 'Alto', xhigh: 'Muy alto', max: 'Máximo' }
+export const EFFORT_LABEL: Record<string, string> = { low: T`Bajo`, medium: T`Medio`, high: T`Alto`, xhigh: T`Muy alto`, max: T`Máximo` }
 
 /** Cómo se escribe un puesto para la gente (los identificadores no llevan acentos ni eñes). */
-const ROLE_LABEL: Record<string, string> = { diseno: 'diseño', qa: 'QA', dba: 'DBA' }
+const ROLE_LABEL: Record<string, string> = { diseno: T`diseño`, qa: 'QA', dba: 'DBA' }
 export const roleLabel = (role: string) => ROLE_LABEL[role.toLowerCase()] ?? role

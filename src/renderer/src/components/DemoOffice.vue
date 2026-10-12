@@ -4,6 +4,7 @@
  * sin proyecto ni CLIs. Solo la usa demo.html; la app no la incluye.
  */
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { OfficeScene, type SceneEmployee } from '../world/scene'
 import MapEditor from './MapEditor.vue'
@@ -53,8 +54,8 @@ onBeforeUnmount(() => scene.value?.destroy())
   <div class="demo">
     <div ref="mapEl" class="map" />
     <header>
-      <strong>Oficina de prueba</strong>
-      <button :class="{ on: editing }" @click="editing = !editing">Editar oficina</button>
+      <strong>{{ T`Oficina de prueba` }}</strong>
+      <button :class="{ on: editing }" @click="editing = !editing">{{ T`Editar oficina` }}</button>
     </header>
     <MapEditor v-if="editing && scene" :scene="scene" @close="editing = false" />
   </div>

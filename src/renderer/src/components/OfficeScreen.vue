@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { AlertTriangle, Bell, Crown, FileText, FolderOpen, Gauge, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
+import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
 import { OfficeScene } from '../world/scene'
@@ -71,12 +72,12 @@ const legend = computed(() => {
   for (const e of studio.employees) n[look(e)] = (n[look(e)] ?? 0) + 1
   const s = (k: string) => n[k] ?? 0
   return [
-    { n: s('working'), color: 'work', text: 'trabajando' },
-    { n: s('blocked'), color: 'block', text: s('blocked') === 1 ? 'te necesita' : 'te necesitan', alert: true },
-    { n: s('waiting'), color: 'dep', text: 'espera a otro' },
-    { n: s('delivering'), color: 'review', text: s('delivering') === 1 ? 'entrega' : 'entregas' },
-    { n: s('gaming'), color: 'play', text: 'jugando' },
-    { n: s('idle') + s('starting'), color: 'idle', text: 'en espera' },
+    { n: s('working'), color: 'work', text: T`trabajando` },
+    { n: s('blocked'), color: 'block', text: s('blocked') === 1 ? T`te necesita` : T`te necesitan`, alert: true },
+    { n: s('waiting'), color: 'dep', text: T`espera a otro` },
+    { n: s('delivering'), color: 'review', text: s('delivering') === 1 ? T`entrega` : T`entregas` },
+    { n: s('gaming'), color: 'play', text: T`jugando` },
+    { n: s('idle') + s('starting'), color: 'idle', text: T`en espera` },
   ].filter((x) => x.n)
 })
 
@@ -84,18 +85,18 @@ const legend = computed(() => {
 const alerts = computed(() => {
   const list: { danger?: boolean; text: string; go: () => void }[] = []
   for (const e of studio.employees) {
-    if (e.state === 'blocked') list.push({ danger: true, text: `${studio.nameOf(e.id)} te necesita: abre su terminal`, go: () => studio.select(e.id) })
+    if (e.state === 'blocked') list.push({ danger: true, text: T`${studio.nameOf(e.id)} te necesita: abre su terminal`, go: () => studio.select(e.id) })
   }
   // El jefe te preguntó algo y no puede decidirlo sin ti.
   const asks = (studio.board?.questions ?? []).filter((q) => q.status === 'open').length
-  if (asks) list.push({ text: `El jefe espera por ti: ${asks} ${asks === 1 ? 'pregunta sin contestar' : 'preguntas sin contestar'} · Contestar`, go: () => (studio.overlay = 'boss') })
+  if (asks) list.push({ text: asks === 1 ? T`El jefe espera por ti: ${asks} pregunta sin contestar · Contestar` : T`El jefe espera por ti: ${asks} preguntas sin contestar · Contestar`, go: () => (studio.overlay = 'boss') })
   // Equipo contratado con las terminales cerradas: se puede retomar cuando quieras.
   const team = studio.board?.resumable ?? []
   if (team.length && studio.resumeAsked && !studio.resuming) {
-    list.push({ text: `Tu equipo (${team.length}) está contratado con sus terminales cerradas · Retomar actividades`, go: () => void studio.resumeProject(true) })
+    list.push({ text: T`Tu equipo (${team.length}) está contratado con sus terminales cerradas · Retomar actividades`, go: () => void studio.resumeProject(true) })
   }
   const n = studio.proposal.length
-  if (n) list.push({ text: `El Jefe propone ${n} ${n === 1 ? 'contratación' : 'contrataciones'} · ver Plantilla`, go: () => (studio.overlay = 'hire') })
+  if (n) list.push({ text: n === 1 ? T`El Jefe propone ${n} contratación · ver Plantilla` : T`El Jefe propone ${n} contrataciones · ver Plantilla`, go: () => (studio.overlay = 'hire') })
   return list
 })
 
@@ -140,27 +141,27 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
 <template>
   <div class="office" :class="{ split: studio.selected && studio.drawerMode === 'split' }">
     <header class="bar">
-      <button class="btn" @click="studio.goHome()">Inicio</button>
+      <button class="btn" @click="studio.goHome()">{{ T`Inicio` }}</button>
       <strong class="repo">{{ name(studio.repo) }}</strong>
       <span class="legend">
         <span v-for="l in legend" :key="l.text" :class="{ alert: l.alert }" :style="{ color: l.alert ? `var(--st-${l.color})` : undefined }">
           <i :style="{ background: `var(--st-${l.color})` }" />{{ l.n }} {{ l.text }}
         </span>
-        <span v-if="!studio.employees.length" class="dim">Sin empleados todavía</span>
+        <span v-if="!studio.employees.length" class="dim">{{ T`Sin empleados todavía` }}</span>
       </span>
       <nav>
-        <button class="btn" :class="{ on: studio.overlay === 'boss' }" @click="toggle('boss')"><Crown /> Jefe</button>
+        <button class="btn" :class="{ on: studio.overlay === 'boss' }" @click="toggle('boss')"><Crown /> {{ T`Jefe` }}</button>
         <button class="btn" :class="{ on: studio.overlay === 'hire' }" @click="toggle('hire')">
-          <Users /> Plantilla<b v-if="studio.proposal.length" class="badge">{{ studio.proposal.length }}</b>
+          <Users /> {{ T`Plantilla` }}<b v-if="studio.proposal.length" class="badge">{{ studio.proposal.length }}</b>
         </button>
-        <button class="btn" :class="{ on: studio.overlay === 'board' }" @click="toggle('board')"><Kanban /> Tablero</button>
-        <button class="btn" :class="{ on: studio.overlay === 'plans' }" title="Planes y documentos que el jefe deja en el repo" @click="toggle('plans')"><FileText /> Planes</button>
-        <button class="btn" :class="{ on: studio.overlay === 'library' }" @click="toggle('library')"><FolderOpen /> Expedientes</button>
+        <button class="btn" :class="{ on: studio.overlay === 'board' }" @click="toggle('board')"><Kanban /> {{ T`Tablero` }}</button>
+        <button class="btn" :class="{ on: studio.overlay === 'plans' }" :title="T`Planes y documentos que el jefe deja en el repo`" @click="toggle('plans')"><FileText /> {{ T`Planes` }}</button>
+        <button class="btn" :class="{ on: studio.overlay === 'library' }" @click="toggle('library')"><FolderOpen /> {{ T`Expedientes` }}</button>
         <button class="btn" :class="{ on: studio.overlay === 'inbox' }" @click="toggle('inbox')">
-          <Inbox /> Entregas<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
+          <Inbox /> {{ T`Entregas` }}<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
         </button>
-        <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite" @click="toggle('accounts')"><Gauge /></button>
-        <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" title="Dibujar la oficina (modo creativo)" @click="toggleEdit"><PencilRuler /></button>
+        <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" :title="T`Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite`" @click="toggle('accounts')"><Gauge /></button>
+        <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" :title="T`Dibujar la oficina (modo creativo)`" @click="toggleEdit"><PencilRuler /></button>
         <LangToggle />
         <ThemeToggle />
       </nav>
@@ -177,15 +178,14 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
       <div v-if="studio.board?.resumable.length && !studio.resumeAsked && !studio.overlay && !editing" class="empty-veil">
         <section class="panel empty">
           <img :src="CHAR1" alt="" />
-          <h1 class="title-pixel">¿Retomamos donde se quedaron?</h1>
+          <h1 class="title-pixel">{{ T`¿Retomamos donde se quedaron?` }}</h1>
           <p>
-            Al cerrar estaban en la oficina: <b>{{ studio.board.resumable.join(', ') }}</b>. Cada quien vuelve a su escritorio,
-            retoma su conversación y lee el corte que dejó.
+            {{ T`Al cerrar estaban en la oficina:` }} <b>{{ studio.board.resumable.join(', ') }}</b>. {{ T`Cada quien vuelve a su escritorio, retoma su conversación y lee el corte que dejó.` }}
           </p>
           <p v-if="studio.error" class="bad">{{ studio.error }}</p>
           <div class="choices">
-            <button class="btn" :disabled="studio.resuming" title="Entras a la oficina; el equipo sigue contratado con sus terminales cerradas" @click="studio.resumeProject(false)">Ahora no, solo entrar</button>
-            <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)"><RotateCcw /> {{ studio.resuming ? 'Volviendo…' : 'Retomar' }}</button>
+            <button class="btn" :disabled="studio.resuming" :title="T`Entras a la oficina; el equipo sigue contratado con sus terminales cerradas`" @click="studio.resumeProject(false)">{{ T`Ahora no, solo entrar` }}</button>
+            <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)"><RotateCcw /> {{ studio.resuming ? T`Volviendo…` : T`Retomar` }}</button>
           </div>
         </section>
       </div>
@@ -194,9 +194,9 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
       <div v-else-if="!studio.bossOnline && !studio.board?.resumable.length && !studio.overlay && !editing" class="empty-veil">
         <section class="panel empty">
           <img :src="CHAR1" alt="" />
-          <h1 class="title-pixel">La oficina está vacía</h1>
-          <p>Todavía no hay jefe. Contrátalo y dale el objetivo del proyecto: él propondrá la plantilla y será tu único interlocutor.</p>
-          <button class="btn primary" @click="studio.overlay = 'boss'"><Crown /> Contratar jefe</button>
+          <h1 class="title-pixel">{{ T`La oficina está vacía` }}</h1>
+          <p>{{ T`Todavía no hay jefe. Contrátalo y dale el objetivo del proyecto: él propondrá la plantilla y será tu único interlocutor.` }}</p>
+          <button class="btn primary" @click="studio.overlay = 'boss'"><Crown /> {{ T`Contratar jefe` }}</button>
         </section>
       </div>
 

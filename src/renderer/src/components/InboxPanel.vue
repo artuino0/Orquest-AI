@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Crown, GitMerge, Inbox, Undo2
 import { useStudio } from '../stores/studio'
 import { qaOf } from './taskLabels'
 import PanelFrame from './PanelFrame.vue'
+import { T } from '../../../core/i18n'
 
 /** Lo que el jefe aprobó y espera tu decisión: integrar a la rama principal o regresar. */
 const studio = useStudio()
@@ -32,7 +33,7 @@ async function merge(id: string) {
   busy.value = id
   if (await studio.mergeTask(id)) {
     delete conflicts.value[id]
-    studio.notice(`${id} integrada.`)
+    studio.notice(T`${id} integrada.`)
   } else if (studio.error) {
     conflicts.value[id] = studio.error
     studio.error = null
@@ -51,7 +52,7 @@ async function sendBack(id: string, why?: string) {
   busy.value = null
 }
 
-const askBoss = (id: string) => studio.sayToBoss(`No se pudo integrar ${id}: ${conflicts.value[id]}. Resuélvelo.`)
+const askBoss = (id: string) => studio.sayToBoss(T`No se pudo integrar ${id}: ${conflicts.value[id]}. Resuélvelo.`)
 
 const member = (id: string) => studio.board?.staff.find((m) => m.id === id)
 const cli = (id: string) => studio.clis.find((c) => c.id === member(id)?.provider)?.name ?? member(id)?.provider ?? ''
@@ -75,14 +76,19 @@ function parse(text: string) {
 const parsed = computed(() => (open.value ? parse(diffs.value[open.value] ?? '') : null))
 const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '')
 const count = computed(() => studio.inbox.length)
+const subtitle = computed(() => {
+  const n = count.value
+  if (!n) return T`Nada pendiente`
+  return n === 1 ? T`${n} entrega aprobada por el jefe espera tu decisión` : T`${n} entregas aprobadas por el jefe esperan tu decisión`
+})
 </script>
 
 <template>
-  <PanelFrame title="Entregas" :subtitle="count ? `${count} ${count === 1 ? 'entrega aprobada por el jefe espera' : 'entregas aprobadas por el jefe esperan'} tu decisión` : 'Nada pendiente'">
+  <PanelFrame :title="T`Entregas`" :subtitle="subtitle">
     <div v-if="!count" class="blank">
       <Inbox />
-      <h2>Bandeja vacía</h2>
-      <p>Aquí llega lo que el jefe ya aprobó. Cuando alguien haga fila frente a su oficina, lo verás aquí.</p>
+      <h2>{{ T`Bandeja vacía` }}</h2>
+      <p>{{ T`Aquí llega lo que el jefe ya aprobó. Cuando alguien haga fila frente a su oficina, lo verás aquí.` }}</p>
     </div>
 
     <template v-for="t in studio.inbox" :key="t.id">
@@ -91,30 +97,30 @@ const count = computed(() => studio.inbox.length)
         <header>
           <div class="who">
             <h2><span class="id">{{ t.id }}</span> {{ t.title }} <span class="chip" :style="{ color: qaOf(t).color ? `var(--st-${qaOf(t).color})` : 'var(--text-secondary)' }">{{ qaOf(t).text }}</span></h2>
-            <p class="dim"><i class="sq" :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }} · {{ member(t.assignee)?.role }} · {{ cli(t.assignee) }}<template v-if="t.returns"> · regresó {{ t.returns }}×</template></p>
+            <p class="dim"><i class="sq" :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }} · {{ member(t.assignee)?.role }} · {{ cli(t.assignee) }}<template v-if="t.returns"> · {{ T`regresó ${t.returns}×` }}</template></p>
           </div>
-          <button class="btn" :disabled="busy === t.id || !notes[t.id]?.trim()" title="Escribe abajo qué falta" @click="sendBack(t.id)"><Undo2 /> Regresar</button>
-          <button class="btn primary" :disabled="busy === t.id" @click="merge(t.id)"><GitMerge /> {{ conflicts[t.id] ? 'Reintentar' : 'Integrar' }}</button>
+          <button class="btn" :disabled="busy === t.id || !notes[t.id]?.trim()" :title="T`Escribe abajo qué falta`" @click="sendBack(t.id)"><Undo2 /> {{ T`Regresar` }}</button>
+          <button class="btn primary" :disabled="busy === t.id" @click="merge(t.id)"><GitMerge /> {{ conflicts[t.id] ? T`Reintentar` : T`Integrar` }}</button>
         </header>
 
         <div v-if="conflicts[t.id]" class="problem">
           <AlertTriangle />
           <div>
-            <b>No se pudo integrar</b>
-            <p>{{ conflicts[t.id] }} No se integró nada; la rama sigue intacta.</p>
-            <button class="btn" @click="askBoss(t.id)"><Crown /> Pedir al jefe que lo resuelva</button>
-            <button class="btn" @click="sendBack(t.id, `No se pudo integrar: ${conflicts[t.id]}`)"><Undo2 /> Regresar a {{ studio.nameOf(t.assignee) }} con el conflicto</button>
+            <b>{{ T`No se pudo integrar` }}</b>
+            <p>{{ conflicts[t.id] }} {{ T`No se integró nada; la rama sigue intacta.` }}</p>
+            <button class="btn" @click="askBoss(t.id)"><Crown /> {{ T`Pedir al jefe que lo resuelva` }}</button>
+            <button class="btn" @click="sendBack(t.id, T`No se pudo integrar: ${conflicts[t.id]}`)"><Undo2 /> {{ T`Regresar a ${studio.nameOf(t.assignee)} con el conflicto` }}</button>
           </div>
         </div>
 
         <div class="reports">
-          <div><span class="cap">Reporte de {{ studio.nameOf(t.assignee) }}</span><p>{{ t.delivery?.report || 'Sin reporte.' }}</p></div>
-          <div v-if="t.qa"><span class="cap">Veredicto de QA</span><p :class="t.qa.verdict === 'fail' ? 'bad' : 'good'">{{ t.qa.report }}</p></div>
+          <div><span class="cap">{{ T`Reporte de ${studio.nameOf(t.assignee)}` }}</span><p>{{ t.delivery?.report || T`Sin reporte.` }}</p></div>
+          <div v-if="t.qa"><span class="cap">{{ T`Veredicto de QA` }}</span><p :class="t.qa.verdict === 'fail' ? 'bad' : 'good'">{{ t.qa.report }}</p></div>
         </div>
 
         <template v-if="parsed">
           <p class="diff-head">
-            <ChevronDown /> <b>Diff · {{ parsed.files.length }} {{ parsed.files.length === 1 ? 'archivo' : 'archivos' }}</b>
+            <ChevronDown /> <b>{{ parsed.files.length === 1 ? T`Diff · ${parsed.files.length} archivo` : T`Diff · ${parsed.files.length} archivos` }}</b>
             <span class="good">+{{ parsed.added }}</span> <span class="bad">-{{ parsed.removed }}</span>
             <span class="dim">{{ parsed.files.map((f) => f.name).join(' · ') || t.delivery?.diffStat }}</span>
           </p>
@@ -127,7 +133,7 @@ const count = computed(() => studio.inbox.length)
           </div>
         </template>
 
-        <input v-model="notes[t.id]" class="notes" :placeholder="`Notas si la regresas (las recibe ${studio.nameOf(t.assignee)} por medio del jefe)…`" />
+        <input v-model="notes[t.id]" class="notes" :placeholder="T`Notas si la regresas (las recibe ${studio.nameOf(t.assignee)} por medio del jefe)…`" />
         <p v-if="studio.error" class="bad">{{ studio.error }}</p>
       </article>
 
@@ -138,7 +144,7 @@ const count = computed(() => studio.inbox.length)
         <b>{{ t.title }}</b>
         <span class="dim grow">{{ studio.nameOf(t.assignee) }}<template v-if="t.delivery?.diffStat"> · {{ t.delivery.diffStat.trim() }}</template></span>
         <span class="chip" :style="{ color: qaOf(t).color ? `var(--st-${qaOf(t).color})` : 'var(--text-secondary)' }">{{ qaOf(t).text }}</span>
-        <button class="btn primary" :disabled="busy === t.id" @click.stop="merge(t.id)"><GitMerge /> Integrar</button>
+        <button class="btn primary" :disabled="busy === t.id" @click.stop="merge(t.id)"><GitMerge /> {{ T`Integrar` }}</button>
       </article>
     </template>
   </PanelFrame>

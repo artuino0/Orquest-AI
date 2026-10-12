@@ -22,6 +22,8 @@ export interface CliStatus {
   efforts?: Effort[]
   /** Qué hacer para iniciar sesión. */
   login?: string
+  /** `login` es una indicación, no un comando que copiar. */
+  manualLogin?: boolean
   /** Cómo instalarla. */
   install?: { command?: string; url: string }
   /** Dónde abrir una cuenta, si el proveedor lo tiene. */
@@ -139,7 +141,7 @@ async function modelsOf(p: ProviderAdapter, binary: string, home: string): Promi
 }
 
 export async function detectProvider(p: ProviderAdapter, home = homedir()): Promise<CliStatus> {
-  const base = { id: p.id, name: p.name, login: p.login, install: p.install, signup: p.signup, efforts: p.efforts }
+  const base = { id: p.id, name: p.name, login: p.login, manualLogin: p.manualLogin, install: p.install, signup: p.signup, efforts: p.efforts }
   let binary: string | undefined
   for (const b of p.binaries) {
     binary = await findBinary(b)

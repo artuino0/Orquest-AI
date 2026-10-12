@@ -9,6 +9,7 @@
  *
  * Lógica pura; la persistencia la pone quien la construye (StudioStore).
  */
+import { T } from './i18n.js'
 import type { ProviderId } from './providers.js'
 
 export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno'] as const
@@ -86,35 +87,35 @@ export interface LibraryStore {
 const DEV_ALLOW = ['npm test', 'npm run', 'npx vitest', 'node', 'git status', 'git diff', 'git log', 'git add', 'git commit', 'git merge']
 const DEV_DENY = ['git push', 'git reset --hard', 'rm -rf']
 
-const DEFAULT_PROMPTS: Record<Role, string> = {
-  desarrollo: 'Desarrollo general: implementas lo que se te asigne en todo el stack.',
-  backend: 'Backend: APIs, lógica de negocio, contratos. Documenta el contrato de API en tu entrega.',
-  frontend: 'Frontend: interfaz y su integración con la API. Respeta el contrato que te pasen.',
-  dba: 'DBA: esquema, migraciones y consultas. Toda migración debe poder revertirse.',
-  infra: 'Infra: build, CI, despliegue y configuración. No toques secretos reales.',
-  qa: 'QA: pruebas la entrega de otro, no la corriges. Tu entrega dice si pasa o no (veredicto) con pasos para reproducir cada fallo.',
-  diseno:
-    'Diseño: pantallas, flujos y piezas visuales. Trabajas en el software de diseño que el usuario haya indicado (Pencil, Figma u otro), con su skill o su servidor MCP. Si nadie te ha dicho cuál usar, pregúntaselo al jefe antes de empezar. No escribes el código de la app: entregas el diseño y sus exportaciones para que frontend lo construya.',
-}
+// T se evalúa al usarse, no al cargar el módulo: por eso los textos por defecto van en funciones.
+const defaultPrompts = (): Record<Role, string> => ({
+  desarrollo: T`Desarrollo general: implementas lo que se te asigne en todo el stack.`,
+  backend: T`Backend: APIs, lógica de negocio, contratos. Documenta el contrato de API en tu entrega.`,
+  frontend: T`Frontend: interfaz y su integración con la API. Respeta el contrato que te pasen.`,
+  dba: T`DBA: esquema, migraciones y consultas. Toda migración debe poder revertirse.`,
+  infra: T`Infra: build, CI, despliegue y configuración. No toques secretos reales.`,
+  qa: T`QA: pruebas la entrega de otro, no la corriges. Tu entrega dice si pasa o no (veredicto) con pasos para reproducir cada fallo.`,
+  diseno: T`Diseño: pantallas, flujos y piezas visuales. Trabajas en el software de diseño que el usuario haya indicado (Pencil, Figma u otro), con su skill o su servidor MCP. Si nadie te ha dicho cuál usar, pregúntaselo al jefe antes de empezar. No escribes el código de la app: entregas el diseño y sus exportaciones para que frontend lo construya.`,
+})
 
-const DEFAULT_DELIVERY: Record<Role, string> = {
-  desarrollo: 'Reporte: qué hiciste y cómo probarlo.',
-  backend: 'Reporte: qué hiciste, cómo probarlo y el contrato de API (rutas, entradas, salidas).',
-  frontend: 'Reporte: qué hiciste y cómo probarlo; capturas de las pantallas tocadas si puedes.',
-  dba: 'Reporte: cambios de esquema, migración y cómo revertirla.',
-  infra: 'Reporte: qué cambió en build o despliegue y cómo verificarlo.',
-  qa: 'Veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.',
-  diseno: 'Reporte: qué diseñaste, con qué herramienta y en qué archivo quedó; las pantallas exportadas (PNG) guardadas en tu oficina y adjuntas como capturas; decisiones y lo que falta.',
-}
+const defaultDelivery = (): Record<Role, string> => ({
+  desarrollo: T`Reporte: qué hiciste y cómo probarlo.`,
+  backend: T`Reporte: qué hiciste, cómo probarlo y el contrato de API (rutas, entradas, salidas).`,
+  frontend: T`Reporte: qué hiciste y cómo probarlo; capturas de las pantallas tocadas si puedes.`,
+  dba: T`Reporte: cambios de esquema, migración y cómo revertirla.`,
+  infra: T`Reporte: qué cambió en build o despliegue y cómo verificarlo.`,
+  qa: T`Veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.`,
+  diseno: T`Reporte: qué diseñaste, con qué herramienta y en qué archivo quedó; las pantallas exportadas (PNG) guardadas en tu oficina y adjuntas como capturas; decisiones y lo que falta.`,
+})
 
 export function defaultManual(role: Role): Manual {
   return {
     role,
-    prompt: DEFAULT_PROMPTS[role],
+    prompt: defaultPrompts()[role],
     docs: [],
     skills: [],
     permissions: { edit: true, allow: [...DEV_ALLOW], deny: [...DEV_DENY] },
-    delivery: DEFAULT_DELIVERY[role],
+    delivery: defaultDelivery()[role],
     // Un diseño se entrega viéndose.
     requireScreenshots: role === 'diseno',
   }
@@ -134,7 +135,10 @@ export const DEFAULT_DOSSIERS: Dossier[] = [
     model: '',
     allowedRoles: ['qa'],
     enforce: 'block',
-    notes: 'Bueno probando flujos en navegador, malo escribiendo código.',
+    // Getter: el texto sale en el idioma activo al leerse, no al cargar el módulo.
+    get notes() {
+      return T`Bueno probando flujos en navegador, malo escribiendo código.`
+    },
   },
 ]
 
@@ -187,7 +191,8 @@ export class Library {
     const d = this.dossier(provider, model ?? '')
     if (!d.allowedRoles || d.allowedRoles.includes(role as Role)) return { ok: true }
     const who = `${provider}${d.model ? ` ${d.model}` : ''}`
-    const msg = `El expediente de ${who} solo permite ${d.allowedRoles.join(', ') || 'ningún puesto'}; no ${role}.${d.notes ? ` Nota del usuario: ${d.notes}` : ''}`
+    const base = T`El expediente de ${who} solo permite ${d.allowedRoles.join(', ') || T`ningún puesto`}; no ${role}.`
+    const msg = d.notes ? `${base} ${T`Nota del usuario: ${d.notes}`}` : base
     return d.enforce === 'block' ? { ok: false, reason: msg } : { ok: true, warning: msg }
   }
 
@@ -242,7 +247,7 @@ export class Library {
   }
 
   saveManual(m: Manual) {
-    if (!isRole(m.role)) throw new Error(`Puesto desconocido: ${m.role}`)
+    if (!isRole(m.role)) throw new Error(T`Puesto desconocido: ${m.role}`)
     const clean: Manual = {
       ...m,
       docs: m.docs.map((x) => x.trim()).filter(Boolean),

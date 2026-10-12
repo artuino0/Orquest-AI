@@ -10,6 +10,7 @@ import PanelFrame from './PanelFrame.vue'
 import QuestionsCard from './QuestionsCard.vue'
 import TerminalView from './TerminalView.vue'
 import { CHARACTERS, charUrl } from '../characters'
+import { T } from '../../../core/i18n'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
 const studio = useStudio()
@@ -74,7 +75,7 @@ const chat = computed(() =>
     // Solo lo que se dicen el usuario y el jefe. Lo que el jefe habla con cada empleado
     // está en la pestaña Actividad de ese empleado; lo que la app teclea ([Orquest] …) no es conversación.
     .filter((m) => (m.from === 'usuario' && m.to === 'jefe') || (m.from === 'jefe' && m.to === 'usuario'))
-    .map((m) => ({ ...m, mine: m.from === 'usuario', who: m.from === 'usuario' ? 'Tú' : studio.nameOf('jefe') })),
+    .map((m) => ({ ...m, mine: m.from === 'usuario', who: m.from === 'usuario' ? T`Tú` : studio.nameOf('jefe') })),
 )
 const hour = (at: number) => new Date(at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
 
@@ -156,11 +157,16 @@ watch(atWork, async () => {
 })
 onBeforeUnmount(() => clearTimeout(idleTimer))
 
-const STATE: Record<string, [string, string]> = { working: ['Trabajando', 'work'], blocked: ['Te necesita', 'block'], idle: ['En espera', 'idle'], starting: ['Llegando', 'arrive'], exited: ['Fuera', 'arrive'] }
+const STATE: Record<string, [string, string]> = { working: [T`Trabajando`, 'work'], blocked: [T`Te necesita`, 'block'], idle: [T`En espera`, 'idle'], starting: [T`Llegando`, 'arrive'], exited: [T`Fuera`, 'arrive'] }
 const context = computed(() => Math.round(studio.board?.context.jefe ?? boss.value?.context ?? 0))
 const cli = computed(() => studio.clis.find((c) => c.id === boss.value?.provider)?.name ?? boss.value?.provider ?? '')
 
 /** Sin trabajar y con preguntas abiertas: no está libre, depende de ti. */
+const noEffort = computed(() => {
+  const name = chosen.value?.name ?? T`Esta CLI`
+  return models.value.length ? T`${name} no recibe esfuerzo: va en el modelo.` : T`${name} no recibe esfuerzo.`
+})
+const sayPlaceholder = computed(() => T`Háblale a ${studio.board?.boss?.name || T`tu jefe`}…`)
 const waitsForYou = computed(() => boss.value?.state === 'idle' && (studio.board?.questions ?? []).some((q) => q.status === 'open'))
 
 /** Lo que está detenido hasta que hagas algo. */
@@ -168,48 +174,47 @@ const pending = computed(() => {
   const list: { icon: 'warn' | 'team' | 'inbox'; text: string; label: string; go: () => void }[] = []
   // Lo primero: lo que el jefe te preguntó y no puede decidir sin ti.
   const asks = (studio.board?.questions ?? []).filter((q) => q.status === 'open').length
-  if (asks) list.push({ icon: 'warn', text: `${asks} ${asks === 1 ? 'pregunta sin contestar' : 'preguntas sin contestar'}`, label: 'Contestar', go: () => document.querySelector('.asks input')?.scrollIntoView({ block: 'center' }) })
+  if (asks) list.push({ icon: 'warn', text: asks === 1 ? T`${asks} pregunta sin contestar` : T`${asks} preguntas sin contestar`, label: T`Contestar`, go: () => document.querySelector('.asks input')?.scrollIntoView({ block: 'center' }) })
   for (const e of studio.employees) {
-    if (e.state === 'blocked' && e.id !== 'jefe') list.push({ icon: 'warn', text: `${studio.nameOf(e.id)} necesita un permiso`, label: `Ver a ${studio.nameOf(e.id)}`, go: () => studio.select(e.id) })
+    if (e.state === 'blocked' && e.id !== 'jefe') list.push({ icon: 'warn', text: T`${studio.nameOf(e.id)} necesita un permiso`, label: T`Ver a ${studio.nameOf(e.id)}`, go: () => studio.select(e.id) })
   }
   const n = studio.proposal.length
-  if (n) list.push({ icon: 'team', text: `Aprobar plantilla: ${n} ${n === 1 ? 'puesto' : 'puestos'}`, label: 'Plantilla', go: () => (studio.overlay = 'hire') })
+  if (n) list.push({ icon: 'team', text: n === 1 ? T`Aprobar plantilla: ${n} puesto` : T`Aprobar plantilla: ${n} puestos`, label: T`Plantilla`, go: () => (studio.overlay = 'hire') })
   const d = studio.inbox.length
-  if (d) list.push({ icon: 'inbox', text: `${d} ${d === 1 ? 'entrega lista' : 'entregas listas'} para integrar`, label: 'Entregas', go: () => (studio.overlay = 'inbox') })
+  if (d) list.push({ icon: 'inbox', text: d === 1 ? T`${d} entrega lista para integrar` : T`${d} entregas listas para integrar`, label: T`Entregas`, go: () => (studio.overlay = 'inbox') })
   return list
 })
 </script>
 
 <template>
   <!-- Sin jefe: contratarlo -->
-  <PanelFrame v-if="!studio.bossOnline && studio.board?.resumable.length" title="Jefe" subtitle="Contratado, con su terminal cerrada" narrow>
+  <PanelFrame v-if="!studio.bossOnline && studio.board?.resumable.length" :title="T`Jefe`" :subtitle="T`Contratado, con su terminal cerrada`" narrow>
     <div class="blank">
-      <h2>Tu jefe y su equipo siguen contratados</h2>
-      <p>Sus terminales están cerradas: {{ studio.board.resumable.join(', ') }}. Al retomar, cada quien vuelve a su escritorio con su conversación y lee el corte que dejó.</p>
-      <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)">{{ studio.resuming ? 'Volviendo…' : 'Retomar actividades' }}</button>
+      <h2>{{ T`Tu jefe y su equipo siguen contratados` }}</h2>
+      <p>{{ T`Sus terminales están cerradas: ${studio.board.resumable.join(', ')}. Al retomar, cada quien vuelve a su escritorio con su conversación y lee el corte que dejó.` }}</p>
+      <button class="btn primary" :disabled="studio.resuming" @click="studio.resumeProject(true)">{{ studio.resuming ? T`Volviendo…` : T`Retomar actividades` }}</button>
       <p v-if="studio.error" class="err">{{ studio.error }}</p>
     </div>
   </PanelFrame>
 
-  <PanelFrame v-else-if="!studio.bossOnline" title="Contratar al Jefe" subtitle="Todavía no hay jefe en este proyecto" narrow>
+  <PanelFrame v-else-if="!studio.bossOnline" :title="T`Contratar al Jefe`" :subtitle="T`Todavía no hay jefe en este proyecto`" narrow>
     <p class="lead">
-      El jefe es tu único interlocutor: recibe el objetivo, propone la plantilla, reparte tareas y revisa las entregas
-      antes de que lleguen a tu bandeja.
+      {{ T`El jefe es tu único interlocutor: recibe el objetivo, propone la plantilla, reparte tareas y revisa las entregas antes de que lleguen a tu bandeja.` }}
     </p>
     <label class="field">
-      <span>Nombre <small>· cómo quieres llamarlo; si lo dejas vacío será «Jefe»</small></span>
-      <input v-model="bossName" maxlength="24" placeholder="Jefe" />
+      <span>{{ T`Nombre` }} <small>{{ T`· cómo quieres llamarlo; si lo dejas vacío será «Jefe»` }}</small></span>
+      <input v-model="bossName" maxlength="24" :placeholder="T`Jefe`" />
     </label>
     <label class="field">
-      <span>Objetivo del proyecto</span>
-      <textarea v-model="goal" rows="4" placeholder="Qué quieres construir y para cuándo" />
+      <span>{{ T`Objetivo del proyecto` }}</span>
+      <textarea v-model="goal" rows="4" :placeholder="T`Qué quieres construir y para cuándo`" />
     </label>
     <div class="field">
-      <span>Proveedor <small>· solo CLIs listas en esta máquina</small></span>
+      <span>{{ T`Proveedor` }} <small>{{ T`· solo CLIs listas en esta máquina` }}</small></span>
       <div class="providers">
         <button
           v-for="c in studio.clis" :key="c.id" type="button" class="prov" :class="{ on: provider === c.id }"
-          :disabled="!canLead(c.id)" :title="canLead(c.id) ? '' : c.installed ? 'Sin sesión iniciada' : 'No está instalada'"
+          :disabled="!canLead(c.id)" :title="canLead(c.id) ? '' : c.installed ? T`Sin sesión iniciada` : T`No está instalada`"
           @click="provider = c.id"
         >
           <i :style="{ background: `var(--pv-${c.id})` }" />{{ c.name }}
@@ -218,88 +223,88 @@ const pending = computed(() => {
     </div>
     <div class="row">
       <label class="field grow">
-        <span>Modelo</span>
+        <span>{{ T`Modelo` }}</span>
         <div class="select">
-          <input v-model="model" list="boss-models" :placeholder="models.length ? `el de la CLI por defecto · ${models.length} para elegir` : 'el de la CLI por defecto (escribe otro si quieres)'" />
+          <input v-model="model" list="boss-models" :placeholder="models.length ? T`el de la CLI por defecto · ${models.length} para elegir` : T`el de la CLI por defecto (escribe otro si quieres)`" />
           <ChevronDown />
           <datalist id="boss-models"><option v-for="m in offered" :key="m" :value="m" /></datalist>
         </div>
       </label>
       <label v-if="houses.length > 1" class="field">
-        <span>Casa del modelo</span>
+        <span>{{ T`Casa del modelo` }}</span>
         <select v-model="house" class="house" @change="model = ''">
-          <option value="">todas ({{ houses.length }})</option>
+          <option value="">{{ T`todas (${houses.length})` }}</option>
           <option v-for="h in houses" :key="h" :value="h">{{ h }}</option>
         </select>
       </label>
       <label v-if="accounts.length > 1" class="field">
-        <span>Cuenta</span>
+        <span>{{ T`Cuenta` }}</span>
         <select v-model="account" class="house">
-          <option v-for="a in accounts" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.label }}{{ a.usage?.windows[0] ? ` · ${Math.round(a.usage.windows[0].used)}% usado` : '' }}</option>
+          <option v-for="a in accounts" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.usage?.windows[0] ? T`${a.label} · ${Math.round(a.usage.windows[0].used)}% usado` : a.label }}</option>
         </select>
       </label>
       <div class="field">
-        <span>Esfuerzo</span>
+        <span>{{ T`Esfuerzo` }}</span>
         <div v-if="efforts.length" class="segments">
           <button v-for="id in efforts" :key="id" type="button" :class="{ on: effort === id }" @click="effort = id">{{ EFFORT_LABEL[id] }}</button>
         </div>
-        <p v-else class="none">{{ chosen?.name ?? 'Esta CLI' }} no recibe esfuerzo<template v-if="models.length">: va en el modelo</template>.</p>
+        <p v-else class="none">{{ noEffort }}</p>
       </div>
     </div>
     <div class="field">
-      <span>Personaje <small>· así se verá en la oficina</small></span>
+      <span>{{ T`Personaje` }} <small>{{ T`· así se verá en la oficina` }}</small></span>
       <div class="cast">
-        <button v-for="n in CHARACTERS" :key="n" type="button" :class="{ on: studio.bossCharacter === n }" :title="`Personaje ${n}`" @click="studio.setBossCharacter(n)">
+        <button v-for="n in CHARACTERS" :key="n" type="button" :class="{ on: studio.bossCharacter === n }" :title="T`Personaje ${n}`" @click="studio.setBossCharacter(n)">
           <img :src="charUrl(n)" alt="" />
         </button>
       </div>
     </div>
-    <p v-if="!leaders.length" class="err">Ninguna CLI está lista en esta máquina. Revisa en Inicio cuál falta instalar o iniciar sesión.</p>
+    <p v-if="!leaders.length" class="err">{{ T`Ninguna CLI está lista en esta máquina. Revisa en Inicio cuál falta instalar o iniciar sesión.` }}</p>
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
     <template #footer>
-      <span class="foot">Entrará por la puerta y caminará a la oficina del jefe.</span>
+      <span class="foot">{{ T`Entrará por la puerta y caminará a la oficina del jefe.` }}</span>
       <button class="btn primary" :disabled="!goal.trim() || !leaders.length || busy" @click="hire">
-        <Crown /> {{ busy ? 'Contratando…' : 'Contratar jefe' }}
+        <Crown /> {{ busy ? T`Contratando…` : T`Contratar jefe` }}
       </button>
     </template>
   </PanelFrame>
 
   <!-- Con jefe: la conversación -->
-  <PanelFrame v-else title="Jefe" :subtitle="`${studio.nameOf('jefe')} · tu único interlocutor`">
+  <PanelFrame v-else :title="T`Jefe`" :subtitle="T`${studio.nameOf('jefe')} · tu único interlocutor`">
     <div class="talk">
       <div class="main">
         <div class="goal">
           <Target />
-          <div><span class="cap">Objetivo</span><p>{{ studio.board?.goal || 'Sin objetivo escrito.' }}</p></div>
-          <button class="btn" title="Díselo al jefe para cambiarlo" @click="message = `Cambia el objetivo a: ${studio.board?.goal ?? ''}`"><Pencil /> Editar</button>
+          <div><span class="cap">{{ T`Objetivo` }}</span><p>{{ studio.board?.goal || T`Sin objetivo escrito.` }}</p></div>
+          <button class="btn" :title="T`Díselo al jefe para cambiarlo`" @click="message = T`Cambia el objetivo a: ${studio.board?.goal ?? ''}`"><Pencil /> {{ T`Editar` }}</button>
         </div>
         <!-- Detenido: su CLI pregunta algo y nada de lo que escribas le llega hasta que contestes. -->
         <div v-if="boss?.state === 'blocked'" class="stuck">
-          <p><AlertTriangle /> <span><b>El jefe está detenido: su CLI te pregunta algo.</b> Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.</span></p>
+          <p><AlertTriangle /> <span><b>{{ T`El jefe está detenido: su CLI te pregunta algo.` }}</b> {{ T`Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.` }}</span></p>
           <div class="mini"><TerminalView id="jefe" /></div>
         </div>
         <div ref="log" class="log" @scroll.passive="look">
           <div class="spacer" />
-          <p v-if="!chat.length" class="empty">Aún no hay mensajes. Escríbele al jefe abajo.</p>
+          <p v-if="!chat.length" class="empty">{{ T`Aún no hay mensajes. Escríbele al jefe abajo.` }}</p>
           <div v-for="(m, i) in chat" :key="i" class="msg" :class="{ mine: m.mine }">
             <span class="who">{{ m.who }} · {{ hour(m.at) }}</span>
             <p>{{ m.text }}</p>
           </div>
           <!-- Qué está haciendo ahora, leído de su terminal: el último globo del chat, que no se quita entre un paso y otro -->
           <div v-if="atWork" class="msg doing">
-            <span class="who">{{ studio.nameOf('jefe') }} · ahora</span>
+            <span class="who">{{ T`${studio.nameOf('jefe')} · ahora` }}</span>
             <p>
-              <b>{{ doing?.label ?? 'Trabajando' }}</b><i class="dots" />
+              <b>{{ doing?.label ?? T`Trabajando` }}</b><i class="dots" />
               <span class="what">{{ doing?.detail }}</span>
               <span v-if="doing?.seconds" class="secs">{{ doing.seconds >= 60 ? `${Math.floor(doing.seconds / 60)} min ${doing.seconds % 60} s` : `${doing.seconds} s` }}</span>
             </p>
           </div>
         </div>
         <QuestionsCard />
-        <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread }} {{ unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos' }}</button>
+        <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread === 1 ? T`${unread} mensaje nuevo` : T`${unread} mensajes nuevos` }}</button>
         <form class="say" @submit.prevent="send">
-          <input v-model="message" :placeholder="`Háblale a ${studio.board?.boss?.name || 'tu jefe'}…`" />
-          <button type="submit" class="btn primary"><Send /> Enviar</button>
+          <input v-model="message" :placeholder="sayPlaceholder" />
+          <button type="submit" class="btn primary"><Send /> {{ T`Enviar` }}</button>
         </form>
         <p v-if="studio.error" class="err">{{ studio.error }}</p>
       </div>
@@ -309,15 +314,15 @@ const pending = computed(() => {
           <img :src="charUrl(studio.bossCharacter)" alt="" />
           <div>
             <h3 class="title-pixel">{{ studio.nameOf('jefe') }}</h3>
-            <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · esfuerzo {{ EFFORT_LABEL[boss.effort].toLowerCase() }}</template></p>
-            <span v-if="boss" class="chip" :style="{ color: `var(--st-${waitsForYou ? 'review' : STATE[boss.state][1]})` }">■ {{ waitsForYou ? 'Espera por ti' : STATE[boss.state][0] }}</span>
+            <p class="dim">{{ cli }}<template v-if="boss?.model"> · {{ boss.model }}</template><template v-if="boss?.effort"> · {{ T`esfuerzo ${EFFORT_LABEL[boss.effort].toLowerCase()}` }}</template></p>
+            <span v-if="boss" class="chip" :style="{ color: `var(--st-${waitsForYou ? 'review' : STATE[boss.state][1]})` }">■ {{ waitsForYou ? T`Espera por ti` : STATE[boss.state][0] }}</span>
             <span class="meter" :class="{ hot: context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${context}%` }" /></i>{{ context }}%</span>
           </div>
         </div>
-        <button class="btn open" @click="studio.select('jefe')"><Terminal /> Abrir terminal del jefe</button>
+        <button class="btn open" @click="studio.select('jefe')"><Terminal /> {{ T`Abrir terminal del jefe` }}</button>
         <div class="card waits">
-          <span class="cap">El jefe espera de ti</span>
-          <p v-if="!pending.length" class="dim">Nada por ahora.</p>
+          <span class="cap">{{ T`El jefe espera de ti` }}</span>
+          <p v-if="!pending.length" class="dim">{{ T`Nada por ahora.` }}</p>
           <div v-for="(p, i) in pending" :key="i" class="wait">
             <AlertTriangle v-if="p.icon === 'warn'" class="warn" /><Users v-else-if="p.icon === 'team'" /><Inbox v-else />
             <span>{{ p.text }}</span>

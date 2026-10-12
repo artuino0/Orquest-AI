@@ -6,6 +6,7 @@ import { DEPARTMENTS, departmentFor } from '../world/layout'
 import { capital, qaOf, TASK_COLOR, TASK_STATUS } from './taskLabels'
 import PanelFrame from './PanelFrame.vue'
 import { roleLabel } from '../status'
+import { T } from '../../../core/i18n'
 
 /** Vista compacta del proyecto, siempre a un clic: tareas por departamento, responsable, estado y dependencias. */
 const studio = useStudio()
@@ -19,12 +20,12 @@ const areas = computed(() => DEPARTMENTS.filter((d) => tasks.value.some((t) => d
 const statuses = computed(() => (Object.keys(TASK_STATUS) as (keyof typeof TASK_STATUS)[]).map((s) => ({ id: s as string, n: tasks.value.filter((t) => t.status === s).length })).filter((s) => s.n))
 const filtered = computed(() => tasks.value.filter((t) => (!area.value || deptOf(t.assignee) === area.value) && (!status.value || t.status === status.value)))
 const byDept = computed(() => DEPARTMENTS.map((d) => ({ dept: d, tasks: filtered.value.filter((t) => deptOf(t.assignee) === d) })).filter((g) => g.tasks.length))
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+const taskCount = (n: number) => (n === 1 ? T`1 tarea` : T`${n} tareas`)
 const subtitle = computed(() => {
-  if (!tasks.value.length) return 'Sin tareas'
+  if (!tasks.value.length) return T`Sin tareas`
   const waiting = tasks.value.filter((t) => t.status === 'approved').length
   const merged = tasks.value.filter((t) => t.status === 'merged').length
-  return [count(tasks.value.length, 'tarea', 'tareas'), `${count(waiting, 'espera', 'esperan')} tu aprobación`, count(merged, 'integrada', 'integradas')].join(' · ')
+  return [taskCount(tasks.value.length), waiting === 1 ? T`1 espera tu aprobación` : T`${waiting} esperan tu aprobación`, merged === 1 ? T`1 integrada` : T`${merged} integradas`].join(' · ')
 })
 /** De qué depende una tarea; si su dependencia sigue abierta, con quién la tiene. */
 function deps(ids: string[]) {
@@ -37,33 +38,33 @@ function deps(ids: string[]) {
 </script>
 
 <template>
-  <PanelFrame title="Tablero" :subtitle="subtitle">
+  <PanelFrame :title="T`Tablero`" :subtitle="subtitle">
     <div v-if="!tasks.length" class="blank">
       <Kanban />
-      <h2>Aún no hay tareas</h2>
-      <p>El jefe crea las tareas cuando apruebas la plantilla. Hasta entonces el tablero se queda en blanco.</p>
-      <button class="btn primary" @click="studio.overlay = 'boss'">Hablar con el Jefe</button>
+      <h2>{{ T`Aún no hay tareas` }}</h2>
+      <p>{{ T`El jefe crea las tareas cuando apruebas la plantilla. Hasta entonces el tablero se queda en blanco.` }}</p>
+      <button class="btn primary" @click="studio.overlay = 'boss'">{{ T`Hablar con el Jefe` }}</button>
     </div>
 
     <template v-else>
       <div class="filters">
-        <span class="cap">Área</span>
-        <button :class="{ on: !area }" @click="area = ''">Todas <b>{{ tasks.length }}</b></button>
+        <span class="cap">{{ T`Área` }}</span>
+        <button :class="{ on: !area }" @click="area = ''">{{ T`Todas` }} <b>{{ tasks.length }}</b></button>
         <button v-for="a in areas" :key="a.id" :class="{ on: area === a.id }" @click="area = area === a.id ? '' : a.id">{{ roleLabel(a.id) }} <b>{{ a.n }}</b></button>
         <i class="gap" />
-        <span class="cap">Estado</span>
-        <button :class="{ on: !status }" @click="status = ''">Todos</button>
+        <span class="cap">{{ T`Estado` }}</span>
+        <button :class="{ on: !status }" @click="status = ''">{{ T`Todos` }}</button>
         <button v-for="st in statuses" :key="st.id" :class="{ on: status === st.id }" :style="{ '--c': `var(--st-${TASK_COLOR[st.id as keyof typeof TASK_COLOR]})` }" @click="status = status === st.id ? '' : st.id">
           <i class="sq" />{{ capital(TASK_STATUS[st.id as keyof typeof TASK_STATUS]) }} <b>{{ st.n }}</b>
         </button>
       </div>
-      <p v-if="!filtered.length" class="dim none">Ninguna tarea con ese filtro.</p>
+      <p v-if="!filtered.length" class="dim none">{{ T`Ninguna tarea con ese filtro.` }}</p>
     <table v-else class="tbl">
       <thead>
-        <tr><th>ID</th><th>Título</th><th>Responsable</th><th>Estado</th><th>Depende de</th><th>Regresos</th><th>QA</th></tr>
+        <tr><th>{{ T`ID` }}</th><th>{{ T`Título` }}</th><th>{{ T`Responsable` }}</th><th>{{ T`Estado` }}</th><th>{{ T`Depende de` }}</th><th>{{ T`Regresos` }}</th><th>{{ T`QA` }}</th></tr>
       </thead>
       <tbody v-for="g in byDept" :key="g.dept">
-        <tr class="group"><td colspan="7"><b>{{ roleLabel(g.dept) }}</b> {{ count(g.tasks.length, 'tarea', 'tareas') }}</td></tr>
+        <tr class="group"><td colspan="7"><b>{{ roleLabel(g.dept) }}</b> {{ taskCount(g.tasks.length) }}</td></tr>
         <tr v-for="t in g.tasks" :key="t.id" class="pick" @click="studio.select(t.assignee)">
           <td class="id">{{ t.id }}</td>
           <td>{{ t.title }}</td>

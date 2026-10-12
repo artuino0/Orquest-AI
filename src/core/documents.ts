@@ -8,6 +8,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
+import { T } from './i18n.js'
 import { listPlans } from './plans.js'
 
 const run = promisify(execFile)
@@ -57,10 +58,10 @@ export async function listDocuments(root: string): Promise<ProjectDocument[]> {
 export async function readDocument(root: string, path: string): Promise<string> {
   const full = resolve(root, path)
   const inside = relative(root, full)
-  if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new RuleError('Ese archivo no está dentro del proyecto.')
-  if (!DOC.test(full)) throw new RuleError('Solo se pueden abrir documentos de texto (.md, .mdx, .txt).')
+  if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new RuleError(T`Ese archivo no está dentro del proyecto.`)
+  if (!DOC.test(full)) throw new RuleError(T`Solo se pueden abrir documentos de texto (.md, .mdx, .txt).`)
   const info = await stat(full).catch(() => null)
-  if (!info?.isFile()) throw new RuleError(`Ya no existe ${path}.`)
+  if (!info?.isFile()) throw new RuleError(T`Ya no existe ${path}.`)
   const text = await readFile(full, 'utf8')
-  return text.length > MAX_BYTES ? `${text.slice(0, MAX_BYTES)}\n\n… (recortado: el archivo es muy largo)` : text
+  return text.length > MAX_BYTES ? `${text.slice(0, MAX_BYTES)}\n\n${T`… (recortado: el archivo es muy largo)`}` : text
 }

@@ -14,6 +14,7 @@ const cli = (id: CliStatus['id'], name: string, version: string | null, session:
   ...(version && { version }),
   session: version === null ? null : session,
   login,
+  ...(login.startsWith('abre') && { manualLogin: true }),
   install,
   // En la vista previa van como de referido, para ver el aviso que los acompaña.
   ...(id === 'claude' && { signup: { url: 'https://claude.com/pricing', referral: true } }),

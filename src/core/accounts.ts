@@ -14,6 +14,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getProvider, type ProviderId } from './providers.js'
 import { RuleError } from './board.js'
+import { T } from './i18n.js'
 
 /** Un tramo del límite: las últimas 5 horas, la semana… */
 export interface UsageWindow {
@@ -78,7 +79,7 @@ export function listAccounts(home = homedir(), now = Date.now()): Account[] {
     const found: Account[] = []
     for (const dir of names) {
       const main = dir === h.base
-      const label = main ? 'Principal' : suffix(h.base, dir)
+      const label = main ? T`Principal` : suffix(h.base, dir)
       if (label === undefined || !existsSync(join(home, dir, h.marker))) continue
       found.push({ provider, dir, main, label, usage: provider === 'codex' ? codexUsage(join(home, dir), now) : undefined })
     }
@@ -92,15 +93,15 @@ export function accountEnv(provider: ProviderId, dir: string | undefined, home =
   const h = HOMES[provider]
   if (!dir || dir === h?.base) return {}
   const name = getProvider(provider).name
-  if (!h) throw new RuleError(`${name} no sabe trabajar con otra cuenta; quita la cuenta del puesto.`)
+  if (!h) throw new RuleError(T`${name} no sabe trabajar con otra cuenta; quita la cuenta del puesto.`)
   if (suffix(h.base, dir) === undefined || !existsSync(join(home, dir, h.marker))) {
-    throw new RuleError(`La cuenta "${dir}" de ${name} no está en esta máquina o no tiene sesión iniciada. Elige otra cuenta o inicia sesión en esa.`)
+    throw new RuleError(T`La cuenta "${dir}" de ${name} no está en esta máquina o no tiene sesión iniciada. Elige otra cuenta o inicia sesión en esa.`)
   }
   return { [h.env]: join(home, dir) }
 }
 
 const windowLabel = (minutes: number): string =>
-  minutes === 300 ? '5 horas' : minutes === 10080 ? 'Semana' : minutes % 1440 === 0 ? `${minutes / 1440} días` : minutes % 60 === 0 ? `${minutes / 60} horas` : `${minutes} min`
+  minutes === 300 ? T`5 horas` : minutes === 10080 ? T`Semana` : minutes % 1440 === 0 ? T`${minutes / 1440} días` : minutes % 60 === 0 ? T`${minutes / 60} horas` : T`${minutes} min`
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
 /** Segundos o milisegundos desde 1970, o una fecha escrita → ms. */

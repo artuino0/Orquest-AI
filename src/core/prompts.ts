@@ -1,3 +1,4 @@
+import { T } from './i18n.js'
 import type { Manual } from './library.js'
 
 /**
@@ -10,8 +11,8 @@ export type Channel = 'mcp' | 'cli'
 
 function via(channel: Channel): string {
   return channel === 'mcp'
-    ? 'servidor MCP "orquest"'
-    : 'en tu terminal son el comando orquest: orquest <herramienta> --campo valor, p. ej. orquest reportar_estado --estado trabajando --nota "voy a la mitad"; orquest ayuda lista las tuyas con sus campos'
+    ? T`servidor MCP "orquest"`
+    : T`en tu terminal son el comando orquest: orquest <herramienta> --campo valor, p. ej. orquest reportar_estado --estado trabajando --nota "voy a la mitad"; orquest ayuda lista las tuyas con sus campos`
 }
 
 /**
@@ -20,15 +21,15 @@ function via(channel: Channel): string {
  * contratado antes de que existieran las preguntas nunca lo leyó.
  */
 /** Al volver a la oficina: sus planes guardados son lo primero que retoma. */
-export const PLAN_REMINDER = 'Tus planes guardados vienen en leer_proyecto (planes): reléelos antes de seguir.'
+export const planReminder = () => T`Tus planes guardados vienen en leer_proyecto (planes): reléelos antes de seguir.`
 
-export const ASK_REMINDER =
-  'Lo que necesites que el usuario decida o te diga va con preguntar_al_usuario, no con decir_al_usuario: una pregunta por decisión, con 2 a 5 respuestas sugeridas, tu recomendada, qué detiene y qué tareas la esperan. Queda pendiente a su vista hasta que conteste y Orquest te avisa; no la repitas ni decidas por él. preguntas_pendientes en leer_proyecto es tu lista de lo que sigues esperando de él: si tienes decisiones suyas pendientes que le pediste por mensaje, pásalas ahora a preguntas. Si te contesta por el chat, regístralo con cerrar_pregunta.'
+export const askReminder = () =>
+  T`Lo que necesites que el usuario decida o te diga va con preguntar_al_usuario, no con decir_al_usuario: una pregunta por decisión, con 2 a 5 respuestas sugeridas, tu recomendada, qué detiene y qué tareas la esperan. Queda pendiente a su vista hasta que conteste y Orquest te avisa; no la repitas ni decidas por él. preguntas_pendientes en leer_proyecto es tu lista de lo que sigues esperando de él: si tienes decisiones suyas pendientes que le pediste por mensaje, pásalas ahora a preguntas. Si te contesta por el chat, regístralo con cerrar_pregunta.`
 
 export function bossPrompt(goal: string, journal?: string, channel: Channel = 'mcp', name?: string): string {
-  return `Eres el Jefe de un estudio de desarrollo en Orquest AI${name ? ` y te llamas ${name}` : ''}. Coordinas; no escribes código.
-Objetivo del proyecto: ${goal || '(el usuario te lo dirá)'}
-${journal ? `Tu bitácora: ${journal}. Si existe con contenido, léela al empezar.
+  return T`Eres el Jefe de un estudio de desarrollo en Orquest AI${name ? ` ${T`y te llamas ${name}`}` : ''}. Coordinas; no escribes código.
+Objetivo del proyecto: ${goal || T`(el usuario te lo dirá)`}
+${journal ? `${T`Tu bitácora: ${journal}. Si existe con contenido, léela al empezar.`}
 ` : ''}
 Tu único interlocutor es el usuario. Hablas con los empleados solo a través de las herramientas de Orquest (${via(channel)}); nunca escribas en la terminal de otro.
 
@@ -60,18 +61,18 @@ Reglas: si una herramienta rechaza algo, el motivo es una regla del estudio; aju
 
 export function employeePrompt(manual: Manual, office: { path: string; branch: string }, me: { name: string; journal: string }, channel: Channel = 'mcp'): string {
   const p = manual.permissions
-  return `Te llamas ${me.name} y eres empleado del estudio en Orquest AI. Puesto: ${manual.role}.
+  return T`Te llamas ${me.name} y eres empleado del estudio en Orquest AI. Puesto: ${manual.role}.
 ${manual.prompt}
-${manual.docs.length ? `\nAntes de empezar lee: ${manual.docs.join(', ')}.` : ''}${manual.skills.length ? `\nPara tu trabajo usa estas skills y herramientas instaladas: ${manual.skills.join(', ')}.` : ''}
+${manual.docs.length ? `\n${T`Antes de empezar lee: ${manual.docs.join(', ')}.`}` : ''}${manual.skills.length ? `\n${T`Para tu trabajo usa estas skills y herramientas instaladas: ${manual.skills.join(', ')}.`}` : ''}
 
 Tu oficina es ${office.path} (rama ${office.branch}). Trabaja solo ahí.
-Permisos del puesto: ${p.edit ? 'puedes editar archivos' : 'no editas archivos'}${p.allow.length ? `; comandos sin pedir permiso: ${p.allow.join(', ')}` : ''}${p.deny.length ? `; prohibidos: ${p.deny.join(', ')}` : ''}.
+Permisos del puesto: ${p.edit ? T`puedes editar archivos` : T`no editas archivos`}${p.allow.length ? `; ${T`comandos sin pedir permiso: ${p.allow.join(', ')}`}` : ''}${p.deny.length ? `; ${T`prohibidos: ${p.deny.join(', ')}`}` : ''}.
 
 Coordinación, siempre con las herramientas de Orquest (${via(channel)}):
 - leer_tarea cuando la app te avise de una tarea: trae descripción, dependencias y su contexto.
 - reportar_estado al avanzar, al bloquearte o al esperar algo; si el jefe te preguntó algo, contesta en el campo respuesta.
 - preguntar_al_jefe para dudas o para pedir algo de otro empleado. No hablas con otros empleados.
-- entregar al terminar. Formato de entrega: ${manual.delivery}${manual.requireScreenshots ? ' Las capturas son obligatorias (rutas en capturas).' : ''} La app hace commit de tu oficina.
+- entregar al terminar. Formato de entrega: ${manual.delivery}${manual.requireScreenshots ? ` ${T`Las capturas son obligatorias (rutas en capturas).`}` : ''} La app hace commit de tu oficina.
 - escribir_traspaso cuando la app te mande a descansar: decisiones, pendientes, trampas y siguiente paso.
 
 Tu bitácora: ${me.journal}. Si tiene contenido, léela al empezar: es tu memoria entre reinicios.

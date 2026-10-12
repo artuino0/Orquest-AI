@@ -2,6 +2,7 @@
  * Del estado real a lo que se ve. Cada animación sale de un estado; nada es
  * decorado. Lógica pura, sin dibujo.
  */
+import { T } from '../../../core/i18n'
 import { arcadeSpot, bossQueue, cafeSeat, entrance, route, routeLength, pointAlong, type Desk, type Point } from './layout'
 
 export { entrance }
@@ -35,16 +36,16 @@ export interface Look {
 }
 
 export const LOOKS: Record<VisualState, Look> = {
-  starting: { place: 'desk', pose: 'sit', bubble: null, monitor: 'on', label: 'llegando' },
-  working: { place: 'desk', pose: 'type', bubble: null, monitor: 'blink', label: 'trabajando' },
-  blocked: { place: 'desk', pose: 'stand', bubble: 'alert', monitor: 'on', label: 'bloqueado: te necesita' },
-  idle: { place: 'desk', pose: 'sit', bubble: 'dots', monitor: 'on', label: 'esperando instrucción' },
-  waiting: { place: 'beside', pose: 'stand', bubble: 'clock', monitor: 'off', label: 'esperando a otro' },
-  delivering: { place: 'boss', pose: 'stand', bubble: 'check', monitor: 'off', label: 'listo para revisar' },
-  resting: { place: 'cafeteria', pose: 'sit', bubble: 'zzz', monitor: 'off', label: 'descansando' },
+  starting: { place: 'desk', pose: 'sit', bubble: null, monitor: 'on', label: T`llegando` },
+  working: { place: 'desk', pose: 'type', bubble: null, monitor: 'blink', label: T`trabajando` },
+  blocked: { place: 'desk', pose: 'stand', bubble: 'alert', monitor: 'on', label: T`bloqueado: te necesita` },
+  idle: { place: 'desk', pose: 'sit', bubble: 'dots', monitor: 'on', label: T`esperando instrucción` },
+  waiting: { place: 'beside', pose: 'stand', bubble: 'clock', monitor: 'off', label: T`esperando a otro` },
+  delivering: { place: 'boss', pose: 'stand', bubble: 'check', monitor: 'off', label: T`listo para revisar` },
+  resting: { place: 'cafeteria', pose: 'sit', bubble: 'zzz', monitor: 'off', label: T`descansando` },
   // Burnout: limpia su contexto. De espaldas, moviendo las manos en la maquinita.
-  gaming: { place: 'arcade', pose: 'type', bubble: 'game', monitor: 'off', label: 'jugando videojuegos (limpia contexto)' },
-  exited: { place: 'exit', pose: 'stand', bubble: null, monitor: 'off', label: 'se fue' },
+  gaming: { place: 'arcade', pose: 'type', bubble: 'game', monitor: 'off', label: T`jugando videojuegos (limpia contexto)` },
+  exited: { place: 'exit', pose: 'stand', bubble: null, monitor: 'off', label: T`se fue` },
 }
 
 export interface PlaceContext {

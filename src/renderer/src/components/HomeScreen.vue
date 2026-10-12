@@ -2,6 +2,7 @@
 import { BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CliStatus } from '../../../shared/ipc'
+import { T } from '../../../core/i18n'
 import { ago } from '../format'
 import { useStudio, type Recent } from '../stores/studio'
 import InstallGuide from './InstallGuide.vue'
@@ -26,13 +27,13 @@ const name = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
 type State = 'ready' | 'no-session' | 'missing'
 const openLink = (url: string) => window.orquest.openExternal(url)
 const stateOf = (c: CliStatus): State => (!c.installed ? 'missing' : c.session === false ? 'no-session' : 'ready')
-const CHIP: Record<State, string> = { ready: 'INSTALADA', 'no-session': 'SIN SESIÓN', missing: 'NO INSTALADA' }
+const CHIP: Record<State, string> = { ready: T`INSTALADA`, 'no-session': T`SIN SESIÓN`, missing: T`NO INSTALADA` }
 
 function detail(c: CliStatus): string {
-  if (!c.installed) return 'No se encontró en el PATH'
-  const v = c.version ? `v${c.version}` : 'versión desconocida'
-  if (c.session === false) return `${v} · ${/\s/.test(c.login ?? '') && !c.login?.startsWith('abre') ? `ejecuta ${c.login}` : 'ejecuta el login de la CLI'}`
-  return `${v} · ${c.session ? 'sesión activa' : 'sesión sin comprobar'}`
+  if (!c.installed) return T`No se encontró en el PATH`
+  const v = c.version ? `v${c.version}` : T`versión desconocida`
+  if (c.session === false) return c.login && !c.manualLogin ? T`${v} · ejecuta ${c.login}` : T`${v} · ejecuta el login de la CLI`
+  return c.session ? T`${v} · sesión activa` : T`${v} · sesión sin comprobar`
 }
 
 const ready = computed(() => studio.clis.filter((c) => stateOf(c) === 'ready'))
@@ -44,10 +45,10 @@ const blocked = computed(() => studio.checkedAt !== null && !ready.value.length)
 function summary(r: Recent): string {
   const s = r.summary
   if (s === undefined) return ''
-  if (!s) return 'sin abrir en este estudio'
-  if (!s.started) return 'sin jefe'
-  const staff = `${s.staff} ${s.staff === 1 ? 'empleado' : 'empleados'}`
-  return s.pending ? `${staff} · ${s.pending} ${s.pending === 1 ? 'entrega pendiente' : 'entregas pendientes'}` : staff
+  if (!s) return T`sin abrir en este estudio`
+  if (!s.started) return T`sin jefe`
+  const staff = s.staff === 1 ? T`${s.staff} empleado` : T`${s.staff} empleados`
+  return s.pending ? `${staff} · ${s.pending === 1 ? T`${s.pending} entrega pendiente` : T`${s.pending} entregas pendientes`}` : staff
 }
 
 // "Última revisión: hace 12 s" avanza sola.
@@ -83,35 +84,35 @@ import ThemeToggle from './ThemeToggle.vue'
 
       <div class="brand">
         <h1>ORQUEST AI</h1>
-        <p>Tu estudio de agentes de código. Cada animación es un estado real.</p>
+        <p>{{ T`Tu estudio de agentes de código. Cada animación es un estado real.` }}</p>
       </div>
 
       <div v-if="blocked" class="alert">
         <TriangleAlert />
         <div>
-          <strong>Ningún agente está listo</strong>
+          <strong>{{ T`Ningún agente está listo` }}</strong>
           <p>
-            Para abrir un proyecto necesitas al menos una CLI instalada y con sesión iniciada.
-            <template v-if="noSession.length"><br />· Sin sesión: {{ noSession.map((c) => c.name).join(', ') }} → ejecuta su comando de login.</template>
-            <template v-if="missing.length"><br />· No instaladas: {{ missing.map((c) => c.name).join(', ') }}.</template>
+            {{ T`Para abrir un proyecto necesitas al menos una CLI instalada y con sesión iniciada.` }}
+            <template v-if="noSession.length"><br />{{ T`· Sin sesión: ${noSession.map((c) => c.name).join(', ')} → ejecuta su comando de login.` }}</template>
+            <template v-if="missing.length"><br />{{ T`· No instaladas: ${missing.map((c) => c.name).join(', ')}.` }}</template>
           </p>
           <div class="actions">
-            <button class="btn" :disabled="studio.detecting" @click="studio.detect()"><RefreshCw :class="{ spin: studio.detecting }" />Volver a detectar</button>
-            <button class="btn" @click="guide = true"><BookOpen />Guía de instalación</button>
+            <button class="btn" :disabled="studio.detecting" @click="studio.detect()"><RefreshCw :class="{ spin: studio.detecting }" />{{ T`Volver a detectar` }}</button>
+            <button class="btn" @click="guide = true"><BookOpen />{{ T`Guía de instalación` }}</button>
           </div>
         </div>
       </div>
 
       <div class="open">
-        <button class="btn primary" :disabled="blocked || studio.checkedAt === null" @click="studio.pickProject()"><FolderOpen />Abrir repositorio…</button>
-        <span v-if="blocked" class="why">Bloqueado hasta que haya un agente listo</span>
-        <span v-else-if="studio.checkedAt === null">Buscando agentes…</span>
+        <button class="btn primary" :disabled="blocked || studio.checkedAt === null" @click="studio.pickProject()"><FolderOpen />{{ T`Abrir repositorio…` }}</button>
+        <span v-if="blocked" class="why">{{ T`Bloqueado hasta que haya un agente listo` }}</span>
+        <span v-else-if="studio.checkedAt === null">{{ T`Buscando agentes…` }}</span>
         <span v-else>Ctrl+O</span>
       </div>
       <p v-if="studio.error" class="why">{{ studio.error }}</p>
 
       <div class="recents" :class="{ locked: blocked }">
-        <h2>PROYECTOS RECIENTES</h2>
+        <h2>{{ T`PROYECTOS RECIENTES` }}</h2>
         <button v-for="r in studio.recents" :key="r.path" class="project" :disabled="blocked || studio.checkedAt === null" @click="studio.openProject(r.path)">
           <FolderGit2 />
           <span class="data">
@@ -123,14 +124,14 @@ import ThemeToggle from './ThemeToggle.vue'
             <small>{{ summary(r) }}</small>
           </span>
         </button>
-        <p v-if="!studio.recents.length" class="empty">Aún no abres ningún proyecto.</p>
+        <p v-if="!studio.recents.length" class="empty">{{ T`Aún no abres ningún proyecto.` }}</p>
       </div>
     </section>
 
     <aside class="panel agents">
       <header>
-        <h2 class="title-pixel">Agentes en esta máquina</h2>
-        <span v-if="studio.checkedAt !== null" class="count" :class="{ none: !ready.length }">{{ ready.length }} de {{ studio.clis.length }} listas</span>
+        <h2 class="title-pixel">{{ T`Agentes en esta máquina` }}</h2>
+        <span v-if="studio.checkedAt !== null" class="count" :class="{ none: !ready.length }">{{ T`${ready.length} de ${studio.clis.length} listas` }}</span>
       </header>
 
       <div v-for="c in studio.clis" :key="c.id" class="cli" :class="stateOf(c)" :title="c.account">
@@ -139,18 +140,18 @@ import ThemeToggle from './ThemeToggle.vue'
           <strong>{{ c.name }}</strong>
           <small>{{ detail(c) }}</small>
         </span>
-        <button v-if="c.signup" class="btn signup" :title="c.signup.referral ? 'Enlace de referido del autor de Orquest AI' : `Planes de ${c.name}`" @click="openLink(c.signup.url)">
-          <UserPlus />{{ stateOf(c) === 'ready' ? 'Otra cuenta' : 'Crear cuenta' }}
+        <button v-if="c.signup" class="btn signup" :title="c.signup.referral ? T`Enlace de referido del autor de Orquest AI` : T`Planes de ${c.name}`" @click="openLink(c.signup.url)">
+          <UserPlus />{{ stateOf(c) === 'ready' ? T`Otra cuenta` : T`Crear cuenta` }}
         </button>
         <span class="chip">{{ CHIP[stateOf(c)] }}</span>
       </div>
-      <p v-if="studio.clis.some((c) => c.signup?.referral)" class="referral">El enlace de cuenta de {{ studio.clis.filter((c) => c.signup?.referral).map((c) => c.name).join(' y ') }} es de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.</p>
-      <p v-if="!studio.clis.length" class="empty">Buscando las CLIs instaladas…</p>
+      <p v-if="studio.clis.some((c) => c.signup?.referral)" class="referral">{{ T`El enlace de cuenta de ${studio.clis.filter((c) => c.signup?.referral).map((c) => c.name).join(T` y `)} es de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.` }}</p>
+      <p v-if="!studio.clis.length" class="empty">{{ T`Buscando las CLIs instaladas…` }}</p>
 
       <footer>
-        <button class="btn" :disabled="studio.detecting" @click="studio.detect()"><RefreshCw :class="{ spin: studio.detecting }" />Volver a detectar</button>
-        <small v-if="studio.detecting">Revisando…</small>
-        <small v-else-if="studio.checkedAt !== null">Última revisión: {{ ago(studio.checkedAt, now) }}</small>
+        <button class="btn" :disabled="studio.detecting" @click="studio.detect()"><RefreshCw :class="{ spin: studio.detecting }" />{{ T`Volver a detectar` }}</button>
+        <small v-if="studio.detecting">{{ T`Revisando…` }}</small>
+        <small v-else-if="studio.checkedAt !== null">{{ T`Última revisión: ${ago(studio.checkedAt, now)}` }}</small>
       </footer>
     </aside>
 

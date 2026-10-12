@@ -10,6 +10,7 @@ import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { RuleError } from './board.js'
+import { getLang, T } from './i18n.js'
 
 interface Prop {
   type?: string
@@ -33,10 +34,10 @@ export interface CliField {
 
 function kind(p: Prop): string {
   if (p.enum) return p.enum.join('|')
-  if (p.type === 'array') return p.items?.type === 'object' ? 'lista json' : 'lista'
-  if (p.type === 'boolean') return 'sí/no'
+  if (p.type === 'array') return p.items?.type === 'object' ? T`lista json` : T`lista`
+  if (p.type === 'boolean') return T`sí/no`
   if (p.type === 'object') return 'json'
-  return 'texto'
+  return T`texto`
 }
 
 /** Campos de una herramienta, para la ayuda del comando. */
@@ -54,7 +55,7 @@ function json(key: string, text: string): unknown {
   try {
     return JSON.parse(text)
   } catch {
-    throw new RuleError(`--${key} no es JSON válido.`)
+    throw new RuleError(T`--${key} no es JSON válido.`)
   }
 }
 
@@ -70,11 +71,11 @@ function coerce(key: string, p: Prop, v: unknown): unknown {
   if (p.type === 'boolean') {
     if (typeof one === 'boolean') return one
     const t = String(one).toLowerCase()
-    if (['true', 'si', 'sí', '1'].includes(t)) return true
+    if (['true', 'si', 'sí', 'yes', '1'].includes(t)) return true
     if (['false', 'no', '0'].includes(t)) return false
-    throw new RuleError(`--${key} es sí o no.`)
+    throw new RuleError(T`--${key} es sí o no.`)
   }
-  if (one === true) throw new RuleError(`Falta el valor de --${key}.`)
+  if (one === true) throw new RuleError(T`Falta el valor de --${key}.`)
   if (p.type === 'object' && typeof one === 'string') return json(key, one)
   return one
 }
@@ -89,14 +90,14 @@ export function cliArgs(input: z.ZodRawShape, raw: Record<string, unknown>): Rec
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(raw)) {
     const p = properties[key]
-    if (!p) throw new RuleError(`Campo desconocido: --${key}. Campos: ${Object.keys(properties).map((k) => `--${k}`).join(', ') || 'ninguno'}.`)
+    if (!p) throw new RuleError(T`Campo desconocido: --${key}. Campos: ${Object.keys(properties).map((k) => `--${k}`).join(', ') || T`ninguno`}.`)
     out[key] = coerce(key, p, value)
   }
   const missing = required.filter((k) => out[k] === undefined)
-  if (missing.length) throw new RuleError(`Falta ${missing.map((k) => `--${k}`).join(', ')}.`)
-  const parsed = z.object(input).safeParse(out, { error: z.locales.es().localeError })
+  if (missing.length) throw new RuleError(T`Falta ${missing.map((k) => `--${k}`).join(', ')}.`)
+  const parsed = z.object(input).safeParse(out, { error: (getLang() === 'en' ? z.locales.en() : z.locales.es()).localeError })
   if (!parsed.success) {
-    throw new RuleError(`Argumentos inválidos: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'argumentos'}: ${i.message}`).join('; ')}`)
+    throw new RuleError(T`Argumentos inválidos: ${parsed.error.issues.map((i) => `${i.path.join('.') || T`argumentos`}: ${i.message}`).join('; ')}`)
   }
   return parsed.data
 }

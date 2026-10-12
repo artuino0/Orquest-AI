@@ -7,6 +7,7 @@ import { EFFORT_LABEL, LOOK, lookOf, roleLabel } from '../status'
 import type { Account } from '../../../core/accounts'
 import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
+import { T } from '../../../core/i18n'
 
 /**
  * El jefe propone la plantilla; aquí la apruebas tal cual o con tus cambios
@@ -46,10 +47,10 @@ const forbidden = computed(() => checks.value.filter((c) => !c.ok).length)
 /** Cómo sale la regla del expediente de una fila. */
 function rule(c: Check | undefined, r: Row) {
   const cli = cliName(r.provider)
-  if (!c) return { kind: 'ok', chip: 'Permitido', text: '' }
-  if (!c.ok) return { kind: 'no', chip: 'Prohibido', text: c.reason }
-  if (c.warning) return { kind: 'warn', chip: 'Aviso', text: c.warning }
-  return { kind: 'ok', chip: 'Permitido', text: `${cli} puede ocupar ${r.role}.` }
+  if (!c) return { kind: 'ok', chip: T`Permitido`, text: '' }
+  if (!c.ok) return { kind: 'no', chip: T`Prohibido`, text: c.reason }
+  if (c.warning) return { kind: 'warn', chip: T`Aviso`, text: c.warning }
+  return { kind: 'ok', chip: T`Permitido`, text: T`${cli} puede ocupar ${r.role}.` }
 }
 
 const cliName = (id: ProviderId) => studio.clis.find((c) => c.id === id)?.name ?? id
@@ -68,7 +69,7 @@ async function approve() {
 }
 
 async function askBoss() {
-  await studio.sayToBoss('Propón la plantilla para el proyecto.')
+  await studio.sayToBoss(T`Propón la plantilla para el proyecto.`)
 }
 
 /** Ya contratados: lo que dice el tablero, con el estado vivo de su terminal. */
@@ -86,28 +87,29 @@ const staff = computed(() =>
 const area = ref('')
 const state = ref('')
 const areas = computed(() => [...new Set(staff.value.map((m) => m.role))])
-const states = computed(() => [...new Set(staff.value.filter((m) => showGone.value || !m.gone).map((m) => (m.gone ? 'Despedido' : m.look.label)))])
+const states = computed(() => [...new Set(staff.value.filter((m) => showGone.value || !m.gone).map((m) => (m.gone ? T`Despedido` : m.look.label)))])
 // Los despedidos no salen si no se piden: ya no son parte de la plantilla.
 const showGone = ref(false)
 const goneCount = computed(() => staff.value.filter((m) => m.gone).length)
-const shownStaff = computed(() => staff.value.filter((m) => (showGone.value || !m.gone) && (!area.value || m.role === area.value) && (!state.value || (m.gone ? 'Despedido' : m.look.label) === state.value)))
+const shownStaff = computed(() => staff.value.filter((m) => (showGone.value || !m.gone) && (!area.value || m.role === area.value) && (!state.value || (m.gone ? T`Despedido` : m.look.label) === state.value)))
 
 const subtitle = computed(() => {
   const n = rows.value.length
-  return n ? `Propuesta de ${studio.nameOf('jefe')} · ${n} ${n === 1 ? 'puesto' : 'puestos'} por aprobar` : `${staff.value.length} en la plantilla`
+  if (!n) return T`${staff.value.length} en la plantilla`
+  return n === 1 ? T`Propuesta de ${studio.nameOf('jefe')} · ${n} puesto por aprobar` : T`Propuesta de ${studio.nameOf('jefe')} · ${n} puestos por aprobar`
 })
 </script>
 
 <template>
-  <PanelFrame title="Plantilla" :subtitle="subtitle">
+  <PanelFrame :title="T`Plantilla`" :subtitle="subtitle">
     <template v-if="rows.length">
       <table class="tbl proposal">
         <thead>
-          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Motivo del jefe</th><th>Regla del expediente</th><th /></tr>
+          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Motivo del jefe` }}</th><th>{{ T`Regla del expediente` }}</th><th /></tr>
         </thead>
         <tbody>
           <tr v-for="(r, i) in rows" :key="r.id ?? i" :class="rule(checks[i], r).kind">
-            <td><label class="name"><input v-model="r.name" placeholder="se asigna solo" /><Pencil /></label></td>
+            <td><label class="name"><input v-model="r.name" :placeholder="T`se asigna solo`" /><Pencil /></label></td>
             <td>
               <select v-model="r.role" class="plain"><option v-for="d in DEPARTMENTS" :key="d" :value="d">{{ roleLabel(d) }}</option></select>
             </td>
@@ -118,19 +120,19 @@ const subtitle = computed(() => {
                   <option v-if="!studio.usable.some((c) => c.id === r.provider)" :value="r.provider">{{ cliName(r.provider) }}</option>
                 </select>
               </span>
-              <select v-if="accountsOf(r.provider).length > 1" v-model="r.account" class="plain account" title="Con qué cuenta trabaja">
-                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">cuenta {{ a.label.toLowerCase() }}{{ a.usage?.windows[0] ? ` · ${Math.round(a.usage.windows[0].used)}%` : '' }}</option>
+              <select v-if="accountsOf(r.provider).length > 1" v-model="r.account" class="plain account" :title="T`Con qué cuenta trabaja`">
+                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.usage?.windows[0] ? T`cuenta ${a.label.toLowerCase()} · ${Math.round(a.usage.windows[0].used)}%` : T`cuenta ${a.label.toLowerCase()}` }}</option>
               </select>
             </td>
             <td>
-              <input v-model="r.model" class="plain" placeholder="por defecto" :list="`models-${r.provider}`" />
+              <input v-model="r.model" class="plain" :placeholder="T`por defecto`" :list="`models-${r.provider}`" />
               <datalist :id="`models-${r.provider}`"><option v-for="m in cliOf(r.provider)?.models ?? []" :key="m" :value="m" /></datalist>
             </td>
             <td>
-              <select v-model="r.effort" class="plain" :disabled="!cliOf(r.provider)?.efforts?.length" :title="cliOf(r.provider)?.efforts?.length ? '' : 'Esta CLI no recibe esfuerzo'">
+              <select v-model="r.effort" class="plain" :disabled="!cliOf(r.provider)?.efforts?.length" :title="cliOf(r.provider)?.efforts?.length ? '' : T`Esta CLI no recibe esfuerzo`">
                 <option :value="undefined">—</option>
                 <option v-for="f in cliOf(r.provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
-                <option v-if="r.effort && !cliOf(r.provider)?.efforts?.includes(r.effort)" :value="r.effort">{{ EFFORT_LABEL[r.effort].toLowerCase() }} (no lo recibe)</option>
+                <option v-if="r.effort && !cliOf(r.provider)?.efforts?.includes(r.effort)" :value="r.effort">{{ T`${EFFORT_LABEL[r.effort].toLowerCase()} (no lo recibe)` }}</option>
               </select>
             </td>
             <td class="dim why">{{ r.reason || '—' }}</td>
@@ -138,48 +140,48 @@ const subtitle = computed(() => {
               <span class="chip">{{ rule(checks[i], r).chip }}</span>
               <p>{{ rule(checks[i], r).text }}</p>
             </td>
-            <td><button class="trash" title="Quitar puesto" @click="rows.splice(i, 1)"><Trash2 /></button></td>
+            <td><button class="trash" :title="T`Quitar puesto`" @click="rows.splice(i, 1)"><Trash2 /></button></td>
           </tr>
         </tbody>
       </table>
       <div class="actions">
-        <button class="btn" @click="add"><Plus /> Añadir puesto</button>
+        <button class="btn" @click="add"><Plus /> {{ T`Añadir puesto` }}</button>
         <span class="grow" />
-        <span v-if="forbidden" class="stop"><Ban /> {{ forbidden }} {{ forbidden === 1 ? 'fila prohibida' : 'filas prohibidas' }}: cambia su proveedor o quítala para poder aprobar.</span>
+        <span v-if="forbidden" class="stop"><Ban /> {{ forbidden === 1 ? T`${forbidden} fila prohibida: cambia su proveedor o quítala para poder aprobar.` : T`${forbidden} filas prohibidas: cambia su proveedor o quítala para poder aprobar.` }}</span>
         <span v-if="studio.error" class="stop">{{ studio.error }}</span>
-        <button class="btn primary" :disabled="busy || !!forbidden" @click="approve"><CheckIcon /> {{ busy ? 'Aprobando…' : `Aprobar ${rows.length}` }}</button>
+        <button class="btn primary" :disabled="busy || !!forbidden" @click="approve"><CheckIcon /> {{ busy ? T`Aprobando…` : T`Aprobar ${rows.length}` }}</button>
       </div>
     </template>
 
     <div v-else-if="!staff.length" class="blank">
       <Users />
-      <h2>Aún no hay plantilla</h2>
-      <p v-if="studio.bossOnline">El jefe todavía no propone puestos. Pídeselo y aparecerán aquí para que los apruebes.</p>
-      <p v-else>Primero contrata al jefe: él lee el proyecto y propone quién hace falta.</p>
-      <button v-if="studio.bossOnline" class="btn primary" @click="askBoss">Pedir propuesta al Jefe</button>
-      <button v-else class="btn primary" @click="studio.overlay = 'boss'">Contratar jefe</button>
+      <h2>{{ T`Aún no hay plantilla` }}</h2>
+      <p v-if="studio.bossOnline">{{ T`El jefe todavía no propone puestos. Pídeselo y aparecerán aquí para que los apruebes.` }}</p>
+      <p v-else>{{ T`Primero contrata al jefe: él lee el proyecto y propone quién hace falta.` }}</p>
+      <button v-if="studio.bossOnline" class="btn primary" @click="askBoss">{{ T`Pedir propuesta al Jefe` }}</button>
+      <button v-else class="btn primary" @click="studio.overlay = 'boss'">{{ T`Contratar jefe` }}</button>
     </div>
 
     <p v-if="studio.error && !rows.length" class="stop">{{ studio.error }}</p>
     <template v-if="staff.length">
       <div class="filters">
-        <span class="cap">Ya contratados · {{ shownStaff.length }}<template v-if="shownStaff.length !== staff.length"> de {{ staff.length }}</template></span>
+        <span class="cap">{{ shownStaff.length !== staff.length ? T`Ya contratados · ${shownStaff.length} de ${staff.length}` : T`Ya contratados · ${shownStaff.length}` }}</span>
         <i class="gap" />
-        <span class="cap">Área</span>
-        <button :class="{ on: !area }" @click="area = ''">Todas</button>
+        <span class="cap">{{ T`Área` }}</span>
+        <button :class="{ on: !area }" @click="area = ''">{{ T`Todas` }}</button>
         <button v-for="a in areas" :key="a" :class="{ on: area === a }" @click="area = area === a ? '' : a">{{ roleLabel(a) }}</button>
         <i class="gap" />
-        <span class="cap">Estado</span>
-        <button :class="{ on: !state }" @click="state = ''">Todos</button>
+        <span class="cap">{{ T`Estado` }}</span>
+        <button :class="{ on: !state }" @click="state = ''">{{ T`Todos` }}</button>
         <button v-for="st in states" :key="st" :class="{ on: state === st }" @click="state = state === st ? '' : st">{{ st }}</button>
         <template v-if="goneCount">
           <i class="gap" />
-          <button :class="{ on: showGone }" @click="showGone = !showGone; if (!showGone && state === 'Despedido') state = ''">{{ showGone ? 'Ocultar' : 'Mostrar' }} despedidos · {{ goneCount }}</button>
+          <button :class="{ on: showGone }" @click="showGone = !showGone; if (!showGone && state === T`Despedido`) state = ''">{{ showGone ? T`Ocultar despedidos · ${goneCount}` : T`Mostrar despedidos · ${goneCount}` }}</button>
         </template>
       </div>
       <table class="tbl">
         <thead>
-          <tr><th>Nombre</th><th>Puesto</th><th>Proveedor</th><th>Modelo</th><th>Esf.</th><th>Estado</th><th>Contexto</th></tr>
+          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Estado` }}</th><th>{{ T`Contexto` }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="m in shownStaff" :key="m.id" :class="{ pick: !m.out, out: m.out }" @click="!m.out && studio.select(m.id)">
@@ -189,12 +191,12 @@ const subtitle = computed(() => {
             <td class="dim">{{ m.model ?? '—' }}</td>
             <td>{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
             <td>
-              <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? 'Despedido' : m.look.label }}</span>
-              <button v-if="m.out && !m.gone" class="btn back" title="Su CLI se cerró: vuelve a abrirla en su misma oficina" @click.stop="studio.bringBack(m.id)">Traer de vuelta</button>
+              <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? T`Despedido` : m.look.label }}</span>
+              <button v-if="m.out && !m.gone" class="btn back" :title="T`Su CLI se cerró: vuelve a abrirla en su misma oficina`" @click.stop="studio.bringBack(m.id)">{{ T`Traer de vuelta` }}</button>
             </td>
             <td>
-              <span v-if="m.known" class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }" :title="m.gone ? 'Contexto usado cuando se fue' : 'Contexto usado'"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%<template v-if="m.gone"> al irse</template></span>
-              <span v-else class="dim">{{ m.gone ? 'sin dato al irse' : 'sin dato' }}</span>
+              <span v-if="m.known" class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }" :title="m.gone ? T`Contexto usado cuando se fue` : T`Contexto usado`"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%<template v-if="m.gone"> {{ T`al irse` }}</template></span>
+              <span v-else class="dim">{{ m.gone ? T`sin dato al irse` : T`sin dato` }}</span>
             </td>
           </tr>
         </tbody>

@@ -12,6 +12,7 @@ import { copyFile, mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
+import { T } from './i18n.js'
 
 const run = promisify(execFile)
 
@@ -88,11 +89,11 @@ export async function archiveCaptures(office: string, dest: string, extra: strin
 /** Los bytes de una captura y su tipo, para pintarla en el panel. */
 export async function readCapture(office: string, path: string): Promise<{ bytes: Uint8Array; type: string }> {
   const full = inside(office, path)
-  if (!full) throw new RuleError('Esa imagen no está dentro de su oficina.')
-  if (!IMAGE.test(full)) throw new RuleError('Solo se pueden abrir imágenes.')
+  if (!full) throw new RuleError(T`Esa imagen no está dentro de su oficina.`)
+  if (!IMAGE.test(full)) throw new RuleError(T`Solo se pueden abrir imágenes.`)
   const info = await stat(full).catch(() => null)
-  if (!info?.isFile()) throw new RuleError(`Ya no existe ${path}.`)
-  if (info.size > MAX_BYTES) throw new RuleError(`${path} pesa demasiado para mostrarla aquí.`)
+  if (!info?.isFile()) throw new RuleError(T`Ya no existe ${path}.`)
+  if (info.size > MAX_BYTES) throw new RuleError(T`${path} pesa demasiado para mostrarla aquí.`)
   const ext = /\.(\w+)$/.exec(full)![1].toLowerCase()
   return { bytes: await readFile(full), type: `image/${ext === 'jpg' ? 'jpeg' : ext}` }
 }

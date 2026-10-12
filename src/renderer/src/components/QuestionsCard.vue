@@ -10,6 +10,7 @@ import { CircleHelp, Send, Star } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { ago } from '../format'
 import type { Question } from '../../../core/board'
+import { T } from '../../../core/i18n'
 
 const studio = useStudio()
 const open = computed(() => (studio.board?.questions ?? []).filter((q) => q.status === 'open'))
@@ -34,25 +35,25 @@ async function answer(q: Question, text: string | undefined) {
   <section v-if="open.length" class="asks">
     <header>
       <CircleHelp />
-      <b>El jefe espera por ti</b>
-      <span>{{ open.length }} {{ open.length === 1 ? 'pregunta sin contestar' : 'preguntas sin contestar' }}</span>
+      <b>{{ T`El jefe espera por ti` }}</b>
+      <span>{{ open.length === 1 ? T`${open.length} pregunta sin contestar` : T`${open.length} preguntas sin contestar` }}</span>
     </header>
     <div class="list">
       <article v-for="q in open" :key="q.id" :class="{ busy: sending === q.id }">
         <p class="q"><b>{{ q.id }}</b>{{ q.text }}</p>
         <p class="meta">
-          <template v-if="q.blocks">Detiene: {{ q.blocks }} · </template>
-          <template v-if="q.tasks.length">espera{{ q.tasks.length === 1 ? '' : 'n' }} {{ q.tasks.join(', ') }} · </template>
-          preguntó {{ ago(q.askedAt, now) }}
+          <template v-if="q.blocks">{{ T`Detiene: ${q.blocks}` }} · </template>
+          <template v-if="q.tasks.length">{{ q.tasks.length === 1 ? T`espera ${q.tasks.join(', ')}` : T`esperan ${q.tasks.join(', ')}` }} · </template>
+          {{ T`preguntó ${ago(q.askedAt, now)}` }}
         </p>
         <div v-if="q.options.length" class="opts">
-          <button v-for="o in q.options" :key="o" type="button" class="btn" :class="{ rec: o === q.recommended }" :disabled="!!sending" :title="o === q.recommended ? 'La que recomienda el jefe' : ''" @click="answer(q, o)">
+          <button v-for="o in q.options" :key="o" type="button" class="btn" :class="{ rec: o === q.recommended }" :disabled="!!sending" :title="o === q.recommended ? T`La que recomienda el jefe` : ''" @click="answer(q, o)">
             <Star v-if="o === q.recommended" />{{ o }}
           </button>
         </div>
         <form @submit.prevent="answer(q, drafts[q.id])">
-          <input v-model="drafts[q.id]" :placeholder="q.options.length ? 'Otra respuesta…' : 'Tu respuesta…'" :disabled="!!sending" />
-          <button type="submit" class="btn" :disabled="!!sending || !drafts[q.id]?.trim()"><Send /> Contestar</button>
+          <input v-model="drafts[q.id]" :placeholder="q.options.length ? T`Otra respuesta…` : T`Tu respuesta…`" :disabled="!!sending" />
+          <button type="submit" class="btn" :disabled="!!sending || !drafts[q.id]?.trim()"><Send /> {{ T`Contestar` }}</button>
         </form>
       </article>
     </div>

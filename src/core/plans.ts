@@ -8,6 +8,7 @@
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { RuleError } from './board.js'
+import { T } from './i18n.js'
 import { slug } from './names.js'
 
 /** Dentro del repo, con diagonales. */
@@ -33,11 +34,11 @@ const firstHeading = (text: string) => /^#\s+(.+)$/m.exec(text)?.[1]?.trim()
  */
 export async function savePlan(root: string, title: string, text: string): Promise<Plan> {
   const name = title.trim().replace(/\s+/g, ' ')
-  if (name.length < 3) throw new RuleError('El plan necesita un título que diga de qué trata.')
-  if (name.length > MAX_TITLE) throw new RuleError(`El título del plan es muy largo (máximo ${MAX_TITLE} caracteres); el detalle va en el contenido.`)
+  if (name.length < 3) throw new RuleError(T`El plan necesita un título que diga de qué trata.`)
+  if (name.length > MAX_TITLE) throw new RuleError(T`El título del plan es muy largo (máximo ${MAX_TITLE} caracteres); el detalle va en el contenido.`)
   const body = text.trim()
-  if (body.length < MIN_TEXT) throw new RuleError('El plan va casi vacío: escribe los pasos, quién hace cada uno y qué depende de qué.')
-  if (body.length > MAX_TEXT) throw new RuleError('El plan es demasiado largo para un solo archivo: pártelo en varios.')
+  if (body.length < MIN_TEXT) throw new RuleError(T`El plan va casi vacío: escribe los pasos, quién hace cada uno y qué depende de qué.`)
+  if (body.length > MAX_TEXT) throw new RuleError(T`El plan es demasiado largo para un solo archivo: pártelo en varios.`)
   const dir = join(root, ...PLANS_DIR.split('/'))
   await mkdir(dir, { recursive: true })
   const file = `${slug(name).slice(0, 60) || 'plan'}.md`

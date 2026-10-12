@@ -15,6 +15,7 @@ export type ProviderId =
   | 'kimi'
   | 'grok'
 
+import { T } from './i18n.js'
 import type { Permissions } from './library.js'
 
 /** Niveles de esfuerzo que existen; cada CLI recibe solo algunos (ver `efforts`). */
@@ -132,6 +133,8 @@ export interface ProviderAdapter {
   sessionCheck?: SessionCheck
   /** Qué hacer para iniciar sesión, dicho para el usuario. */
   login: string
+  /** `login` es una indicación y no un comando que copiar: la CLI pide la sesión al abrirla. */
+  manualLogin?: boolean
   /** Cómo se instala: comando si es uno solo y la página oficial. */
   install: { command?: string; url: string }
   /**
@@ -190,14 +193,17 @@ function generic(
     versionArgs: ['--version'],
     sessionPaths,
     // Sin comando de login conocido: la propia CLI lo pide al abrirla.
-    login: `abre ${binaries[0]} en una terminal y sigue su inicio de sesión`,
+    get login() {
+      return T`abre ${binaries[0]} en una terminal y sigue su inicio de sesión`
+    },
+    manualLogin: true,
     install,
     models: {},
     efforts: [],
     buildArgs: (o) => (o.model ? ['--model', o.model] : []),
     unsupported: (o) => [
-      ...(o.effort ? [`${name} no recibe esfuerzo por argumento; se ignora`] : []),
-      ...(o.systemPrompt ? [`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
+      ...(o.effort ? [T`${name} no recibe esfuerzo por argumento; se ignora`] : []),
+      ...(o.systemPrompt ? [T`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
     ],
     screen: { working: [SPINNER, ESC_TO_INTERRUPT], blocked: PERMISSION, idle: [/^\s*>\s*$/m] },
     verified: false,
@@ -240,8 +246,8 @@ function withEffort(name: string, flag: string): Partial<ProviderAdapter> {
     efforts,
     buildArgs: (o) => [...(o.model ? ['--model', o.model] : []), ...(o.effort && efforts.includes(o.effort) ? [flag, o.effort] : [])],
     unsupported: (o) => [
-      ...(o.effort && !efforts.includes(o.effort) ? [`${name} no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
-      ...(o.systemPrompt ? [`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
+      ...(o.effort && !efforts.includes(o.effort) ? [T`${name} no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
+      ...(o.systemPrompt ? [T`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
     ],
   }
 }
@@ -363,8 +369,8 @@ ${stderr}`
     },
     unsupported(o) {
       return [
-        ...(o.effort && !this.efforts.includes(o.effort) ? [`Codex no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
-        ...(o.systemPrompt ? ['Codex no recibe prompt de sistema por argumento; se envía como primer mensaje'] : []),
+        ...(o.effort && !this.efforts.includes(o.effort) ? [T`Codex no recibe el esfuerzo "${o.effort}"; se ignora`] : []),
+        ...(o.systemPrompt ? [T`Codex no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
       ]
     },
     mcpArgs: ({ url, permissions }) => [
@@ -377,7 +383,7 @@ ${stderr}`
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
     ],
     // Codex solo distingue escribir o no; los comandos los aprueba el usuario.
-    permissionGaps: (p) => (p.allow.length || p.deny.length ? ['Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.'] : []),
+    permissionGaps: (p) => (p.allow.length || p.deny.length ? [T`Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.`] : []),
     screen: {
       working: [ESC_TO_INTERRUPT, /Working \(/],
       // Al arrancar puede ofrecer actualizarse o preguntar si confías en la carpeta: lo decide el usuario.
@@ -401,7 +407,7 @@ ${stderr}`
       // Lista las credenciales guardadas y termina con "N credentials".
       read: ({ stdout, code }) => {
         const n = Number(/(\d+)\s+credentials?/i.exec(stdout)?.[1] ?? 0)
-        return { ok: code === 0 && n > 0, account: n ? `${n} ${n === 1 ? 'credencial' : 'credenciales'}` : undefined }
+        return { ok: code === 0 && n > 0, account: n ? (n === 1 ? T`${n} credencial` : T`${n} credenciales`) : undefined }
       },
     },
     login: 'opencode auth login',
@@ -422,6 +428,6 @@ export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[]
 
 export function getProvider(id: string): ProviderAdapter {
   const p = PROVIDERS[id as ProviderId]
-  if (!p) throw new Error(`Proveedor desconocido: ${id}`)
+  if (!p) throw new Error(T`Proveedor desconocido: ${id}`)
   return p
 }

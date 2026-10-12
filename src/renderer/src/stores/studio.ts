@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
+import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
 
@@ -131,7 +132,7 @@ export const useStudio = defineStore('studio', () => {
   const inbox = computed(() => board.value?.tasks.filter((t) => t.status === 'approved') ?? [])
   const bossOnline = computed(() => !!board.value?.bossOnline)
   /** Nombre del empleado; el jefe lleva el que le pusiste o, si no, "Jefe". */
-  const nameOf = (id: string): string => (id === 'jefe' ? board.value?.boss?.name || 'Jefe' : board.value?.staff.find((m) => m.id === id)?.name ?? id)
+  const nameOf = (id: string): string => (id === 'jefe' ? board.value?.boss?.name || T`Jefe` : board.value?.staff.find((m) => m.id === id)?.name ?? id)
   const gamingCount = computed(() => Object.values(board.value?.hints ?? {}).filter((h) => h.state === 'gaming').length)
   const rest = (id: string) => attempt(() => window.orquest.rest(id))
   const bringBack = (id: string) => attempt(() => window.orquest.bringBack(id))
@@ -254,7 +255,7 @@ export const useStudio = defineStore('studio', () => {
 
   async function fire(id: string) {
     if (!(await attempt(() => window.orquest.fire(id)))) return
-    log(id, 'despedido')
+    log(id, T`despedido`)
     employees.value = employees.value.filter((e) => e.id !== id)
     if (selected.value === id) selected.value = null
   }
@@ -267,7 +268,7 @@ export const useStudio = defineStore('studio', () => {
   window.orquest.onHired((e) => {
     if (employees.value.some((x) => x.id === e.id)) return
     employees.value.push(e)
-    log(e.id, `contratado como ${e.role}`)
+    log(e.id, T`contratado como ${e.role}`)
     for (const w of e.warnings) log(e.id, `⚠ ${w}`)
   })
   window.orquest.onBoard((b) => (board.value = b))
