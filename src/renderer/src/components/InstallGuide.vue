@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /** Qué hacer con cada CLI que no está lista: el comando para instalarla o iniciar sesión y su página. */
-import { ExternalLink, UserPlus, X } from 'lucide-vue-next'
+import { ExternalLink, Headset, UserPlus, X } from 'lucide-vue-next'
 import type { CliStatus } from '../../../shared/ipc'
-import { T } from '../../../core/i18n'
+import { getLang, T } from '../../../core/i18n'
 
 defineProps<{ clis: CliStatus[] }>()
 const emit = defineEmits<{ close: [] }>()
 const open = (url: string) => window.orquest.openExternal(url)
+/** La sección «Apoya el proyecto» de la página web, en el idioma de la app. */
+const supportUrl = () => `https://orquest.dydasites.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`
 </script>
 
 <template>
@@ -17,6 +19,10 @@ const open = (url: string) => window.orquest.openExternal(url)
         <button class="btn" @click="emit('close')"><X />{{ T`Cerrar` }}</button>
       </header>
       <p class="intro">{{ T`Instala o inicia sesión desde una terminal y luego usa «Volver a detectar». Orquest no instala nada por ti.` }}</p>
+      <p class="intro help">
+        {{ T`¿Prefieres que te acompañe a instalarlo? Hay asesoría 1 a 1 por videollamada.` }}
+        <button class="btn" @click="open(supportUrl())"><Headset />{{ T`Ver la asesoría` }}</button>
+      </p>
       <article v-for="c in clis" :key="c.id">
         <i class="color" :style="{ background: `var(--pv-${c.id})` }" />
         <div class="body">
@@ -46,6 +52,7 @@ const open = (url: string) => window.orquest.openExternal(url)
 .veil { position: fixed; inset: 0; background: var(--veil); display: grid; place-items: center; z-index: 50; }
 .guide { width: min(680px, calc(100vw - 48px)); max-height: calc(100vh - 80px); overflow: auto; padding: 20px; display: grid; gap: 10px; }
 header { display: flex; justify-content: space-between; align-items: center; }
+.help { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .intro { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
 article { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 2px solid var(--border-light); }
 .color { width: 14px; height: 14px; flex: none; border: 2px solid var(--border); }

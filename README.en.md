@@ -54,6 +54,10 @@ The code is written in Spanish (identifiers in English, comments and user-facing
 
 Pull Requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish). The most useful help right now: trying it on macOS and Linux, and finishing the integration of the remaining CLIs.
 
+## Support the project
+
+Orquest AI is free and open source. If it saves you time, or you would rather have me walk you through the setup, the website offers a [1-on-1 session over video call](https://orquest.dydasites.com/en/#apoyo).
+
 ## Disclaimer
 
 Orquest AI is not affiliated with Anthropic, OpenAI or any other provider; Claude Code, Codex and the other CLIs belong to their respective owners. The app ships no models and never touches your credentials: it runs the official, unmodified CLIs with the session you are already signed in to.

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { BookOpen, Download, ExternalLink, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus, X } from 'lucide-vue-next'
+import { BookOpen, Download, ExternalLink, FolderGit2, FolderOpen, Heart, RefreshCw, TriangleAlert, UserPlus, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CliStatus, UpdateInfo } from '../../../shared/ipc'
-import { T } from '../../../core/i18n'
+import { getLang, T } from '../../../core/i18n'
 import { ago } from '../format'
 import { useStudio, type Recent } from '../stores/studio'
 import InstallGuide from './InstallGuide.vue'
@@ -102,7 +102,10 @@ import ThemeToggle from './ThemeToggle.vue'
 
 <template>
   <div class="home">
-    <div class="theme-corner"><LangToggle /><ThemeToggle /></div>
+    <div class="theme-corner">
+      <button class="btn support" :title="T`Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.`" @click="openLink(`https://orquest.dydasites.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`)"><Heart />{{ T`Apoyar` }}</button>
+      <LangToggle /><ThemeToggle />
+    </div>
     <section class="left">
       <div class="team">
         <img v-for="(src, i) in team" :key="i" :src="src" alt="" @load="double" />
@@ -274,5 +277,6 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .agents footer small { font-size: 10px; color: var(--text-secondary); }
 .spin { animation: spin 0.8s steps(8) infinite; }
 @keyframes spin { to { rotate: 360deg; } }
+.support { padding: 7px 9px; }
 .theme-corner { position: fixed; top: 46px; right: 14px; z-index: 2; display: flex; gap: 8px; }
 </style>

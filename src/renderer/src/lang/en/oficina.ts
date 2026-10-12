@@ -208,6 +208,10 @@ const en: Record<string, string> = {
   'front, back': 'front, back',
   'Atrás': 'Back',
   'Crear repositorios y abrir': 'Create repositories and open',
+  '¿Prefieres que te acompañe a instalarlo? Hay asesoría 1 a 1 por videollamada.': 'Would you rather have me walk you through the setup? There is a 1-on-1 session over video call.',
+  'Ver la asesoría': 'See the session',
+  'Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.': 'Orquest AI is free. If it helps you, you can buy a coffee or book a session.',
+  'Apoyar': 'Support',
 }
 
 export default en

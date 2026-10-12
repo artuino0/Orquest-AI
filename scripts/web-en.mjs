@@ -109,8 +109,8 @@ export const EN = {
 
   // Apoya el proyecto
   'Apoya el proyecto': 'Support the project',
-  'Orquest AI es gratis. Si quieres apoyarlo, o prefieres que te acompañe a instalarlo, hay dos caminos.':
-    "Orquest AI is free. If you'd like to support it, or would rather have me walk you through the setup, there are two ways.",
+  'Orquest AI es gratis. Si quieres apoyarlo, o prefieres que te acompañe a instalarlo, aquí puedes hacerlo.':
+    "Orquest AI is free. If you'd like to support it, or would rather have me walk you through the setup, you can do it here.",
   'Invítame un café': 'Buy me a coffee',
   'Aporte libre': 'Pay what you want',
   'Si Orquest AI te ahorra tiempo, un café ayuda a que siga avanzando. No desbloquea nada: todo es gratis y de código abierto.':
