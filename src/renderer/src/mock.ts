@@ -152,7 +152,18 @@ export function installMock(caso: string) {
         'src/components': [['Cart.vue', false], ['Checkout.vue', false]],
         test: [['cart.test.ts', false]],
       } as Record<string, [string, boolean][]>)[dir] ?? []).map(([name, isDir]) => ({ name, path: dir ? `${dir}/${name}` : name, dir: isDir })),
-    fileText: async (_id, path) => ({ text: `// ${path}\nimport { createApp } from 'vue'\nimport App from './App.vue'\n\ncreateApp(App).mount('#app')\n`, binary: false, truncated: false, size: 90 }),
+    fileText: async (_id, path) => {
+      const text = path.endsWith('.json')
+        ? '{\n  "name": "tienda-en-linea",\n  "version": "1.2.0",\n  "private": true,\n  "scripts": { "dev": "vite", "test": "vitest run" }\n}\n'
+        : path.endsWith('.md')
+          ? '# Tienda en línea\n\nCarrito, pago y **pedidos**.\n\n- `npm run dev` para probar\n- [Guía](docs/guia.md)\n'
+          : path.endsWith('.vue')
+            ? '<script setup lang="ts">\nimport { ref } from \'vue\'\nconst total = ref(0)\n</script>\n\n<template>\n  <button class="pay" @click="total++">Pagar {{ total }}</button>\n</template>\n\n<style scoped>\n.pay { color: #f2b544; padding: 8px 12px; }\n</style>\n'
+            : path.endsWith('.css')
+              ? '/* Botones */\n.btn { display: flex; gap: 8px; color: var(--accent); }\n.btn:hover { opacity: 0.8; }\n'
+              : `// ${path}\nimport { createApp } from 'vue'\nimport App from './App.vue'\n\ninterface Item {\n  id: number\n  price: number\n}\n\n/** Suma lo que hay en el carrito. */\nexport function total(items: Item[]): number {\n  return items.reduce((sum, i) => sum + i.price, 0)\n}\n\nconst TAX = 0.16\ncreateApp(App).mount('#app')\n`
+      return { text, binary: false, truncated: false, size: text.length }
+    },
     write: () => {},
     resize: () => {},
     onData: nothing,

@@ -26,6 +26,15 @@
   --pv-grok: #8c8c96;
   --ink: #08070b;
   --term-bg: #08070b;
+  /* Colores de sintaxis del visor de archivos. */
+  --code-comment: #7d7a8c;
+  --code-keyword: #c792ea;
+  --code-string: #a5d67a;
+  --code-number: #f2a05c;
+  --code-function: #6fb7ff;
+  --code-type: #f2c96b;
+  --code-attr: #8fd3e0;
+  --code-tag: #ef7f8e;
   --veil: #0b0910d9;
   --tint-danger: #3a1517;
   --tint-ok: #12301a;
@@ -74,6 +83,14 @@
   --pv-grok: #94b0c2;
   --ink: #1a1c2c;
   --term-bg: #f4f4f4;
+  --code-comment: #7a7f8a;
+  --code-keyword: #8b3fc7;
+  --code-string: #2f7d32;
+  --code-number: #b3560f;
+  --code-function: #1f5fc4;
+  --code-type: #8a6400;
+  --code-attr: #0f6f80;
+  --code-tag: #c0304a;
   --veil: #1a1c2c99;
   --tint-danger: #b13e5326;
   --tint-ok: #38b76426;
