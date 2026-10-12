@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ExternalLink, BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus } from 'lucide-vue-next'
+import { BookOpen, Download, ExternalLink, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import type { CliStatus } from '../../../shared/ipc'
+import type { CliStatus, UpdateInfo } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { ago } from '../format'
 import { useStudio, type Recent } from '../stores/studio'
@@ -39,6 +39,29 @@ function detail(c: CliStatus): string {
 const ready = computed(() => studio.clis.filter((c) => stateOf(c) === 'ready'))
 const noSession = computed(() => studio.clis.filter((c) => stateOf(c) === 'no-session'))
 const missing = computed(() => studio.clis.filter((c) => stateOf(c) === 'missing'))
+// ── Versión nueva: se pregunta una vez al abrir Inicio. El aviso va abajo a la derecha y,
+// si se cierra, no vuelve a salir para esa misma versión.
+const SKIPPED = 'orquest.update.skipped'
+const update = ref<UpdateInfo | null>(null)
+onMounted(async () => {
+  const found = await window.orquest.checkUpdate().catch(() => null)
+  let skipped: string | null = null
+  try {
+    skipped = localStorage.getItem(SKIPPED)
+  } catch {
+    // Sin almacenamiento el aviso sale cada vez.
+  }
+  if (found && found.version !== skipped) update.value = found
+})
+function skipUpdate() {
+  try {
+    localStorage.setItem(SKIPPED, update.value?.version ?? '')
+  } catch {
+    // Solo dura esta sesión.
+  }
+  update.value = null
+}
+
 /** Programas que faltan además de las CLIs (git): sin ellos tampoco se abre un proyecto. */
 const lacking = computed(() => studio.requirements.filter((r) => !r.installed))
 /** Ya se revisó y ninguna sirve: no se puede abrir proyecto. */
@@ -180,6 +203,12 @@ import ThemeToggle from './ThemeToggle.vue'
       </footer>
     </aside>
 
+    <aside v-if="update" class="update">
+      <Download />
+      <span>{{ T`Hay una versión nueva: ${update.version}` }}</span>
+      <button class="btn primary" @click="openLink(update.url)">{{ T`Descargar` }}</button>
+      <button class="btn close" :title="T`Ahora no`" @click="skipUpdate"><X /></button>
+    </aside>
     <RepoSetup v-if="studio.repoIssue" />
     <InstallGuide v-if="guide" :clis="[...noSession, ...missing]" @close="guide = false" />
   </div>
@@ -230,6 +259,9 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .referral { margin: 0; padding: 8px 0 0; border-top: 2px solid var(--border-light); font-size: 10px; line-height: 1.5; color: var(--text-secondary); }
 .cli.ready .chip { color: var(--st-idle); }
 .cli.no-session .chip { color: var(--accent); }
+.update { position: fixed; right: 14px; bottom: 14px; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 3px solid var(--accent); box-shadow: 4px 4px 0 var(--shadow); font-size: 12px; }
+.update > svg { width: 16px; height: 16px; color: var(--accent); }
+.update .close { padding: 6px 8px; }
 .cli .color.req { background: var(--text-primary); }
 .cli.lacking .chip { color: var(--st-block); }
 .cli.lacking strong { color: var(--text-primary); }

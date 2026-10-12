@@ -189,6 +189,9 @@ const en: Record<string, string> = {
   'Confiar en esta carpeta y que {0} continúe': 'Trust this folder and let {0} continue',
   '{0} está detenido: su CLI ofrece actualizarse · Abre su terminal y elige': '{0} is stopped: its CLI offers an update · Open its terminal and choose',
   '{0} está detenido: su CLI pide iniciar sesión · Abre su terminal': '{0} is stopped: its CLI asks you to sign in · Open its terminal',
+  'Hay una versión nueva: {0}': 'A new version is available: {0}',
+  'Descargar': 'Download',
+  'Ahora no': 'Not now',
 }
 
 export default en

@@ -1,4 +1,5 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
+import type { UpdateInfo } from '../core/update.js'
 import type { RepoCheck } from '../core/repo.js'
 import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
@@ -47,6 +48,8 @@ export interface OrquestApi {
   language(): Promise<{ lang: Lang; chosen: boolean }>
   /** Fija el idioma elegido por el usuario. Lo que Orquest les diga a los agentes desde ahora va en ese idioma. */
   setLanguage(lang: Lang): Promise<void>
+  /** Si hay una versión más nueva publicada: cuál y de dónde bajar su instalador. */
+  checkUpdate(): Promise<UpdateInfo | null>
   detectClis(): Promise<CliStatus[]>
   /** Lo que hace falta instalado además de las CLIs (git). */
   requirements(): Promise<Requirement[]>
@@ -133,3 +136,4 @@ export interface OrquestApi {
 
 export type { RepoCheck }
 export type { BlockKind }
+export type { UpdateInfo }

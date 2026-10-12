@@ -77,6 +77,8 @@ export function installMock(caso: string) {
     // ?caso=sin-repo y ?caso=sin-commits: la carpeta elegida no está lista.
     checkRepo: async () => ({ state: caso === 'sin-repo' ? 'no-repo' : caso === 'sin-commits' ? 'no-commits' : 'ok', inside: [], gitignore: false }),
     prepareRepo: async () => {},
+    // ?actualiza=1: como si hubiera una versión nueva publicada.
+    checkUpdate: async () => (new URLSearchParams(location.search).get('actualiza') ? { version: '9.9.9', url: 'https://github.com/artuino0/Orquest-AI/releases' } : null),
     detectClis: async () => {
       // Sin ?caso, las CLIs son las de verdad de esta máquina (las detecta el servidor de vista previa).
       if (!(caso in CLIS)) {

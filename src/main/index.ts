@@ -17,6 +17,7 @@ import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
 import { checkRepo, prepareRepo } from '../core/repo.js'
+import { checkUpdate } from '../core/update.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
@@ -105,6 +106,7 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
   })
 }
 
+handle('update:check', () => checkUpdate(app.getVersion()))
 handle('clis:detect', () => detectAll())
 handle('requirements:detect', () => detectRequirements())
 handle('clis:models', async () => detectModels(await detectAll()))
