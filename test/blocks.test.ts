@@ -138,20 +138,21 @@ describe('editar en la oficina de alguien', () => {
     manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
     const dir = repo()
     writeFileSync(join(dir, 'nota.md'), 'uno\n')
-    studio = await new Studio({ repo: dir, manager, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, editCalmMs: 400 }).init()
+    studio = await new Studio({ repo: dir, manager, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, editCalmMs: 1500 }).init()
     await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
     const stamp = (await readText(dir, 'nota.md')).stamp
+    // No se cuentan milisegundos: se espera a ver cada estado, que en una máquina cargada tarda más.
+    const state = () => manager.get('jefe')?.state
     terminals[0].feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
-    await wait(80)
+    await expect.poll(state, { timeout: 5000 }).toBe('working')
     await expect(studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)).rejects.toThrow(RuleError)
     // Se asoma al prompt un instante entre dos pasos: todavía no.
     terminals[0].feed(CLAUDE_PROMPT)
-    await wait(80)
-    expect(manager.get('jefe')?.state).toBe('idle')
+    await expect.poll(state, { timeout: 5000 }).toBe('idle')
     await expect(studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)).rejects.toThrow(RuleError)
     expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('uno\n')
     // Ya lleva un rato quieto: se guarda, y el sello nuevo sirve para la siguiente.
-    await wait(500)
+    await wait(1800)
     const next = await studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)
     expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('dos\n')
     await studio.saveFile('jefe', 'nota.md', 'tres\n', next.stamp)
