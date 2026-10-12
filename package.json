@@ -1,6 +1,6 @@
 {
   "name": "orquest-ai",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Orquestador de agentes de código hecho juego: una oficina en pixel art donde cada CLI es un empleado.",
   "license": "Apache-2.0",
   "author": "Jose Arturo Muñoz Castorena",
