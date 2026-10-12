@@ -1,13 +1,39 @@
 // Página de Orquest AI: la oficina en vivo, la calle, las descargas al día y las capturas ampliadas.
 const REPO = 'artuino0/Orquest-AI'
 const QUIETO = matchMedia('(prefers-reduced-motion: reduce)').matches
+const EN = document.documentElement.lang === 'en'
+
+// ── Idioma. La página en inglés es /en/. En la primera visita se sigue al navegador;
+// después manda lo que el visitante eligió con el botón. A los robots no se les mueve:
+// cada idioma tiene su dirección y así los encuentran los dos.
+const IDIOMA = 'orquest.idioma'
+const recordado = (() => {
+  try {
+    return localStorage.getItem(IDIOMA)
+  } catch {
+    return null
+  }
+})()
+const pedido = recordado ?? (/^es\b/i.test(navigator.language || 'es') ? 'es' : 'en')
+if (pedido !== (EN ? 'en' : 'es') && !/bot|crawl|spider|slurp|preview|lighthouse/i.test(navigator.userAgent)) {
+  location.replace(new URL(EN ? '../' : 'en/', location.href).href + location.hash)
+}
+for (const enlace of document.querySelectorAll('[data-idioma]')) {
+  enlace.addEventListener('click', () => {
+    try {
+      localStorage.setItem(IDIOMA, enlace.dataset.idioma)
+    } catch {
+      // Sin almacenamiento solo vale para esta visita.
+    }
+  })
+}
 
 // ── La oficina: el póster se queda hasta que el visitante la abre y termina de cargar.
 const oficina = document.getElementById('oficina')
 const abrir = document.getElementById('abrir-oficina')
 abrir.addEventListener('click', () => {
   abrir.disabled = true
-  abrir.lastChild.textContent = 'Abriendo…'
+  abrir.lastChild.textContent = EN ? 'Opening…' : 'Abriendo…'
   oficina.addEventListener('load', () => {
     oficina.hidden = false
     abrir.remove()

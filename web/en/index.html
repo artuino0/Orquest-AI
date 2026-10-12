@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orquest AI · your coding agents, in an office you can watch</title>
+<meta name="description" content="Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss.">
+<link rel="canonical" href="https://orquest.dydasites.com/en/">
+<!-- La misma página en inglés vive en /en/ (la genera scripts/web.mjs a partir de esta). -->
+<link rel="alternate" hreflang="es" href="https://orquest.dydasites.com/">
+<link rel="alternate" hreflang="en" href="https://orquest.dydasites.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://orquest.dydasites.com/">
+<!-- Comprueba ante Google Search Console que la página es del autor. -->
+<meta name="google-site-verification" content="xUE-miovNii2c75M-tuyS4APF4B-58lZfSLTExL7LTA">
+<meta name="theme-color" content="#15121b">
+<!-- Cómo se ve al compartirla en redes y mensajería. La imagen va con dirección completa: las relativas no las toman. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Orquest AI">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://orquest.dydasites.com/en/">
+<meta property="og:title" content="Orquest AI · your coding agents, in an office you can watch">
+<meta property="og:description" content="Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss.">
+<meta property="og:image" content="https://orquest.dydasites.com/img/compartir.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Orquest AI: the characters and the pixel office where the agents work">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Orquest AI · your coding agents, in an office you can watch">
+<meta name="twitter:description" content="Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss.">
+<meta name="twitter:image" content="https://orquest.dydasites.com/img/compartir.png">
+<!-- Para buscadores: qué es, en qué corre y dónde se descarga. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Orquest AI",
+  "description": "An orchestrator for coding agents: Claude Code, Codex and other AI CLIs work as employees of a pixel-art studio. You only talk to the boss, which builds the team, assigns tasks and reviews deliveries.",
+  "url": "https://orquest.dydasites.com/en/",
+  "image": "https://orquest.dydasites.com/img/compartir.png",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "inLanguage": "en",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "downloadUrl": "https://github.com/artuino0/Orquest-AI/releases",
+  "codeRepository": "https://github.com/artuino0/Orquest-AI",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Jose Arturo Muñoz Castorena" }
+}
+</script>
+<link rel="icon" href="../favicon.ico">
+<link rel="apple-touch-icon" href="../design_web-assets/oficina-ico.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<!-- Diseño: design_web.pen. Las imágenes del diseño están en design_web-assets/. -->
+
+<header class="barra">
+  <a class="marca" href="#inicio"><img src="../design_web-assets/oficina-ico.png" alt="" width="32" height="32">Orquest AI</a>
+  <nav>
+    <a href="#como">How it works</a>
+    <a href="#incluye">What's included</a>
+    <a href="#descargar" class="acento">Download</a>
+    <a href="https://github.com/artuino0/Orquest-AI" target="_blank" rel="noopener">GitHub</a>
+    <a class="idioma" href="../" hreflang="es" data-idioma="es" title="Español">ES</a>
+  </nav>
+</header>
+
+<main>
+  <section id="inicio" class="portada">
+    <!-- Cada uno hace un ciclo de espera al cargar, escalonado, y se queda quieto. -->
+    <div class="fila" aria-hidden="true">
+      <i class="sp f4" style="--w:15;--h:23;--n:0;background-image:url(../img/char1-idle.png)"></i>
+      <i class="sp f4" style="--w:19;--h:24;--n:1;background-image:url(../img/char2-idle.png)"></i>
+      <i class="sp f4" style="--w:13;--h:21;--n:2;background-image:url(../img/char3-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:3;background-image:url(../img/char4-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:4;background-image:url(../img/char5-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:5;background-image:url(../img/char6-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:6;background-image:url(../img/char7-idle.png)"></i>
+      <i class="sp f4" style="--w:17;--h:23;--n:7;background-image:url(../img/char8-idle.png)"></i>
+    </div>
+    <h1>Orquest AI</h1>
+    <p class="frase">Your coding agents, working in an office you can watch.</p>
+    <p class="parrafo">Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss: it builds the team, assigns the tasks, reviews the deliveries and asks for your approval before merging into your branch.</p>
+    <div class="acciones">
+      <a class="boton primario" href="#descargar">Download</a>
+      <a class="boton" href="https://github.com/artuino0/Orquest-AI" target="_blank" rel="noopener">View the code</a>
+    </div>
+
+    <figure class="oficina">
+      <div class="marco">
+        <img class="poster" src="../img/oficina-poster.png" alt="The Orquest AI pixel office: the boss at its desk and the employees at theirs" width="960" height="712">
+        <button id="abrir-oficina" class="boton primario" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l14 9-14 9z"/></svg>Open the office
+        </button>
+        <iframe id="oficina" title="Orquest AI office demo" data-src="../oficina/oficina.html?marco=0&amp;lang=en" hidden></iframe>
+      </div>
+      <figcaption>A demo with a simulated workday. In the app, each character is a real terminal and each animation reflects its state: it types when working, raises a hand when it needs you, and walks over with its report when it delivers.</figcaption>
+    </figure>
+  </section>
+
+  <section id="como" class="franja dos">
+    <div class="pasos">
+      <h2>How it works</h2>
+      <ol>
+        <li><b>You hire the boss</b><p>Pick the CLI that runs it, give it a name and set the project goal.</p></li>
+        <li><b>The boss proposes the team</b><p>It defines the roles needed and the provider and model for each. You approve, adjust or discard.</p></li>
+        <li><b>Each employee in its own office</b><p>Each employee works in an isolated copy of the repository, without getting in the way of the others.</p></li>
+        <li><b>The boss reviews, you merge</b><p>No change reaches your branch without the boss's review and your approval.</p></li>
+      </ol>
+    </div>
+
+    <!-- La calle: medidas en píxeles del arte; --k la escala. La mueve main.js mientras está a la vista. -->
+    <div class="calle" id="calle" aria-hidden="true">
+      <i class="acera"></i><i class="bordillo"></i><i class="asfalto"></i><i class="raya"></i><i class="bordillo der"></i><i class="acera der"></i>
+      <i class="cebra"></i>
+      <i class="fijo" style="--x:3;--y:96;--w:18;--h:28;background-image:url(../design_web-assets/arbol-acera.png)"></i>
+      <i class="fijo" style="--x:7;--y:160;--w:10;--h:17;background-image:url(../design_web-assets/buzon.png)"></i>
+      <i class="fijo" style="--x:112;--y:24;--w:9;--h:12;background-image:url(../design_web-assets/hidrante.png)"></i>
+      <i class="fijo" style="--x:105;--y:96;--w:21;--h:40;background-image:url(../design_web-assets/farola.png)"></i>
+      <i class="sp f2 actor" data-actor="rojo" style="--w:24;--h:33;--x:33;--y:146;background-image:url(../design_web-assets/auto-rojo-frente-anim.png)"></i>
+      <i class="sp f2 actor" data-actor="azul" style="--w:24;--h:32;--x:33;--y:10;background-image:url(../design_web-assets/auto-azul-frente-anim.png)"></i>
+      <i class="sp f2 actor" data-actor="taxi" style="--w:24;--h:32;--x:71;--y:84;background-image:url(../design_web-assets/taxi-atras-anim.png)"></i>
+      <i class="sp f4 actor" data-actor="cruza" style="--w:17;--h:23;--x:46;--y:48;background-image:url(../design_web-assets/char4-lado-camina.png)"></i>
+      <i class="sp f4 actor" data-actor="baja" style="--w:17;--h:23;--x:4;--y:36;background-image:url(../design_web-assets/peaton2-camina.png)"></i>
+      <i class="sp f4 actor" data-actor="sube" style="--w:17;--h:23;--x:105;--y:152;background-image:url(../design_web-assets/char5-atras-camina.png)"></i>
+    </div>
+  </section>
+
+  <section id="incluye" class="seccion">
+    <h2>What's included</h2>
+    <figure class="principal">
+      <img src="../design_web-assets/jefe.png" alt="Chat with the boss and its pending questions" width="1280" height="720" loading="lazy">
+      <figcaption><h3>A single point of contact.</h3><p>You only talk to the boss. Whatever it needs from you stays as a pending question, with suggested answers, until you deal with it.</p></figcaption>
+    </figure>
+    <div class="secundarias">
+      <figure>
+        <img src="../design_web-assets/tablero.png" alt="Project task board" width="1280" height="720" loading="lazy">
+        <figcaption><h3>A board with dependencies.</h3><p>Tasks are chained by dependencies: a task that depends on another doesn't start until that one is merged.</p></figcaption>
+      </figure>
+      <figure>
+        <img src="../design_web-assets/cuentas.png" alt="Each account's limit usage" width="1280" height="720" loading="lazy">
+        <figcaption><h3>Your account usage.</h3><p>See how much of each session's limit you've used and split the work between two accounts.</p></figcaption>
+      </figure>
+    </div>
+    <ul class="tarjetas">
+      <li><i class="sp" style="--w:16;--h:31;--k:2;background-image:url(../design_web-assets/door.png)"></i><h4>Permissions per role</h4><p>Each role has a manual that defines what it can edit and which commands it runs without asking. Orquest AI never bypasses the permissions of any CLI.</p></li>
+      <li><i class="sp" style="--w:16;--h:33;--k:2;background-image:url(../design_web-assets/maquinita-azul.png)"></i><h4>Persistent memory</h4><p>When an agent runs out of context, it writes a handoff, restarts its session and picks up from its journal. Whoever takes the role later gets it too.</p></li>
+      <li><i class="sp" style="--w:24;--h:30;--k:2;background-image:url(../design_web-assets/librero2.png)"></i><h4>Records</h4><p>A record of how each provider and model has performed in your projects: deliveries merged on the first try, and rejections. The boss checks it before proposing a hire.</p></li>
+      <li><i class="sp" style="--w:16;--h:32;--k:2;background-image:url(../design_web-assets/servidor.png)"></i><h4>Runs locally</h4><p>There is no Orquest AI server. The board lives in a local database and the agents use the sessions you're already signed into in each CLI.</p></li>
+    </ul>
+  </section>
+
+  <section id="clis" class="franja">
+    <h2>Supported CLIs</h2>
+    <p class="nota">Orquest AI doesn't include models: it runs the CLIs you already have installed and signed in. It needs at least one, plus git.</p>
+    <!-- Teclea la tarjeta bajo el cursor o con foco; las demás se quedan quietas. -->
+    <ul class="clis">
+      <li tabindex="0" style="--c:#e8823a"><i class="sp f2" style="--w:19;--h:24;background-image:url(../design_web-assets/char2-sentado-teclea.png)"></i><b>Claude Code</b><small>The most thoroughly tested</small></li>
+      <li tabindex="0" style="--c:#3f7fe8"><i class="sp f2" style="--w:13;--h:21;background-image:url(../design_web-assets/char3-sentado-teclea.png)"></i><b>Codex</b><small>Tested in real use</small></li>
+      <li tabindex="0" style="--c:#3fb86a"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char4-sentado-teclea.png)"></i><b>Antigravity</b><small>Tested in real use</small></li>
+      <li tabindex="0" style="--c:#f1f1f1"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char5-sentado-teclea.png)"></i><b>OpenCode</b><small>Tested in real use</small></li>
+      <li tabindex="0" style="--c:#b79cf0"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char6-sentado-teclea.png)"></i><b>Command Code</b><small>Integrated, lightly tested</small></li>
+      <li tabindex="0" style="--c:#f58bb8"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char7-sentado-teclea.png)"></i><b>Kimi</b><small>Integrated, lightly tested</small></li>
+      <li tabindex="0" style="--c:#8c8c96"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char8-sentado-teclea.png)"></i><b>Grok</b><small>Integrated, lightly tested</small></li>
+    </ul>
+  </section>
+
+  <section id="descargar" class="seccion">
+    <h2>Download</h2>
+    <div class="instaladores">
+      <a class="descarga" data-os="win" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-instalador.exe">
+        <span><em>YOUR SYSTEM</em><b>Windows</b><small>.exe installer</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
+      <a class="descarga" data-os="mac" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-arm64.dmg">
+        <span><em>YOUR SYSTEM</em><b>macOS</b><small>Apple Silicon · .dmg</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
+      <a class="descarga" data-os="linux" href="https://github.com/artuino0/Orquest-AI/releases/download/v0.1.0/Orquest-AI-0.1.0-x86_64.AppImage">
+        <span><em>YOUR SYSTEM</em><b>Linux</b><small>x86_64 · .AppImage</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </a>
+    </div>
+    <div class="aviso">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4m0 3v.5"/></svg>
+      <p>Version <span id="version">v0.1.0</span>, preview. The installers aren't signed yet, so Windows and macOS show a warning when you open them. The macOS and Linux ones are built automatically and haven't been checked by hand yet; if you try them, we'd love your feedback.</p>
+    </div>
+    <p class="otras"><a href="https://github.com/artuino0/Orquest-AI/releases" target="_blank" rel="noopener">All versions</a> <span>· or build from source:</span> <code>npm install &amp;&amp; npm run dev</code></p>
+  </section>
+
+  <section id="abierto" class="franja dos">
+    <div class="texto">
+      <h2>Open source</h2>
+      <p class="nota">Orquest AI is free software under the Apache 2.0 license. Contributions come in as Pull Requests and every change is reviewed by the project author.</p>
+      <div class="acciones">
+        <a class="boton" href="https://github.com/artuino0/Orquest-AI/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">How to contribute</a>
+        <a class="boton" href="https://github.com/artuino0/Orquest-AI/issues" target="_blank" rel="noopener">Report an issue</a>
+      </div>
+    </div>
+    <div class="areas">
+      <h4>Where you can help</h4>
+      <ul>
+        <li>Testing on macOS and Linux</li>
+        <li>Full integration of the remaining CLIs</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer class="pie">
+  <!-- Uno camina de lado a lado por esta franja; el gato y el perro se quedan quietos. -->
+  <div class="paseo" aria-hidden="true">
+    <i class="sp f4 camina" style="--w:13;--h:21;--k:2;background-image:url(../design_web-assets/char3-lado-camina.png)"></i>
+    <i class="sp" style="--w:16;--h:13;--k:2;background-image:url(../design_web-assets/gato.png)"></i>
+    <i class="sp" style="--w:24;--h:11;--k:2;background-image:url(../design_web-assets/perro.png)"></i>
+  </div>
+  <p>Built by Jose Arturo Muñoz Castorena · Apache 2.0 license · Part of the art comes from the <a href="https://2dpig.itch.io/pixel-office" target="_blank" rel="noopener">Pixel Office pack by 2dPig</a>.</p>
+  <p class="chico">Claude Code, Codex and the other CLIs belong to their respective owners; Orquest AI is not affiliated with any of them.</p>
+</footer>
+
+<script src="../main.js" defer></script>
+</body>
+</html>

@@ -73,6 +73,7 @@ a { color: var(--acento); }
 .barra nav a { font-size: 14px; color: var(--tenue); text-decoration: none; }
 .barra nav a:hover { color: var(--texto); }
 .barra nav a.acento { color: var(--acento); }
+.barra nav a.idioma { padding: 2px 8px; border: 2px solid var(--borde-claro); color: var(--texto); font-weight: 700; }
 
 /* Botones */
 .boton { display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; background: var(--superficie-2); color: var(--texto); border: 3px solid var(--borde); box-shadow: var(--sombra); font: 700 16px var(--mono); text-decoration: none; cursor: pointer; }
@@ -213,7 +214,7 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
 @media (max-width: 640px) {
   .barra { height: 56px; padding: 0 16px; }
   .barra nav { gap: 16px; }
-  .barra nav a:not(.acento):not([href^='https']) { display: none; }
+  .barra nav a:not(.acento):not(.idioma):not([href^='https']) { display: none; }
   .portada { padding: 40px 20px 56px; gap: 22px; }
   .fila { gap: 8px; }
   .fila .sp { --k: 2; }

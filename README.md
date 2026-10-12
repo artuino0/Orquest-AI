@@ -1,5 +1,7 @@
 # Orquest AI
 
+**Español** · [English](README.en.md)
+
 Orquestador de agentes de código hecho juego: tu estudio es una oficina en pixel art donde cada agente (Claude Code, Codex, Antigravity, OpenCode…) es un empleado que trabaja en su propia oficina y te lleva su entrega. Cada empleado usa la CLI y la suscripción que ya tienes; no hay costo de IA aparte.
 
 Plan completo: [docs/plan.md](docs/plan.md).

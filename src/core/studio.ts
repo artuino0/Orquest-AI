@@ -12,7 +12,7 @@ import { Board, RuleError, type BoardSnapshot, type Slot, type StaffMember, type
 import { archiveCaptures } from './captures.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
-import { T } from './i18n.js'
+import { getLang, T } from './i18n.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
@@ -313,7 +313,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const session = resume ? { id: id === BOSS_ID ? this.board.boss?.sessionId : this.board.staff.find((m) => m.id === id)?.sessionId, resume: true } : undefined
     const req = { ...l.req, session }
     // Toda terminal recibe el comando, también las que hablan MCP: su token la identifica igual.
-    const emp = await this.opts.manager.hire(cli ? { ...req, env: { ...req.env, ORQUEST_URL: cli.url(l.token) }, path: [cli.dir] } : req)
+    const emp = await this.opts.manager.hire(cli ? { ...req, env: { ...req.env, ORQUEST_URL: cli.url(l.token), ORQUEST_LANG: getLang() }, path: [cli.dir] } : req)
     this.offices.set(id, emp.office)
     // De aquí en adelante, relanzar reusa la misma oficina.
     l.req = { ...l.req, office: emp.office }

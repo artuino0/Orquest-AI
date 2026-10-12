@@ -23,11 +23,28 @@
     ['gus', 'Gus', 'Infra', 'Codex', 'CHAR6'],
     ['ana', 'Ana', 'Desarrollo', 'Antigravity', 'CHAR5'],
   ];
+  // ?lang=en: la misma jornada, contada en inglés.
+  const EN = new URLSearchParams(location.search).get('lang') === 'en' && {
+    Jefe: 'Boss', Desarrollo: 'Development',
+    'API de productos': 'Products API', 'Editando api.ts': 'Editing api.ts', 'API de productos lista': 'Products API ready', 'API aprobada': 'API approved', 'Faltan pruebas del alta': 'Sign-up tests missing',
+    'Sesiones seguras': 'Secure sessions', 'Corriendo pruebas': 'Running tests', 'Sesiones con token': 'Token-based sessions', 'Sesiones ok': 'Sessions OK', 'El token no expira': "Token never expires",
+    'Migración de clientes': 'Customer migration', 'Migrando tablas': 'Migrating tables', 'Migración terminada': 'Migration finished', 'Migración ok': 'Migration OK', 'Faltan índices': 'Indexes missing',
+    'Índices de búsqueda': 'Search indexes', 'Midiendo consultas': 'Measuring queries', 'Consultas 4× más rápidas': 'Queries 4× faster', 'Índices aprobados': 'Indexes approved', 'Bloquea la tabla': 'It locks the table',
+    'Lista de productos': 'Product list', Maquetando: 'Building layout', 'Lista responsive': 'Responsive list', 'Se ve bien': 'Looks good', 'Se rompe en móvil': 'Breaks on mobile',
+    'Validación de RFC': 'Tax ID validation', 'Editando form.vue': 'Editing form.vue', 'RFC validado': 'Tax ID validated', 'Validación ok': 'Validation OK', 'Acepta RFC vacío': 'Accepts an empty tax ID',
+    'Probar alta de clientes': 'Test customer sign-up', 'Probando flujo': 'Testing the flow', 'Alta probada, 2 hallazgos': 'Sign-up tested, 2 findings', 'Reporte recibido': 'Report received', 'Faltan capturas': 'Screenshots missing',
+    'Probar pagos': 'Test payments', 'Tomando capturas': 'Taking screenshots', 'Pagos probados': 'Payments tested', 'Sin hallazgos': 'No findings', 'No probó el reembolso': "Refunds weren't tested",
+    'Pipeline de despliegue': 'Deploy pipeline', 'Armando pipeline': 'Building pipeline', 'Pipeline en verde': 'Pipeline is green', 'Pipeline aprobado': 'Pipeline approved', 'Falla en producción': 'Fails in production',
+    'Respaldos nocturnos': 'Nightly backups', 'Probando respaldo': 'Testing backup', 'Respaldo y restauración ok': 'Backup and restore OK', 'Respaldos aprobados': 'Backups approved', 'No restaura': "It doesn't restore",
+    'Panel de administración': 'Admin panel', 'Editando panel.vue': 'Editing panel.vue', 'Panel listo': 'Panel ready', 'Panel aprobado': 'Panel approved', 'Faltan permisos': 'Permissions missing',
+    'Exportar a Excel': 'Export to Excel', 'Generando hoja': 'Generating sheet', 'Exporta 10 mil filas': 'Exports 10k rows', 'Exportación ok': 'Export OK', 'Pierde los acentos': 'Loses the accents',
+  };
+  const tr = (texto) => (EN && EN[texto]) || texto;
   // ?empleados=8 deja puestos sin dueño (se ven con la silla pegada al escritorio).
   const cuantos = Number(new URLSearchParams(location.search).get('empleados')) || PLANTILLA.length;
   PLANTILLA.length = Math.min(PLANTILLA.length, Math.max(1, cuantos));
-  const agentes = { jefe: { nombre: 'Don Ramón', sprite: 'CHAR3', role: 'Jefe', model: 'Claude Code', isBoss: true } };
-  for (const [id, nombre, role, model, sprite] of PLANTILLA) agentes[id] = { nombre, sprite, role, model };
+  const agentes = { jefe: { nombre: 'Don Ramón', sprite: 'CHAR3', role: tr('Jefe'), model: 'Claude Code', isBoss: true } };
+  for (const [id, nombre, role, model, sprite] of PLANTILLA) agentes[id] = { nombre, sprite, role: tr(role), model };
 
   // Tareas por rol: clave del ticket, qué es, qué se le ve hacer, y cómo acaba.
   const POR_ROL = {
@@ -58,7 +75,7 @@
   };
   let folio = 10;
   const TAREAS = {};
-  for (const [id, , role] of PLANTILLA) TAREAS[id] = POR_ROL[role].map((t) => ({ ...t, id: `${t.clave}-${++folio}` }));
+  for (const [id, , role] of PLANTILLA) TAREAS[id] = POR_ROL[role].map((t) => ({ ...t, tarea: tr(t.tarea), hace: [t.hace[0], tr(t.hace[1])], reporte: tr(t.reporte), ok: tr(t.ok), mal: tr(t.mal), id: `${t.clave}-${++folio}` }));
 
   // ?rapido=1 acorta lo que cada quien tarda sin tarea y trabajando. Lo que dura una caminata
   // (el jefe llevando una tarea, alguien entregando) no se acorta: la oficina no camina más rápido.

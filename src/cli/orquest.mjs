@@ -9,6 +9,10 @@
 //   orquest proponer_plantilla --json - < plantilla.json
 
 const url = process.env.ORQUEST_URL
+// El idioma lo dice la app al lanzar la terminal (ORQUEST_LANG). Este comando no tiene
+// dependencias, así que trae sus pocos textos en los dos idiomas.
+const EN = process.env.ORQUEST_LANG === 'en'
+const L = (es, en) => (EN ? en : es)
 
 function fail(code, text) {
   process.stderr.write(`${text}\n`)
@@ -48,32 +52,32 @@ async function parse(argv) {
   try {
     return { ...JSON.parse(whole), ...args }
   } catch {
-    fail(2, '--json no es JSON válido.')
+    fail(2, L('--json no es JSON válido.', '--json is not valid JSON.'))
   }
 }
 
 async function request(init) {
   try {
     const res = await fetch(url, init)
-    if (res.status === 401) fail(2, 'Orquest no reconoce esta terminal (el agente ya no está contratado).')
+    if (res.status === 401) fail(2, L('Orquest no reconoce esta terminal (el agente ya no está contratado).', "Orquest doesn't recognize this terminal (the agent is no longer hired)."))
     return await res.json()
   } catch {
-    fail(2, 'Orquest no responde. ¿Sigue abierta la app?')
+    fail(2, L('Orquest no responde. ¿Sigue abierta la app?', 'Orquest is not responding. Is the app still open?'))
   }
 }
 
 function help(me) {
-  const lines = [`Eres ${me.quien} (${me.id}).`, 'Uso: orquest <herramienta> [--campo valor …]', '']
+  const lines = [L(`Eres ${me.quien} (${me.id}).`, `You are ${me.quien} (${me.id}).`), L('Uso: orquest <herramienta> [--campo valor …]', 'Usage: orquest <tool> [--field value …]'), '']
   for (const t of me.herramientas) {
     lines.push(`  ${t.nombre}: ${t.descripcion}`)
-    for (const f of t.campos) lines.push(`      --${f.nombre} <${f.tipo}>${f.requerido ? '' : ' (opcional)'}${f.descripcion ? `  ${f.descripcion}` : ''}`)
+    for (const f of t.campos) lines.push(`      --${f.nombre} <${f.tipo}>${f.requerido ? '' : L(' (opcional)', ' (optional)')}${f.descripcion ? `  ${f.descripcion}` : ''}`)
   }
-  lines.push('', 'Una lista se arma repitiendo la bandera o con JSON. "--campo -" lee el valor de la entrada estándar; "--json" recibe todos los campos de una vez.')
+  lines.push('', L('Una lista se arma repitiendo la bandera o con JSON. "--campo -" lee el valor de la entrada estándar; "--json" recibe todos los campos de una vez.', 'A list is built by repeating the flag or with JSON. "--field -" reads the value from standard input; "--json" takes all the fields at once.'))
   return lines.join('\n')
 }
 
 const [tool, ...rest] = process.argv.slice(2)
-if (!url) fail(2, 'Esta terminal no la lanzó Orquest (falta ORQUEST_URL).')
+if (!url) fail(2, L('Esta terminal no la lanzó Orquest (falta ORQUEST_URL).', "Orquest didn't launch this terminal (ORQUEST_URL is missing)."))
 
 if (!tool || ['ayuda', 'help', '--help', '-h'].includes(tool)) {
   console.log(help(await request()))
@@ -87,5 +91,5 @@ if (!tool || ['ayuda', 'help', '--help', '-h'].includes(tool)) {
     body: JSON.stringify({ herramienta: tool.replace(/-/g, '_'), args: await parse(rest) }),
   })
   if (r.ok) console.log(r.texto)
-  else fail(1, `Rechazado: ${r.motivo}`)
+  else fail(1, L(`Rechazado: ${r.motivo}`, `Rejected: ${r.motivo}`))
 }
