@@ -56,7 +56,7 @@ Pull Requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish). The
 
 ## Support the project
 
-Orquest AI is free and open source. If it saves you time, or you would rather have me walk you through the setup, the website offers a [1-on-1 session over video call](https://orquest.dydasites.com/en/#apoyo).
+Orquest AI is free and open source. If it saves you time, or you would rather have me walk you through the setup, on the website you can [buy a coffee or book a 1-on-1 session over video call](https://orquest.dydasites.com/en/#apoyo).
 
 ## Disclaimer
 

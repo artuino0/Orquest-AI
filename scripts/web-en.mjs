@@ -112,7 +112,7 @@ export const EN = {
   'Orquest AI es gratis. Si quieres apoyarlo, o prefieres que te acompañe a instalarlo, aquí puedes hacerlo.':
     "Orquest AI is free. If you'd like to support it, or would rather have me walk you through the setup, you can do it here.",
   'Invítame un café': 'Buy me a coffee',
-  'Aporte libre': 'Pay what you want',
+  '· por café': '· per coffee',
   'Si Orquest AI te ahorra tiempo, un café ayuda a que siga avanzando. No desbloquea nada: todo es gratis y de código abierto.':
     "If Orquest AI saves you time, a coffee helps keep it moving. It doesn't unlock anything: everything is free and open source.",
   'Invitar un café': 'Buy a coffee',
@@ -137,5 +137,5 @@ export const EN = {
 export const IGUALES = new Set([
   'Orquest AI', 'GitHub', 'EN', 'Claude Code', 'Codex', 'Antigravity', 'OpenCode', 'Command Code', 'Kimi', 'Grok',
   'Windows', 'macOS', 'Linux', 'Apple Silicon · .dmg', 'x86_64 · .AppImage', 'npm install &amp;&amp; npm run dev', 'v0.1.0', '.',
-  'Git', 'QA', 'Pencil', 'Playwright', 'GitHub CLI', '20 USD',
+  'Git', 'QA', 'Pencil', 'Playwright', 'GitHub CLI', '20 USD', '1 USD',
 ])

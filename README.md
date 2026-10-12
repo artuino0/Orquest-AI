@@ -137,7 +137,7 @@ El código es abierto y se aceptan Pull Requests. Todo cambio entra por PR y lo 
 
 ## Apoya el proyecto
 
-Orquest AI es gratis y de código abierto. Si te ahorra tiempo o prefieres que te acompañe a instalarlo, en la página hay una [asesoría 1 a 1 por videollamada](https://orquest.dydasites.com/#apoyo).
+Orquest AI es gratis y de código abierto. Si te ahorra tiempo o prefieres que te acompañe a instalarlo, en la página puedes [invitar un café o reservar una asesoría 1 a 1 por videollamada](https://orquest.dydasites.com/#apoyo).
 
 ## Aviso
 
