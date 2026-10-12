@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as pty from 'node-pty'
 import { RuleError, summarize } from '../core/board.js'
@@ -7,7 +7,7 @@ import { listAccounts } from '../core/accounts.js'
 import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
-import { listDocuments, readDocument } from '../core/documents.js'
+import { listDocuments, listGroupDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
@@ -16,7 +16,7 @@ import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
-import { checkRepo, prepareRepo } from '../core/repo.js'
+import { checkGroup, checkRepo, prepareRepo } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
@@ -113,6 +113,7 @@ handle('clis:models', async () => detectModels(await detectAll()))
 // Con un proyecto abierto se suma lo que cada CLI acaba de reportar; sin él, lo que dejaron en disco.
 handle('accounts:list', () => current?.accounts() ?? listAccounts())
 handle('repo:check', (path: string) => checkRepo(path))
+handle('repo:group', (path: string) => checkGroup(path))
 handle('repo:prepare', (path: string) => prepareRepo(path))
 handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` })
@@ -128,12 +129,14 @@ handle('project:summaries', (repos: string[]) =>
 // Solo páginas web: lo que llega del renderer no abre archivos ni otros protocolos.
 handle('shell:open', (url: string) => (/^https:\/\//.test(url) ? shell.openExternal(url) : undefined))
 
-handle('project:open', async (repo: string) => {
-  const root = await repoRoot(repo)
+// `group`: la carpeta no es un repositorio sino que agrupa varios, y se abre como un solo proyecto con ella de raíz.
+handle('project:open', async (repo: string, group?: boolean) => {
+  const root = group ? resolve(repo) : await repoRoot(repo)
   let s = studios.get(root)
   if (!s) {
     s = await new Studio({
       repo: root,
+      group: !!group,
       manager,
       store,
       library,
@@ -163,7 +166,10 @@ handle('window:control', (action: 'minimize' | 'maximize' | 'close') => {
   else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
   else win?.close() // pasa por el corte de los agentes, como cerrar de cualquier otra forma
 })
-handle('documents:list', () => listDocuments(studio().snapshot().repo))
+handle('documents:list', () => {
+  const s = studio()
+  return s.repos.length ? listGroupDocuments(s.root, s.repos) : listDocuments(s.snapshot().repo)
+})
 handle('documents:read', (path: string) => readDocument(studio().snapshot().repo, path))
 handle('tools:list', () => listTools(current?.snapshot().repo))
 handle('app:close-now', () => skipCuts?.())
@@ -212,7 +218,8 @@ handle('employee:scrollback', (id: string) => manager.scrollback(id))
 handle('employee:changes', async (id: string) => {
   const emp = manager.get(id)
   if (!emp) return []
-  const changes = await officeChanges(emp.office)
+  // Con varios repositorios su oficina no es uno: los cambios salen de cada copia que tiene dentro.
+  const changes = current?.repos.length ? await current.changes(id) : await officeChanges(emp.office)
   // Los archivos del jefe empiezan por sus planes guardados, que git no mira.
   const plans = id === BOSS_ID ? ((await current?.plans()) ?? []).map((p) => ({ status: 'plan', path: p.file })) : []
   return [...plans, ...changes]
@@ -221,6 +228,7 @@ handle('employee:captures', async (id: string) => {
   const emp = manager.get(id)
   if (!emp) return []
   // También las que adjuntó al entregar, aunque estén en una carpeta que no se revisa.
+  if (current?.repos.length) return current.captures(id)
   const attached = current?.snapshot().tasks.filter((t) => t.assignee === id).flatMap((t) => [...(t.delivery?.screenshots ?? []), ...(t.qa?.screenshots ?? [])]) ?? []
   return listCaptures(emp.office.path, attached, current ? await headOf(current.snapshot().repo).catch(() => undefined) : undefined)
 })
@@ -231,7 +239,8 @@ handle('employee:capture', (id: string, path: string) => {
 })
 handle('employee:diff', (id: string, path: string) => {
   const emp = manager.get(id)
-  return emp ? officeDiff(emp.office, path) : ''
+  if (!emp) return ''
+  return current?.repos.length ? current.fileDiff(id, path) : officeDiff(emp.office, path)
 })
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))

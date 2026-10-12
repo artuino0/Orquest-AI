@@ -6,7 +6,7 @@
  */
 import { execFile } from 'node:child_process'
 import { access, readdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
@@ -44,22 +44,68 @@ const starterIgnore = () =>
     '',
   ].join('\n')
 
+/** Repositorios un nivel abajo de `dir` (rutas completas, en orden). */
+async function nested(dir: string): Promise<string[]> {
+  const inside: string[] = []
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    if (entry.isDirectory() && (await exists(join(dir, entry.name, '.git')))) inside.push(join(dir, entry.name))
+  }
+  return inside.sort()
+}
+
+/** ¿Tiene al menos un commit? De él parte la copia de cada empleado. */
+const born = (dir: string) => git(dir, 'rev-parse', '--verify', '--quiet', 'HEAD').then(() => true, () => false)
+
 export async function checkRepo(dir: string): Promise<RepoCheck> {
   const gitignore = await exists(join(dir, '.gitignore'))
   const isRepo = await git(dir, 'rev-parse', '--is-inside-work-tree').then((out) => out === 'true', () => false)
   // Repositorios un nivel abajo: una carpeta que agrupa proyectos no se convierte en uno.
-  const nested = async () => {
-    const inside: string[] = []
-    for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-      if (entry.isDirectory() && (await exists(join(dir, entry.name, '.git')))) inside.push(join(dir, entry.name))
-    }
-    return inside.sort()
-  }
-  if (!isRepo) return { state: 'no-repo', inside: await nested(), gitignore }
-  const born = await git(dir, 'rev-parse', '--verify', '--quiet', 'HEAD').then(() => true, () => false)
-  if (born) return { state: 'ok', inside: [], gitignore }
+  if (!isRepo) return { state: 'no-repo', inside: await nested(dir), gitignore }
+  if (await born(dir)) return { state: 'ok', inside: [], gitignore }
   // Con `git init` recién hecho en una carpeta que agrupa repositorios tampoco se guarda nada: los envolvería.
-  return { state: 'no-commits', inside: await nested(), gitignore }
+  return { state: 'no-commits', inside: await nested(dir), gitignore }
+}
+
+/** Un repositorio de un proyecto que agrupa varios. */
+export interface ProjectRepo {
+  /** El nombre de su carpeta: así lo nombran el jefe (`repositorio`) y la interfaz. */
+  name: string
+  path: string
+}
+
+export interface GroupCheck {
+  /** Los repositorios de la carpeta, un nivel abajo. */
+  repos: ProjectRepo[]
+  /** Nombres de los que todavía no tienen ningún commit: con uno así el proyecto no se puede abrir. */
+  empty: string[]
+}
+
+/**
+ * Una carpeta que solo agrupa repositorios (ella no lo es, o tiene un `git init`
+ * vacío que se ignora) se abre como un solo proyecto: cada subcarpeta directa
+ * con `.git` es uno de sus repositorios. Aquí se ve cuáles son y si alguno
+ * todavía no sirve.
+ */
+export async function checkGroup(dir: string): Promise<GroupCheck> {
+  const root = resolve(dir)
+  const repos = (await nested(root)).map((path) => ({ name: basename(path), path }))
+  const empty: string[] = []
+  for (const r of repos) if (!(await born(r.path))) empty.push(r.name)
+  return { repos, empty }
+}
+
+/** Los repositorios de una carpeta que se abre como un solo proyecto; si no sirve para eso, dice por qué. */
+export async function groupRepos(dir: string): Promise<ProjectRepo[]> {
+  const { repos, empty } = await checkGroup(dir)
+  if (!repos.length) throw new RuleError(T`Esta carpeta no tiene repositorios dentro: no se puede abrir como un solo proyecto.`)
+  if (empty.length) {
+    throw new RuleError(
+      empty.length === 1
+        ? T`El repositorio ${empty[0]} todavía no tiene ningún commit. Haz el primero ahí y vuelve a abrir el proyecto: la copia de cada empleado parte de él.`
+        : T`Los repositorios ${empty.join(', ')} todavía no tienen ningún commit. Haz el primero en cada uno y vuelve a abrir el proyecto: la copia de cada empleado parte de él.`,
+    )
+  }
+  return repos
 }
 
 /**

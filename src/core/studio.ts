@@ -5,11 +5,11 @@
  */
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
-import { access } from 'node:fs/promises'
-import { join } from 'node:path'
+import { access, mkdir, rmdir } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
-import { archiveCaptures } from './captures.js'
+import { archiveCaptures, listCaptures, type Capture } from './captures.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { getLang, T } from './i18n.js'
@@ -17,11 +17,12 @@ import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
 import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
 import { listPlans, savePlan } from './plans.js'
-import { askReminder, bossPrompt, employeePrompt, oneLine, planReminder, type Channel } from './prompts.js'
+import { askReminder, bossPrompt, employeePrompt, oneLine, planReminder, type Channel, type GroupInfo } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
+import { checkGroup, groupRepos, type ProjectRepo } from './repo.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
-import { commitDelivery, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, officePending, removeOffice, repoRoot, type Office } from './worktree.js'
+import { commitDelivery, createCopy, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, officeChanges, officeDiff, officePending, removeOffice, repoRoot, type FileChange, type Office } from './worktree.js'
 
 /** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
 const SUBMIT_RETRY_MS = 1200
@@ -36,6 +37,8 @@ export const BOSS_ID = 'jefe'
 
 export interface StudioSnapshot extends BoardSnapshot {
   repo: string
+  /** Los repositorios del proyecto cuando su carpeta agrupa varios; sin esto, el proyecto es un solo repositorio. */
+  repos?: ProjectRepo[]
   bossOnline: boolean
   /** Lo que el tablero dice de cada empleado: esperando a alguien, llevando su entrega o jugando. */
   hints: Record<string, NonNullable<ReturnType<Board['hint']>> | { state: 'gaming' }>
@@ -49,6 +52,12 @@ export interface StudioSnapshot extends BoardSnapshot {
 
 export interface StudioOptions {
   repo: string
+  /**
+   * `repo` no es un repositorio: es una carpeta que agrupa varios (sus
+   * subcarpetas directas con `.git`) y se abre como un solo proyecto. El jefe
+   * trabaja en ella y cada tarea pertenece a uno de sus repositorios.
+   */
+  group?: boolean
   manager: EmployeeManager
   detect: () => Promise<CliStatus[]>
   store?: StudioStore
@@ -114,6 +123,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private handoffWaiters = new Map<string, () => void>()
   private unsubscribe: () => void
   root = ''
+  /** Los repositorios del proyecto cuando su carpeta agrupa varios; vacío si el proyecto es un solo repositorio. */
+  repos: ProjectRepo[] = []
   readonly library: Library
   journal!: Journal
 
@@ -180,7 +191,11 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   async init() {
-    this.root = await repoRoot(this.opts.repo)
+    if (this.opts.group) {
+      // La raíz solo agrupa repositorios: no es uno, y ahí no se usa git.
+      this.root = resolve(this.opts.repo)
+      this.repos = await groupRepos(this.root)
+    } else this.root = await repoRoot(this.opts.repo)
     this.journal = new Journal(this.root)
     return this
   }
@@ -365,9 +380,10 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (!channel) throw new RuleError(T`${adapter.name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
     this.board.goal = req.goal
     const token = this.newToken({ kind: 'boss' })
-    const office = { path: this.root, branch: await currentBranch(this.root) }
+    // Con varios repositorios la raíz no tiene rama: cada uno lleva la suya.
+    const office = { path: this.root, branch: this.grouped ? '' : await currentBranch(this.root) }
     const name = bossName(req.name)
-    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID), channel, name)
+    const prompt = bossPrompt(req.goal, this.journal.path(BOSS_ID), channel, name, this.group)
     const viaArg = takesSystemPrompt(adapter)
     const owner: JournalOwner = { id: BOSS_ID, name: name ?? T`Jefe`, role: 'jefe', provider: req.provider, model: req.model }
     await this.journal.open(owner)
@@ -482,11 +498,11 @@ export class Studio extends EventEmitter<StudioEvents> {
         env: accountEnv(slot.provider, slot.account, this.opts.home),
         role: slot.role,
         repo: this.root,
-        office: again?.office,
+        office: again?.office ?? (await this.groupOffice(id)),
         binary: this.opts.binaries?.[slot.provider],
         extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
       },
-      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel)],
+      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel, this.group)],
     }, (e) =>
       again
         ? [e.resumed ? T`La app se reabrió y retomaste tu sesión. Revisa el corte que dejaste en tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).` : T`La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
@@ -664,6 +680,156 @@ export class Studio extends EventEmitter<StudioEvents> {
     return o
   }
 
+  // ── Varios repositorios ──────────────────────────────────────────────────
+  // La carpeta del proyecto puede no ser un repositorio sino agrupar varios. Entonces cada
+  // tarea pertenece a uno, la oficina de cada empleado es una carpeta con una copia (worktree)
+  // por repositorio en que tiene tarea, y entregar e integrar pasan por el de la tarea.
+
+  private get grouped() {
+    return this.repos.length > 0
+  }
+
+  /** Lo que se les cuenta a los agentes de un proyecto así; undefined si es un solo repositorio. */
+  private get group(): GroupInfo | undefined {
+    return this.grouped ? { root: this.root, repos: this.repos } : undefined
+  }
+
+  /** Vuelve a mirar la carpeta: pudo llegar un repositorio después de abrir el proyecto. Devuelve los que aún no tienen commits. */
+  private async scanRepos(): Promise<string[]> {
+    const { repos, empty } = await checkGroup(this.root)
+    const ready = repos.filter((r) => !empty.includes(r.name))
+    if (ready.length) this.repos = ready
+    return empty
+  }
+
+  /** El repositorio que el jefe nombra en una tarea. Si la carpeta solo trae uno, no hace falta decirlo. */
+  private async repoNamed(name: unknown): Promise<ProjectRepo> {
+    const wanted = String(name ?? '').trim().replace(/[\\/]+$/, '')
+    const names = () => this.repos.map((r) => r.name).join(', ')
+    if (!wanted) {
+      if (this.repos.length === 1) return this.repos[0]
+      throw new RuleError(T`Este proyecto agrupa varios repositorios: di a cuál pertenece la tarea con repositorio (${names()}). Una tarea, un repositorio.`)
+    }
+    const find = () => this.repos.find((r) => r.name === wanted) ?? this.repos.find((r) => r.name.toLowerCase() === wanted.toLowerCase())
+    let repo = find()
+    if (!repo) {
+      const empty = await this.scanRepos()
+      if (empty.some((n) => n.toLowerCase() === wanted.toLowerCase())) {
+        throw new RuleError(T`El repositorio ${wanted} todavía no tiene ningún commit: de él parte la copia de cada empleado. Pide al usuario que haga el primero.`)
+      }
+      repo = find()
+    }
+    if (!repo) throw new RuleError(T`No existe el repositorio "${wanted}" en este proyecto. Los que hay: ${names()}.`)
+    return repo
+  }
+
+  /** Carpeta del repositorio al que pertenece una tarea: el del proyecto o, si agrupa varios, el suyo. */
+  private repoOf(t: Task): string {
+    if (!this.grouped) return this.root
+    const repo = this.repos.find((r) => r.name === t.repo)
+    if (!repo) throw new RuleError(t.repo ? T`El repositorio ${t.repo} de ${t.id} ya no está en el proyecto.` : T`${t.id} no dice a qué repositorio pertenece.`)
+    return repo.path
+  }
+
+  /**
+   * Dónde se trabaja una tarea: la oficina de quien la lleva o, si el proyecto
+   * agrupa repositorios, su copia del de la tarea, dentro de esa oficina.
+   */
+  private workplace(t: Task): Office {
+    const office = this.office(t.assignee)
+    if (!this.grouped) return office
+    this.repoOf(t)
+    return { path: join(office.path, t.repo!), branch: office.branch }
+  }
+
+  /**
+   * La oficina de alguien en un proyecto que agrupa repositorios: una carpeta,
+   * no un worktree. Sus copias llegan con sus tareas, no al contratarlo.
+   */
+  private async groupOffice(id: string): Promise<Office | undefined> {
+    if (!this.grouped) return undefined
+    // El mismo id que le queda en la plantilla viva: sirve de carpeta y de rama.
+    const safe = id.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+    const path = join(this.root, '.orquest', 'oficinas', safe)
+    await mkdir(path, { recursive: true })
+    return { path, branch: `orquest/${safe}` }
+  }
+
+  /** Deja lista, en la oficina de alguien, su copia de un repositorio; si ya la tiene, no la toca. */
+  private async ensureCopy(employeeId: string, repo: ProjectRepo): Promise<void> {
+    const office = this.office(employeeId)
+    try {
+      await createCopy(repo.path, join(office.path, repo.name), office.branch)
+    } catch (err) {
+      throw new RuleError(T`No se pudo preparar la copia de ${repo.name} para ${this.nameOf(employeeId)}: ${(err as Error).message}`)
+    }
+  }
+
+  /** Lo mismo para la tarea que lleva: su copia del repositorio de esa tarea. */
+  private async copyFor(t: Task): Promise<void> {
+    const repo = this.repos.find((r) => r.name === t.repo)
+    if (repo) await this.ensureCopy(t.assignee, repo)
+  }
+
+  /** Las copias que hay en una oficina: una por repositorio en que se le asignó tarea. */
+  private async copiesIn(office: { path: string; branch: string }): Promise<{ name: string; repo: string; office: Office }[]> {
+    const found: { name: string; repo: string; office: Office }[] = []
+    for (const r of this.repos) {
+      const path = join(office.path, r.name)
+      if (await exists(join(path, '.git'))) found.push({ name: r.name, repo: r.path, office: { path, branch: office.branch } })
+    }
+    return found
+  }
+
+  /** Dónde tiene cambios alguien en un proyecto así: sus copias; el jefe, los repositorios mismos. */
+  private async copiesOf(id: string): Promise<{ name: string; repo: string; office: Office }[]> {
+    if (id === BOSS_ID) return this.repos.map((r) => ({ name: r.name, repo: r.path, office: { path: r.path, branch: '' } }))
+    return this.copiesIn(this.office(id))
+  }
+
+  /**
+   * Archivos que alguien tiene tocados, para su panel. Con varios repositorios
+   * salen los de cada copia, con el nombre del repositorio al frente de la ruta.
+   */
+  async changes(id: string): Promise<FileChange[]> {
+    if (!this.grouped) return officeChanges(this.office(id))
+    const all: FileChange[] = []
+    for (const c of await this.copiesOf(id)) {
+      for (const f of await officeChanges(c.office)) all.push({ ...f, path: `${c.name}/${f.path}` })
+    }
+    return all
+  }
+
+  /** El diff de uno de esos archivos. */
+  async fileDiff(id: string, path: string): Promise<string> {
+    if (!this.grouped) return officeDiff(this.office(id), path)
+    const [name, ...rest] = path.split('/')
+    const copy = (await this.copiesOf(id)).find((c) => c.name === name)
+    return copy && rest.length ? officeDiff(copy.office, rest.join('/')) : ''
+  }
+
+  /** Las capturas de alguien en un proyecto que agrupa repositorios: las de cada copia, con el repositorio al frente. */
+  async captures(id: string): Promise<Capture[]> {
+    const all: Capture[] = []
+    for (const c of await this.copiesOf(id)) {
+      const main = id === BOSS_ID ? undefined : await headOf(c.repo).catch(() => undefined)
+      for (const shot of await listCaptures(c.office.path, [], main)) all.push({ ...shot, path: `${c.name}/${shot.path}` })
+    }
+    return all.sort((a, b) => b.at - a.at)
+  }
+
+  /** El aviso a quien esperaba una tarea que se acaba de integrar. */
+  private releasedNote(t: Task, r: Task, branch: string): string {
+    const report = t.delivery?.report ?? ''
+    if (!this.grouped) {
+      return T`Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) ya está integrada en ${branch}. Tráela a tu oficina con: git merge ${branch}. Su reporte: ${report}. Tu tarea ${r.id} está lista; usa leer_tarea.`
+    }
+    // Del mismo repositorio se trae a su copia; de otro no hay nada que traer: se lee donde quedó.
+    return r.repo === t.repo
+      ? T`Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) ya está integrada en ${branch} de ${t.repo}. Tráela a tu copia de ese repositorio (${this.workplace(r).path}) con: git merge ${branch}. Su reporte: ${report}. Tu tarea ${r.id} está lista; usa leer_tarea.`
+      : T`Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) ya está integrada en ${branch} del repositorio ${t.repo}, que no es el de tu tarea: no hay nada que traer a tu copia. Léela en ${this.repoOf(t)}, sin modificar nada ahí. Su reporte: ${report}. Tu tarea ${r.id} (${r.repo}) está lista; usa leer_tarea.`
+  }
+
   // ── Herramientas MCP ─────────────────────────────────────────────────────
 
   async call(caller: Caller, tool: string, args: Record<string, unknown>): Promise<string> {
@@ -705,8 +871,12 @@ export class Studio extends EventEmitter<StudioEvents> {
   private async bossTool(tool: string, a: Record<string, any>): Promise<string> {
     const b = this.board
     switch (tool) {
-      case 'leer_proyecto':
-        return JSON.stringify({ ...this.projectView(), planes: await this.plansView() }, null, 2)
+      case 'leer_proyecto': {
+        if (!this.grouped) return JSON.stringify({ ...this.projectView(), planes: await this.plansView() }, null, 2)
+        await this.scanRepos()
+        const repositorios = await Promise.all(this.repos.map(async (r) => ({ nombre: r.name, ruta: r.path, rama: await currentBranch(r.path).catch(() => undefined) })))
+        return JSON.stringify({ ...this.projectView(), repositorios, planes: await this.plansView() }, null, 2)
+      }
 
       case 'guardar_plan': {
         const plan = await savePlan(this.root, String(a.titulo ?? ''), String(a.contenido ?? ''))
@@ -783,17 +953,25 @@ export class Studio extends EventEmitter<StudioEvents> {
         if (a.tarea_id) {
           t = b.task(String(a.tarea_id))
           if (a.empleado && a.empleado !== t.assignee) t = b.reassign(t.id, String(a.empleado))
+          if (this.grouped && a.repositorio) t = b.setRepo(t.id, (await this.repoNamed(a.repositorio)).name)
           if (a.depende_de) t = b.setDeps(t.id, a.depende_de)
+          // Quien la lleva ahora necesita su copia del repositorio de la tarea (a quien ya se fue no se le arma otra).
+          if (this.grouped && b.member(t.assignee).online) await this.copyFor(t)
         } else {
           if (!a.empleado || !a.titulo) throw new RuleError(T`Para crear una tarea indica empleado y titulo.`)
-          t = b.assign({ assignee: String(a.empleado), title: String(a.titulo), description: String(a.descripcion ?? ''), deps: a.depende_de })
+          // Con varios repositorios la tarea es de uno, y su copia se prepara antes de apuntarla: no queda una tarea sin dónde trabajarla.
+          const repo = this.grouped ? await this.repoNamed(a.repositorio) : undefined
+          if (repo && b.member(String(a.empleado)).online) await this.ensureCopy(b.member(String(a.empleado)).id, repo)
+          t = b.assign({ assignee: String(a.empleado), title: String(a.titulo), description: String(a.descripcion ?? ''), deps: a.depende_de, repo: repo?.name })
         }
         this.fact(t.assignee, t.deps.length ? T`${t.id} asignada: ${t.title} (depende de ${t.deps.join(', ')})` : T`${t.id} asignada: ${t.title}`)
-        if (t.status === 'ready') this.notify(t.assignee, T`Tienes una tarea nueva (${t.id}: ${t.title}). Usa leer_tarea.`)
-        else if (t.status === 'waiting') {
+        if (t.status === 'ready') {
+          this.notify(t.assignee, this.grouped ? T`Tienes una tarea nueva (${t.id}: ${t.title}) en el repositorio ${t.repo}: se trabaja en ${this.workplace(t).path}. Usa leer_tarea.` : T`Tienes una tarea nueva (${t.id}: ${t.title}). Usa leer_tarea.`)
+        } else if (t.status === 'waiting') {
           this.notify(t.assignee, T`Se te asignó ${t.id} (${t.title}); espera a ${b.openDeps(t).map((d) => T`${d.id} de ${d.assignee}`).join(', ')}. Se te avisará al liberarse.`)
         }
-        return t.status === 'waiting' ? T`${t.id} → ${t.assignee}: esperando a ${b.openDeps(t).map((d) => d.id).join(', ')}.` : `${t.id} → ${t.assignee}: ${t.status}.`
+        const where = this.grouped ? ` ${T`Repositorio: ${t.repo}.`}` : ''
+        return `${t.status === 'waiting' ? T`${t.id} → ${t.assignee}: esperando a ${b.openDeps(t).map((d) => d.id).join(', ')}.` : `${t.id} → ${t.assignee}: ${t.status}.`}${where}`
       }
 
       case 'preguntar_al_usuario': {
@@ -856,7 +1034,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         if (t.status !== 'approved') this.record(t, 'returned', String(a.notas ?? ''))
         if (t.status === 'approved') {
           // Sin cambios que integrar (una prueba, una revisión): se cierra aquí, no va a la bandeja.
-          if (t.delivery?.commit && (await nothingToMerge(this.root, t.delivery.commit))) {
+          if (t.delivery?.commit && (await nothingToMerge(this.repoOf(t), t.delivery.commit))) {
             const released = b.closeEmpty(t.id)
             this.record(t, 'merged')
             for (const r of released) this.notify(r.assignee, T`Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) quedó cerrada. Su reporte: ${t.delivery.report ?? ''}. Tu tarea ${r.id} está lista; usa leer_tarea.`)
@@ -871,6 +1049,8 @@ export class Studio extends EventEmitter<StudioEvents> {
 
       case 'mandar_a_qa': {
         const review = b.toQa(String(a.tarea), String(a.empleado_qa), String(a.instrucciones ?? ''))
+        // QA revisa en su propia copia del repositorio de esa tarea.
+        if (this.grouped) await this.copyFor(review)
         this.fact(review.assignee, T`${review.id} asignada: ${review.title}`)
         this.notify(review.assignee, T`Tienes una revisión de QA (${review.id}). Usa leer_tarea.`)
         return T`${review.id} creada para ${review.assignee}.`
@@ -890,6 +1070,8 @@ export class Studio extends EventEmitter<StudioEvents> {
             ? T`Tu tarea ${waiting.id} (${waiting.title}) espera a ${b.openDeps(waiting).map((d) => T`${d.id} de ${d.assignee}`).join(', ')}. Se te avisará.`
             : T`No tienes tarea asignada. Espera instrucciones del jefe.`
         }
+        // Por si su copia ya no está (alguien borró la carpeta): se repone antes de mandarlo a trabajar ahí.
+        if (this.grouped) await this.copyFor(t)
         return JSON.stringify(this.taskView(t), null, 2)
       }
 
@@ -926,7 +1108,8 @@ export class Studio extends EventEmitter<StudioEvents> {
           throw new RuleError(T`El manual de ${member.role} pide capturas en la entrega. ${manual.delivery}`)
         }
         let diff: { commit?: string; diffStat?: string } = {}
-        if (t!.kind === 'work') diff = await commitDelivery(this.office(id), `${t!.id}: ${t!.title}`, await headOf(this.root).catch(() => undefined))
+        // El commit va en su copia del repositorio de la tarea y se mide contra la rama activa de ese repositorio.
+        if (t!.kind === 'work') diff = await commitDelivery(this.workplace(t!), `${t!.id}: ${t!.title}`, await headOf(this.repoOf(t!)).catch(() => undefined))
         const verdict = a.veredicto === 'pasa' ? 'pass' : a.veredicto === 'no_pasa' ? 'fail' : undefined
         const { task, reviewed } = b.deliver(id, {
           report: String(a.reporte),
@@ -989,8 +1172,10 @@ export class Studio extends EventEmitter<StudioEvents> {
   async merge(taskId: string): Promise<Task[]> {
     const t = this.board.task(taskId)
     if (t.status !== 'approved') throw new RuleError(T`${t.id} no está aprobada por el jefe.`)
-    const office = this.office(t.assignee)
-    const result = await mergeOffice(this.root, office, `${t.id}: ${t.title} (${t.assignee})`)
+    // Se integra en el repositorio de la tarea, a su rama activa.
+    const repo = this.repoOf(t)
+    const office = this.workplace(t)
+    const result = await mergeOffice(repo, office, `${t.id}: ${t.title} (${t.assignee})`)
     if (!result.ok) {
       this.notify(BOSS_ID, T`No se pudo integrar ${t.id}: ${result.reason} Pide a ${t.assignee} que integre la rama base y entregue de nuevo, o regrésala.`)
       this.changed()
@@ -1001,13 +1186,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     // Si quien la hizo ya no trabaja aquí, era lo último que detenía su oficina.
     const author = this.board.staff.find((m) => m.id === t.assignee)
     if (author?.gone && author.office) await this.vacate(author.id, author.office)
-    const branch = await currentBranch(this.root)
-    for (const r of released) {
-      this.notify(
-        r.assignee,
-        T`Tu dependencia ${t.id} (${t.title}, de ${t.assignee}) ya está integrada en ${branch}. Tráela a tu oficina con: git merge ${branch}. Su reporte: ${t.delivery?.report ?? ''}. Tu tarea ${r.id} está lista; usa leer_tarea.`,
-      )
-    }
+    const branch = await currentBranch(repo)
+    for (const r of released) this.notify(r.assignee, this.releasedNote(t, r, branch))
     this.notify(BOSS_ID, `${T`El usuario integró ${t.id}.`}${released.length ? ` ${T`Se liberó: ${released.map((r) => r.id).join(', ')}.`}` : ''}`)
     this.changed()
     return released
@@ -1048,10 +1228,11 @@ export class Studio extends EventEmitter<StudioEvents> {
   async diff(taskId: string): Promise<string> {
     const t = this.board.task(taskId)
     if (!t.delivery?.commit) return ''
-    const office = this.office(t.assignee)
+    const repo = this.repoOf(t)
+    const office = this.workplace(t)
     // La oficina de quien ya no trabaja aquí pudo desocuparse: sus commits siguen en el repo y se leen desde ahí.
-    const from = (await exists(office.path)) ? office : { ...office, path: this.root }
-    return deliveryDiff(from, t.delivery.commit, await headOf(this.root).catch(() => undefined))
+    const from = (await exists(office.path)) ? office : { ...office, path: repo }
+    return deliveryDiff(from, t.delivery.commit, await headOf(repo).catch(() => undefined))
   }
 
   // ── Vistas ───────────────────────────────────────────────────────────────
@@ -1065,7 +1246,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       const c = this.opts.manager.get(id)?.context
       if (c !== undefined) context[id] = c
     }
-    return { ...this.board.snapshot(), repo: this.root, bossOnline: this.bossOnline || this.resting.has(BOSS_ID), resumable: this.resumable, hints, context, burnoutAt: this.burnoutAt }
+    return { ...this.board.snapshot(), repo: this.root, ...(this.grouped ? { repos: this.repos } : {}), bossOnline: this.bossOnline || this.resting.has(BOSS_ID), resumable: this.resumable, hints, context, burnoutAt: this.burnoutAt }
   }
 
   /** Lo que reporta la barra de estado de una CLI (Claude Code): % de contexto. */
@@ -1113,7 +1294,17 @@ export class Studio extends EventEmitter<StudioEvents> {
   private async vacate(id: string, office: { path: string; branch: string }) {
     try {
       if (!(await exists(office.path))) return
-      const left = await officePending(this.root, office)
+      // Con varios repositorios hay una copia por cada uno en que trabajó; con uno solo, la oficina es la copia.
+      const shots = join(this.root, '.orquest', 'capturas', id)
+      const copies = this.grouped
+        ? (await this.copiesIn(office)).map((c) => ({ ...c, shots: join(shots, c.name) }))
+        : [{ repo: this.root, office, shots }]
+      const left = { files: 0, commits: 0 }
+      for (const c of copies) {
+        const pending = await officePending(c.repo, c.office)
+        left.files += pending.files
+        left.commits += pending.commits
+      }
       if (left.files || left.commits) {
         const files = left.files ? (left.files === 1 ? T`${left.files} archivo sin entregar` : T`${left.files} archivos sin entregar`) : ''
         const commits = left.commits ? (left.commits === 1 ? T`${left.commits} commit sin integrar` : T`${left.commits} commits sin integrar`) : ''
@@ -1124,9 +1315,13 @@ export class Studio extends EventEmitter<StudioEvents> {
       }
       // Sus capturas suelen estar en carpetas que git ignora: se guardan antes de quitar la oficina.
       const attached = this.board.tasks.filter((t) => t.assignee === id).flatMap((t) => [...(t.delivery?.screenshots ?? []), ...(t.qa?.screenshots ?? [])])
-      const shots = join(this.root, '.orquest', 'capturas', id)
-      const saved = await archiveCaptures(office.path, shots, attached, await headOf(this.root).catch(() => undefined))
-      await removeOffice(this.root, office, true)
+      let saved = 0
+      for (const c of copies) {
+        saved += await archiveCaptures(c.office.path, c.shots, attached, await headOf(c.repo).catch(() => undefined))
+        await removeOffice(c.repo, c.office, true)
+      }
+      // La carpeta que juntaba las copias se va con ellas, si no le queda nada dentro.
+      if (this.grouped) await rmdir(office.path).catch(() => {})
       this.fact(id, saved ? T`su oficina se desocupó: todo lo suyo ya estaba integrado; sus ${saved} capturas quedaron en ${shots}` : T`su oficina se desocupó: todo lo suyo ya estaba integrado`)
     } catch (err) {
       this.emit('notice', T`No se pudo desocupar la oficina de ${this.nameOf(id)}: ${(err as Error).message}`)
@@ -1165,6 +1360,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         tipo: t.kind,
         titulo: t.title,
         responsable: t.assignee,
+        repositorio: t.repo,
         estado: t.status,
         depende_de: t.deps,
         regresada: t.returns,
@@ -1194,15 +1390,23 @@ export class Studio extends EventEmitter<StudioEvents> {
       titulo: t.title,
       descripcion: t.description,
       estado: t.status,
+      // Con varios repositorios: de cuál es la tarea, en qué carpeta de su oficina se trabaja y dónde leer los demás.
+      ...(this.grouped
+        ? {
+            repositorio: t.repo,
+            carpeta: this.workplace(t).path,
+            otros_repositorios_solo_lectura: this.repos.filter((r) => r.name !== t.repo).map((r) => ({ repositorio: r.name, ruta: r.path })),
+          }
+        : {}),
       dependencias: t.deps.map((d) => {
         const dep = b.task(d)
-        return { id: dep.id, titulo: dep.title, de: dep.assignee, estado: dep.status, reporte: dep.delivery?.report, cambios: dep.delivery?.diffStat }
+        return { id: dep.id, titulo: dep.title, de: dep.assignee, repositorio: dep.repo, estado: dep.status, reporte: dep.delivery?.report, cambios: dep.delivery?.diffStat }
       }),
       revisa_a:
         t.reviewOf &&
         (() => {
           const r = b.task(t.reviewOf!)
-          return { id: r.id, titulo: r.title, de: r.assignee, rama: this.offices.get(r.assignee)?.branch, reporte: r.delivery?.report, cambios: r.delivery?.diffStat }
+          return { id: r.id, titulo: r.title, de: r.assignee, repositorio: r.repo, rama: this.offices.get(r.assignee)?.branch, reporte: r.delivery?.report, cambios: r.delivery?.diffStat }
         })(),
       historial: t.history.slice(-8).map((h) => h.text),
       ultimo_qa: t.qa && { veredicto: t.qa.verdict, reporte: t.qa.report },

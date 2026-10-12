@@ -164,6 +164,7 @@ const en: Record<string, string> = {
   'Bandeja vacía': 'Inbox empty',
   'Aquí llega lo que el jefe ya aprobó. Cuando alguien haga fila frente a su oficina, lo verás aquí.':
     'What the boss has already approved arrives here. When someone lines up outside their office, you will see it here.',
+  "repositorio {0}": "repository {0}",
   'regresó {0}×': 'sent back {0}×',
   'Escribe abajo qué falta': "Write below what's missing",
   'Regresar': 'Send back',

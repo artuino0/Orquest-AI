@@ -51,6 +51,9 @@ const en: Record<string, string> = {
   "{0} ya estaba retirada.": "{0} was already withdrawn.",
   "La respuesta va vacía.": "The answer is empty.",
   "Di por qué ya no hace falta: el usuario la tenía pendiente y lo va a ver.": "Say why it's no longer needed: the user had it pending and will see this.",
+  "{0} ya empezó en {1}; no se le puede cambiar de repositorio. Crea otra tarea para {2}.": "{0} has already started in {1}; its repository can't be changed. Create another task for {2}.",
+  "su repositorio": "its repository",
+  "pasa al repositorio {0}": "moved to the {0} repository",
 
   // mcp.ts: descripciones de herramientas y campos (los nombres no se traducen)
   "desarrollo, backend, frontend, dba, infra, qa o diseno": "desarrollo, backend, frontend, dba, infra, qa or diseno",
@@ -64,6 +67,7 @@ const en: Record<string, string> = {
   "Crea una tarea para un empleado, con dependencias. Con tarea_id cambia el responsable o las dependencias de una existente. Rechaza dependencias circulares.": "Creates a task for an employee, with dependencies. With tarea_id it changes the assignee or the dependencies of an existing task. Circular dependencies are rejected.",
   "Id del empleado": "Employee id",
   "Ids de tareas que deben integrarse antes": "Ids of tasks that must be merged first",
+  "Solo si el proyecto agrupa varios repositorios: a cuál pertenece la tarea (el nombre de su carpeta, como sale en leer_proyecto)": "Only if the project groups several repositories: which one the task belongs to (its folder name, as shown in leer_proyecto)",
   "Para modificar una tarea existente": "To modify an existing task",
   "Le contesta o avisa algo al usuario. Él no ve tu terminal: solo lee lo que mandes con esta herramienta.": "Replies to or notifies the user. They can't see your terminal: they only read what you send with this tool.",
   "Le pregunta al usuario algo que solo él puede decidir o saber. Cada pregunta queda pendiente a su vista hasta que conteste, y Orquest te avisa con su respuesta. Úsala en vez de decir_al_usuario siempre que necesites una respuesta para seguir.": "Asks the user something only they can decide or know. Each question stays pending in their view until they answer, and Orquest tells you their answer. Use it instead of decir_al_usuario whenever you need an answer to continue.",
@@ -205,6 +209,9 @@ const en: Record<string, string> = {
   'Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.': 'Each employee works in its own copy of the repository and deliveries are merged into your branch: git does all of that.',
   '# Creado por Orquest AI al iniciar el repositorio: lo que no se guarda en git.': "# Created by Orquest AI when starting the repository: what git doesn't keep.",
   'Esta carpeta tiene repositorios dentro: abre uno de ellos en vez de iniciar otro aquí.': 'This folder has repositories inside: open one of them instead of starting another one here.',
+  "Esta carpeta no tiene repositorios dentro: no se puede abrir como un solo proyecto.": "This folder has no repositories inside: it can't be opened as a single project.",
+  "El repositorio {0} todavía no tiene ningún commit. Haz el primero ahí y vuelve a abrir el proyecto: la copia de cada empleado parte de él.": "The {0} repository has no commits yet. Make the first one there and reopen the project: each employee's copy starts from it.",
+  "Los repositorios {0} todavía no tienen ningún commit. Haz el primero en cada uno y vuelve a abrir el proyecto: la copia de cada empleado parte de él.": "The repositories {0} have no commits yet. Make the first one in each and reopen the project: each employee's copy starts from it.",
   'Primer commit': 'Initial commit',
   'No encontré esa pregunta en su pantalla. Ábrele la terminal y contesta ahí.': "I couldn't find that question on its screen. Open its terminal and answer there.",
 }

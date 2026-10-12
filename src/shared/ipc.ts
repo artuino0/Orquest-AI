@@ -1,6 +1,6 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
 import type { UpdateInfo } from '../core/update.js'
-import type { RepoCheck } from '../core/repo.js'
+import type { GroupCheck, ProjectRepo, RepoCheck } from '../core/repo.js'
 import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
 import type { CliStatus, Requirement } from '../core/detect.js'
@@ -62,13 +62,16 @@ export interface OrquestApi {
   checkRepo(path: string): Promise<RepoCheck>
   /** La deja lista: la inicia como repositorio si hace falta y guarda el primer commit. */
   prepareRepo(path: string): Promise<void>
+  /** Los repositorios que agrupa una carpeta y cuáles aún no tienen commits: con eso se sabe si se abre como un solo proyecto. */
+  checkGroup(path: string): Promise<GroupCheck>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>
   /** Abre una página en el navegador del sistema (guías de instalación). */
   openExternal(url: string): Promise<void>
 
   // Proyecto, jefe y tablero.
-  openProject(repo: string): Promise<StudioSnapshot>
+  /** `group`: la carpeta no es un repositorio sino que agrupa varios, y se abre como un solo proyecto. */
+  openProject(repo: string, group?: boolean): Promise<StudioSnapshot>
   /** Retoma a quienes estaban al cerrar (StudioSnapshot.resumable) o decide no hacerlo. */
   resumeProject(): Promise<void>
   skipResume(): Promise<void>
@@ -136,6 +139,6 @@ export interface OrquestApi {
   onHired(cb: (e: Employee) => void): () => void
 }
 
-export type { RepoCheck }
+export type { GroupCheck, ProjectRepo, RepoCheck }
 export type { BlockKind }
 export type { UpdateInfo }

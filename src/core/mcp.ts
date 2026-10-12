@@ -81,6 +81,7 @@ export const TOOLS: Record<string, ToolDef> = {
         empleado: z.string().optional().describe(T`Id del empleado`),
         titulo: z.string().optional(),
         descripcion: z.string().optional(),
+        repositorio: z.string().optional().describe(T`Solo si el proyecto agrupa varios repositorios: a cuál pertenece la tarea (el nombre de su carpeta, como sale en leer_proyecto)`),
         depende_de: z.array(z.string()).optional().describe(T`Ids de tareas que deben integrarse antes`),
         tarea_id: z.string().optional().describe(T`Para modificar una tarea existente`),
       }

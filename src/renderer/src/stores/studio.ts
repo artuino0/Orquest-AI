@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck, BlockKind } from '../../../shared/ipc'
+import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, GroupCheck, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck, BlockKind } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
@@ -21,6 +21,8 @@ export interface Recent {
   path: string
   /** Cuándo se abrió por última vez; 0 si viene de una versión que no lo guardaba. */
   at: number
+  /** Es una carpeta que agrupa repositorios y se abrió como un solo proyecto. */
+  group?: boolean
   /** Lo guardado del proyecto; undefined mientras se pregunta, null si no hay nada. */
   summary?: ProjectSummary | null
 }
@@ -28,7 +30,7 @@ export interface Recent {
 function loadRecents(): Recent[] {
   try {
     const saved = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as (string | Recent)[]
-    return saved.map((r) => (typeof r === 'string' ? { path: r, at: 0 } : { path: r.path, at: r.at }))
+    return saved.map((r) => (typeof r === 'string' ? { path: r, at: 0 } : { path: r.path, at: r.at, ...(r.group ? { group: true } : {}) }))
   } catch {
     return []
   }
@@ -36,7 +38,7 @@ function loadRecents(): Recent[] {
 
 function saveRecents(list: Recent[]) {
   try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.map(({ path, at }) => ({ path, at }))))
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.map(({ path, at, group }) => ({ path, at, group }))))
   } catch {
     // Sin almacenamiento solo se pierden los recientes.
   }
@@ -200,18 +202,21 @@ export const useStudio = defineStore('studio', () => {
   }
 
   /** La carpeta que se quiso abrir y lo que le falta para servir (ver RepoSetup.vue). */
-  const repoIssue = ref<({ path: string } & RepoCheck) | null>(null)
-  async function openProject(path: string) {
+  const repoIssue = ref<({ path: string; group?: GroupCheck } & RepoCheck) | null>(null)
+  /** `asGroup`: la carpeta agrupa repositorios y el usuario eligió abrirla como un solo proyecto. */
+  async function openProject(path: string, asGroup = false) {
     error.value = null
     // Antes de abrir: ¿es un repositorio con al menos un commit? Si no, se le ofrece al usuario prepararlo.
     const check = await window.orquest.checkRepo(path).catch(() => null)
-    if (check && check.state !== 'ok') {
-      repoIssue.value = { path, ...check }
+    // Una carpeta que agrupa repositorios se abre entera si así se eligió, ahora o la vez anterior (viene en recientes).
+    const group = !!check && check.state !== 'ok' && check.inside.length > 0 && (asGroup || recents.value.some((r) => r.path === path && r.group))
+    if (check && check.state !== 'ok' && !group) {
+      repoIssue.value = { path, ...check, group: check.inside.length ? await window.orquest.checkGroup(path).catch(() => undefined) : undefined }
       return
     }
     repoIssue.value = null
     try {
-      board.value = await window.orquest.openProject(path)
+      board.value = await window.orquest.openProject(path, group)
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       return
@@ -220,7 +225,7 @@ export const useStudio = defineStore('studio', () => {
     loadBossCharacter(board.value.repo)
     // Se guarda la raíz del repo: es con la que el estudio recuerda el proyecto.
     const root = board.value.repo
-    recents.value = [{ path: root, at: Date.now() }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
+    recents.value = [{ path: root, at: Date.now(), ...(group ? { group: true } : {}) }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
     saveRecents(recents.value)
     resumeAsked.value = false
     await loadEmployees()

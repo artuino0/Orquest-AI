@@ -74,9 +74,10 @@ export function installMock(caso: string) {
     },
     // ?caso=sin-git: una máquina recién estrenada, sin git.
     requirements: async () => [{ id: 'git', name: 'Git', installed: caso !== 'sin-git', version: caso !== 'sin-git' ? '2.47.0' : undefined, why: 'Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.', install: { command: 'winget install --id Git.Git -e', url: 'https://git-scm.com/downloads' } }],
-    // ?caso=sin-repo y ?caso=sin-commits: la carpeta elegida no está lista.
-    checkRepo: async () => ({ state: caso === 'sin-repo' ? 'no-repo' : caso === 'sin-commits' ? 'no-commits' : 'ok', inside: [], gitignore: false }),
+    // ?caso=sin-repo y ?caso=sin-commits: la carpeta elegida no está lista. ?caso=varios-repos: agrupa repositorios.
+    checkRepo: async (path) => ({ state: caso === 'sin-repo' || caso === 'varios-repos' ? 'no-repo' : caso === 'sin-commits' ? 'no-commits' : 'ok', inside: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => `${path}/${n}`) : [], gitignore: false }),
     prepareRepo: async () => {},
+    checkGroup: async (path) => ({ repos: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => ({ name: n, path: `${path}/${n}` })) : [], empty: [] }),
     // ?actualiza=1: como si hubiera una versión nueva publicada.
     checkUpdate: async () => (new URLSearchParams(location.search).get('actualiza') ? { version: '9.9.9', url: 'https://github.com/artuino0/Orquest-AI/releases' } : null),
     detectClis: async () => {

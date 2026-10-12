@@ -67,7 +67,7 @@ function deps(ids: string[]) {
         <tr class="group"><td colspan="7"><b>{{ roleLabel(g.dept) }}</b> {{ taskCount(g.tasks.length) }}</td></tr>
         <tr v-for="t in g.tasks" :key="t.id" class="pick" @click="studio.select(t.assignee)">
           <td class="id">{{ t.id }}</td>
-          <td>{{ t.title }}</td>
+          <td>{{ t.title }}<small v-if="t.repo" class="repo">{{ t.repo }}</small></td>
           <td><span class="pv"><i :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }}</span></td>
           <td><span class="chip" :style="{ color: `var(--st-${TASK_COLOR[t.status]})` }">■ {{ capital(TASK_STATUS[t.status]) }}</span></td>
           <td :class="t.deps.length ? 'dep' : 'dim'">{{ t.deps.length ? deps(t.deps) : '—' }}</td>
@@ -92,6 +92,7 @@ function deps(ids: string[]) {
 .group td { padding: 7px 12px; background: var(--surface); font-size: 10px; color: var(--text-secondary); }
 .group b { font: 700 12px var(--font-pixel); color: var(--accent); text-transform: uppercase; margin-right: 6px; }
 .id { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.repo { margin-left: 8px; font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
 .dep { color: var(--st-dep); }
 .ret { color: var(--accent); font-weight: 700; white-space: nowrap; }
 .ret.hot { color: var(--st-block); }

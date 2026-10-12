@@ -97,7 +97,7 @@ const subtitle = computed(() => {
         <header>
           <div class="who">
             <h2><span class="id">{{ t.id }}</span> {{ t.title }} <span class="chip" :style="{ color: qaOf(t).color ? `var(--st-${qaOf(t).color})` : 'var(--text-secondary)' }">{{ qaOf(t).text }}</span></h2>
-            <p class="dim"><i class="sq" :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }} · {{ member(t.assignee)?.role }} · {{ cli(t.assignee) }}<template v-if="t.returns"> · {{ T`regresó ${t.returns}×` }}</template></p>
+            <p class="dim"><i class="sq" :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }} · {{ member(t.assignee)?.role }} · {{ cli(t.assignee) }}<template v-if="t.repo"> · {{ T`repositorio ${t.repo}` }}</template><template v-if="t.returns"> · {{ T`regresó ${t.returns}×` }}</template></p>
           </div>
           <button class="btn" :disabled="busy === t.id || !notes[t.id]?.trim()" :title="T`Escribe abajo qué falta`" @click="sendBack(t.id)"><Undo2 /> {{ T`Regresar` }}</button>
           <button class="btn primary" :disabled="busy === t.id" @click="merge(t.id)"><GitMerge /> {{ conflicts[t.id] ? T`Reintentar` : T`Integrar` }}</button>
@@ -142,7 +142,7 @@ const subtitle = computed(() => {
         <ChevronRight />
         <span class="id">{{ t.id }}</span>
         <b>{{ t.title }}</b>
-        <span class="dim grow">{{ studio.nameOf(t.assignee) }}<template v-if="t.delivery?.diffStat"> · {{ t.delivery.diffStat.trim() }}</template></span>
+        <span class="dim grow">{{ studio.nameOf(t.assignee) }}<template v-if="t.repo"> · {{ t.repo }}</template><template v-if="t.delivery?.diffStat"> · {{ t.delivery.diffStat.trim() }}</template></span>
         <span class="chip" :style="{ color: qaOf(t).color ? `var(--st-${qaOf(t).color})` : 'var(--text-secondary)' }">{{ qaOf(t).text }}</span>
         <button class="btn primary" :disabled="busy === t.id" @click.stop="merge(t.id)"><GitMerge /> {{ T`Integrar` }}</button>
       </article>

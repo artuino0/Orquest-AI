@@ -59,6 +59,29 @@ async function excludeOrquest(root: string) {
   }
 }
 
+/**
+ * Copia de un repositorio dentro de la oficina de un empleado, para los
+ * proyectos que agrupan varios: un worktree en `path` sobre la rama `branch`
+ * de ese repositorio. Si la rama ya existe (el empleado vuelve a trabajar ahí)
+ * se reutiliza; si la copia ya está, se deja como está. `.orquest` vive en la
+ * raíz del proyecto, fuera de cada repositorio: no hay nada que excluir de git.
+ */
+export async function createCopy(repo: string, path: string, branch: string, base = 'HEAD'): Promise<Office> {
+  const root = await repoRoot(repo)
+  if (await access(join(path, '.git')).then(() => true, () => false)) return { path, branch }
+  await mkdir(dirname(path), { recursive: true })
+  // Una copia borrada a mano sigue apuntada en git y no dejaría usar su rama otra vez.
+  await git(root, 'worktree', 'prune')
+  const known = await git(root, 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`).then(() => true, () => false)
+  if (known) {
+    await git(root, 'worktree', 'add', path, branch)
+    return { path, branch }
+  }
+  const sha = await git(root, 'rev-parse', base)
+  await git(root, 'worktree', 'add', '-b', branch, path, sha)
+  return { path, branch, base: sha }
+}
+
 /** Quita la oficina. La rama se conserva: ahí está la entrega. */
 export async function removeOffice(repo: string, office: Pick<Office, 'path'>, force = false): Promise<void> {
   const root = await repoRoot(repo)

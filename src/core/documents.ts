@@ -54,6 +54,21 @@ export async function listDocuments(root: string): Promise<ProjectDocument[]> {
   return docs.sort((a, b) => b.at - a.at)
 }
 
+/**
+ * Lo mismo cuando el proyecto es una carpeta que agrupa repositorios: los
+ * documentos de cada uno, con el nombre de su carpeta al frente de la ruta, y
+ * los planes del jefe, que viven en la raíz.
+ */
+export async function listGroupDocuments(root: string, repos: { name: string; path: string }[]): Promise<ProjectDocument[]> {
+  const docs: ProjectDocument[] = []
+  for (const repo of repos) {
+    // Un repositorio que no se deja leer no esconde los documentos de los demás.
+    for (const d of await listDocuments(repo.path).catch(() => [])) docs.push({ ...d, path: `${repo.name}/${d.path}` })
+  }
+  for (const p of await listPlans(root)) docs.push({ path: p.file, at: p.at, size: p.size, plan: true })
+  return docs.sort((a, b) => b.at - a.at)
+}
+
 /** El texto de un documento del repo. No sale del repo ni lee cosas enormes. */
 export async function readDocument(root: string, path: string): Promise<string> {
   const full = resolve(root, path)

@@ -45,6 +45,11 @@ export interface Task {
   title: string
   description: string
   assignee: string
+  /**
+   * Repositorio al que pertenece, por el nombre de su carpeta, cuando el
+   * proyecto agrupa varios; sin él, el proyecto es un solo repositorio.
+   */
+  repo?: string
   deps: string[]
   status: TaskStatus
   /** QA: tarea que revisa. */
@@ -339,8 +344,12 @@ export class Board {
     return t
   }
 
-  /** Crea una tarea. Con dependencias abiertas no arranca. */
-  assign(input: { assignee: string; title: string; description: string; deps?: string[] }): Task {
+  /**
+   * Crea una tarea. Con dependencias abiertas no arranca. `repo`: a qué
+   * repositorio pertenece si el proyecto agrupa varios; que exista lo revisa
+   * quien orquesta, el tablero no conoce el disco.
+   */
+  assign(input: { assignee: string; title: string; description: string; deps?: string[]; repo?: string }): Task {
     const m = this.member(input.assignee)
     if (!m.online) throw new RuleError(T`${m.id} ya no está en la oficina.`)
     const deps = [...new Set(input.deps ?? [])]
@@ -351,6 +360,7 @@ export class Board {
       title: input.title,
       description: input.description,
       assignee: m.id,
+      ...(input.repo ? { repo: input.repo } : {}),
       deps,
       status: 'waiting',
       returns: 0,
@@ -374,6 +384,18 @@ export class Board {
     t.deps = [...new Set(deps)]
     t.status = 'waiting'
     this.refresh(t)
+    return t
+  }
+
+  /** Pasa una tarea que aún no empieza a otro repositorio del proyecto. */
+  setRepo(taskId: string, repo: string): Task {
+    const t = this.task(taskId)
+    if (t.repo === repo) return t
+    if (!['waiting', 'ready'].includes(t.status)) {
+      throw new RuleError(T`${t.id} ya empezó en ${t.repo ?? T`su repositorio`}; no se le puede cambiar de repositorio. Crea otra tarea para ${repo}.`)
+    }
+    t.repo = repo
+    this.log(t, T`pasa al repositorio ${repo}`)
     return t
   }
 
@@ -496,6 +518,8 @@ export class Board {
       title: T`QA de ${t.id}: ${t.title}`,
       description: instructions,
       assignee: qa.id,
+      // Revisa en el mismo repositorio que la tarea.
+      ...(t.repo ? { repo: t.repo } : {}),
       deps: [],
       status: 'ready',
       reviewOf: t.id,

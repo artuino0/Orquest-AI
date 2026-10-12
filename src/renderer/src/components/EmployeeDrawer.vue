@@ -259,7 +259,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 
       <div v-if="tab === 'tarea'" class="task">
         <span class="cap">{{ T`Oficina` }}</span>
-        <p><code>{{ e.office.path }}</code> · {{ T`rama` }} <code>{{ e.office.branch }}</code></p>
+        <p><code>{{ e.office.path }}</code><template v-if="e.office.branch"> · {{ T`rama` }} <code>{{ e.office.branch }}</code></template></p>
         <span class="cap">{{ T`Tareas` }}</span>
         <p v-if="!tasks.length" class="dim">{{ T`Sin tareas. Se las asigna el jefe.` }}</p>
         <article v-for="t in tasks" :key="t.id" class="card">
