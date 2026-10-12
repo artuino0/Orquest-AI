@@ -233,24 +233,26 @@
     </div>
   </section>
 
-  <section id="apoyo" class="seccion">
+  <!-- Oculta hasta que los dos botones lleven su enlace de pago de Stripe (`href=""`): al ponerlos, se quita `hidden`.
+       En el enlace va `?locale=es`; `scripts/web.mjs` lo cambia a `locale=en` en la página en inglés. -->
+  <section id="apoyo" class="seccion" hidden>
     <h2>Apoya el proyecto</h2>
     <p class="nota">Orquest AI es gratis. Si quieres apoyarlo, o prefieres que te acompañe a instalarlo, hay dos caminos.</p>
-    <!-- Faltan los dos enlaces: el del café y el de la agenda. -->
     <ul class="apoyos">
       <li>
         <i class="sp" style="--w:7;--h:11;--k:4;background-image:url(design_web-assets/cafetera.png)"></i>
         <h4>Invítame un café</h4>
         <p class="precio"><b>Aporte libre</b></p>
         <p>Si Orquest AI te ahorra tiempo, un café ayuda a que siga avanzando. No desbloquea nada: todo es gratis y de código abierto.</p>
-        <a class="boton" href="#apoyo">Invitar un café</a>
+        <a class="boton" href="" target="_blank" rel="noopener">Invitar un café</a>
       </li>
       <li>
         <i class="sp" style="--w:15;--h:23;--k:2;background-image:url(design_web-assets/char1.png)"></i>
         <h4>Asesoría 1 a 1</h4>
         <p class="precio"><b>20 USD</b> <span>· 2 horas</span></p>
         <p>Por videollamada: instalamos Orquest AI y tus CLIs, abrimos tu primer proyecto y te explico cómo trabaja la oficina.</p>
-        <a class="boton primario" href="#apoyo">Agendar asesoría</a>
+        <p class="letra">Pagas ahora y te contacto en menos de 24 horas, por correo o teléfono, para acordar día y hora. Si no logramos agendar, te devuelvo el pago.</p>
+        <a class="boton primario" href="" target="_blank" rel="noopener">Reservar asesoría</a>
       </li>
     </ul>
   </section>

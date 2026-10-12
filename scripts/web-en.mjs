@@ -120,7 +120,9 @@ export const EN = {
   '· 2 horas': '· 2 hours',
   'Por videollamada: instalamos Orquest AI y tus CLIs, abrimos tu primer proyecto y te explico cómo trabaja la oficina.':
     'Over a video call: we install Orquest AI and your CLIs, open your first project and I walk you through how the office works.',
-  'Agendar asesoría': 'Book a session',
+  'Reservar asesoría': 'Book a session',
+  'Pagas ahora y te contacto en menos de 24 horas, por correo o teléfono, para acordar día y hora. Si no logramos agendar, te devuelvo el pago.':
+    "You pay now and I get in touch within 24 hours, by email or phone, to agree on a day and time. If we can't find a slot, I refund the payment.",
 
   // Pie
   'Desarrollado por Jose Arturo Muñoz Castorena · Licencia Apache 2.0 · Parte del arte proviene del paquete': 'Built by Jose Arturo Muñoz Castorena · Apache 2.0 license · Part of the art comes from the',

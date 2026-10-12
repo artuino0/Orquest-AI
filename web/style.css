@@ -202,7 +202,10 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
 .apoyos .precio { display: flex; align-items: baseline; gap: 10px; }
 /* En mono: el 2 de la fuente de píxel se lee como 8. */
 .apoyos .precio b { font: 700 26px/1.2 var(--mono); color: var(--acento); }
+.apoyos .letra { font-size: 12px; line-height: 19px; }
 .apoyos .boton { margin-top: auto; }
+/* Una sección oculta se queda oculta aunque su clase le dé otra disposición. */
+[hidden] { display: none !important; }
 
 /* Pie */
 .pie { padding: 40px var(--lado) 48px; background: var(--borde); font-size: 14px; line-height: 21px; color: var(--tenue); }

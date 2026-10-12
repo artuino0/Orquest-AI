@@ -233,24 +233,26 @@
     </div>
   </section>
 
-  <section id="apoyo" class="seccion">
+  <!-- Oculta hasta que los dos botones lleven su enlace de pago de Stripe (`href=""`): al ponerlos, se quita `hidden`.
+       En el enlace va `?locale=es`; `scripts/web.mjs` lo cambia a `locale=en` en la página en inglés. -->
+  <section id="apoyo" class="seccion" hidden>
     <h2>Support the project</h2>
     <p class="nota">Orquest AI is free. If you'd like to support it, or would rather have me walk you through the setup, there are two ways.</p>
-    <!-- Faltan los dos enlaces: el del café y el de la agenda. -->
     <ul class="apoyos">
       <li>
         <i class="sp" style="--w:7;--h:11;--k:4;background-image:url(../design_web-assets/cafetera.png)"></i>
         <h4>Buy me a coffee</h4>
         <p class="precio"><b>Pay what you want</b></p>
         <p>If Orquest AI saves you time, a coffee helps keep it moving. It doesn't unlock anything: everything is free and open source.</p>
-        <a class="boton" href="#apoyo">Buy a coffee</a>
+        <a class="boton" href="" target="_blank" rel="noopener">Buy a coffee</a>
       </li>
       <li>
         <i class="sp" style="--w:15;--h:23;--k:2;background-image:url(../design_web-assets/char1.png)"></i>
         <h4>1-on-1 session</h4>
         <p class="precio"><b>20 USD</b> <span>· 2 hours</span></p>
         <p>Over a video call: we install Orquest AI and your CLIs, open your first project and I walk you through how the office works.</p>
-        <a class="boton primario" href="#apoyo">Book a session</a>
+        <p class="letra">You pay now and I get in touch within 24 hours, by email or phone, to agree on a day and time. If we can't find a slot, I refund the payment.</p>
+        <a class="boton primario" href="" target="_blank" rel="noopener">Book a session</a>
       </li>
     </ul>
   </section>

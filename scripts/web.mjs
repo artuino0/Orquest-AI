@@ -50,6 +50,8 @@ let en = es
   .replace(`<meta property="og:url" content="${URL_ES}">`, `<meta property="og:url" content="${URL_ES}en/">`)
   .replace(`"url": "${URL_ES}"`, `"url": "${URL_ES}en/"`)
   .replace('oficina/oficina.html?marco=0"', 'oficina/oficina.html?marco=0&amp;lang=en"')
+  // Los enlaces de pago de Stripe abren su página en el idioma de la que los lleva.
+  .replaceAll('locale=es"', 'locale=en"')
 // Primero los textos largos: uno corto puede ser el principio de otro.
 for (const [de, a] of Object.entries(EN).sort((x, y) => y[0].length - x[0].length)) {
   if (!en.includes(de)) throw new Error(`web-en.mjs trae un texto que ya no está en la página: ${de}`)
