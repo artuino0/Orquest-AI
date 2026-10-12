@@ -107,7 +107,7 @@ a { color: var(--acento); }
 .dos { flex-direction: row; align-items: center; gap: 80px; }
 h2 { font: 700 clamp(32px, 5vw, 44px)/1.2 var(--pixel); }
 .nota { max-width: 760px; color: var(--tenue); }
-#clis h2 + .nota { margin-top: -32px; }
+#clis h2 + .nota, #requisitos h2 + .nota, #apoyo h2 + .nota { margin-top: -32px; }
 
 /* Cómo funciona */
 .pasos { flex: 1; display: flex; flex-direction: column; gap: 40px; }
@@ -160,6 +160,16 @@ h4 { font: 700 18px/1.3 var(--mono); }
 .clis b { font-size: 15px; line-height: 1.3; }
 .clis small { font-size: 13px; line-height: 18px; color: var(--tenue); }
 
+/* Requisitos */
+.columnas { display: flex; align-items: flex-start; gap: 80px; }
+#requisitos .areas { background: var(--superficie); }
+.recomendado { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+.recomendado dl { margin: 0; display: flex; flex-direction: column; gap: 24px; }
+.recomendado dl div { padding-top: 20px; display: flex; gap: 24px; border-top: 3px solid var(--superficie-2); }
+.recomendado dt { flex: none; width: 120px; font: 700 12px/23px var(--mono); letter-spacing: 1px; color: var(--acento); }
+.recomendado dd { flex: 1; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.recomendado p { font-size: 14px; line-height: 22px; color: var(--tenue); }
+
 /* Descargar */
 #descargar { gap: 32px; }
 .instaladores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -183,6 +193,16 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
 .areas ul { display: flex; flex-direction: column; gap: 16px; }
 .areas li { display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 23px; }
 .areas li::before { content: ''; flex: none; width: 10px; height: 10px; background: var(--acento); }
+
+/* Apoya el proyecto */
+.apoyos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.apoyos li { padding: 28px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; background: var(--superficie); border: 3px solid var(--borde); box-shadow: var(--sombra); }
+.apoyos .sp { margin-top: calc(50px - var(--h) * var(--k) * 1px); }
+.apoyos p { font-size: 14px; line-height: 22px; color: var(--tenue); }
+.apoyos .precio { display: flex; align-items: baseline; gap: 10px; }
+/* En mono: el 2 de la fuente de píxel se lee como 8. */
+.apoyos .precio b { font: 700 26px/1.2 var(--mono); color: var(--acento); }
+.apoyos .boton { margin-top: auto; }
 
 /* Pie */
 .pie { padding: 40px var(--lado) 48px; background: var(--borde); font-size: 14px; line-height: 21px; color: var(--tenue); }
@@ -210,6 +230,7 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
   .tarjetas { grid-template-columns: 1fr 1fr; }
   .clis { grid-template-columns: repeat(4, 1fr); }
   .areas { flex: none; }
+  .columnas { flex-direction: column; align-items: stretch; gap: 32px; }
 }
 @media (max-width: 640px) {
   .barra { height: 56px; padding: 0 16px; }
@@ -219,7 +240,15 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
   .fila { gap: 8px; }
   .fila .sp { --k: 2; }
   .seccion, .franja { padding: 56px 20px; gap: 32px; }
-  #clis h2 + .nota { margin-top: -16px; }
+  #clis h2 + .nota, #requisitos h2 + .nota, #apoyo h2 + .nota { margin-top: -16px; }
+  .apoyos { grid-template-columns: 1fr; }
+  .apoyos li { padding: 20px; align-items: stretch; }
+  .apoyos .sp { align-self: flex-start; }
+  .apoyos .boton { justify-content: center; }
+  .recomendado { gap: 20px; }
+  .recomendado dl { gap: 20px; }
+  .recomendado dl div { padding-top: 16px; flex-direction: column; gap: 6px; }
+  .recomendado dt { width: auto; line-height: 1.4; }
   .secundarias, .instaladores, .tarjetas { grid-template-columns: 1fr; }
   .clis { grid-template-columns: 1fr 1fr; }
   .calle { --k: 2; }

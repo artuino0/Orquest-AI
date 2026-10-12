@@ -142,7 +142,7 @@
       </figure>
       <figure>
         <img src="../design_web-assets/cuentas.png" alt="Each account's limit usage" width="1280" height="720" loading="lazy">
-        <figcaption><h3>Your account usage.</h3><p>See how much of each session's limit you've used and split the work between two accounts.</p></figcaption>
+        <figcaption><h3>Your account usage.</h3><p>See how much of each account's limit you've used and choose which one each employee works with.</p></figcaption>
       </figure>
     </div>
     <ul class="tarjetas">
@@ -166,6 +166,30 @@
       <li tabindex="0" style="--c:#f58bb8"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char7-sentado-teclea.png)"></i><b>Kimi</b><small>Integrated, lightly tested</small></li>
       <li tabindex="0" style="--c:#8c8c96"><i class="sp f2" style="--w:17;--h:24;background-image:url(../design_web-assets/char8-sentado-teclea.png)"></i><b>Grok</b><small>Integrated, lightly tested</small></li>
     </ul>
+  </section>
+
+  <section id="requisitos" class="seccion">
+    <h2>Requirements</h2>
+    <p class="nota">With git and one CLI you can already open the office. The rest is optional: tools your agents put to use if you have them installed in your CLI.</p>
+    <div class="columnas">
+      <div class="areas">
+        <h4>The essentials</h4>
+        <ul>
+          <li>Git</li>
+          <li>At least one supported CLI, signed in</li>
+          <li>Windows 10 or 11 (macOS and Linux, in testing)</li>
+          <li>Node 22.5 or later, only if you build from source</li>
+        </ul>
+      </div>
+      <div class="recomendado">
+        <h4>Recommended, by role</h4>
+        <dl>
+          <div><dt>DESIGN</dt><dd><b>Pencil</b><p>Whoever holds the design role draws the screens on a canvas and frontend builds them from there.</p></dd></div>
+          <div><dt>QA</dt><dd><b>Playwright</b><p>Opens the app in a browser, walks the flow like a user would and saves screenshots as evidence.</p></dd></div>
+          <div><dt>REPOSITORY</dt><dd><b>GitHub CLI</b><p>Reads issues and prepares Pull Requests from the terminal.</p></dd></div>
+        </dl>
+      </div>
+    </div>
   </section>
 
   <section id="descargar" class="seccion">
@@ -208,6 +232,28 @@
       </ul>
     </div>
   </section>
+
+  <section id="apoyo" class="seccion">
+    <h2>Support the project</h2>
+    <p class="nota">Orquest AI is free. If you'd like to support it, or would rather have me walk you through the setup, there are two ways.</p>
+    <!-- Faltan los dos enlaces: el del café y el de la agenda. -->
+    <ul class="apoyos">
+      <li>
+        <i class="sp" style="--w:7;--h:11;--k:4;background-image:url(../design_web-assets/cafetera.png)"></i>
+        <h4>Buy me a coffee</h4>
+        <p class="precio"><b>Pay what you want</b></p>
+        <p>If Orquest AI saves you time, a coffee helps keep it moving. It doesn't unlock anything: everything is free and open source.</p>
+        <a class="boton" href="#apoyo">Buy a coffee</a>
+      </li>
+      <li>
+        <i class="sp" style="--w:15;--h:23;--k:2;background-image:url(../design_web-assets/char1.png)"></i>
+        <h4>1-on-1 session</h4>
+        <p class="precio"><b>20 USD</b> <span>· 2 hours</span></p>
+        <p>Over a video call: we install Orquest AI and your CLIs, open your first project and I walk you through how the office works.</p>
+        <a class="boton primario" href="#apoyo">Book a session</a>
+      </li>
+    </ul>
+  </section>
 </main>
 
 <footer class="pie">
@@ -219,6 +265,7 @@
   </div>
   <p>Built by Jose Arturo Muñoz Castorena · Apache 2.0 license · Part of the art comes from the <a href="https://2dpig.itch.io/pixel-office" target="_blank" rel="noopener">Pixel Office pack by 2dPig</a>.</p>
   <p class="chico">Claude Code, Codex and the other CLIs belong to their respective owners; Orquest AI is not affiliated with any of them.</p>
+  <p class="chico">Orquest AI runs the official CLIs with your own session. Use of each one is subject to its provider's terms and is your responsibility.</p>
 </footer>
 
 <script src="../main.js" defer></script>

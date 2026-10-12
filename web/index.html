@@ -142,7 +142,7 @@
       </figure>
       <figure>
         <img src="design_web-assets/cuentas.png" alt="Consumo del límite de cada cuenta" width="1280" height="720" loading="lazy">
-        <figcaption><h3>Uso de tus cuentas.</h3><p>Consulta el consumo del límite de cada sesión y distribuye el trabajo entre dos cuentas.</p></figcaption>
+        <figcaption><h3>Uso de tus cuentas.</h3><p>Consulta cuánto llevas usado del límite de cada cuenta y elige con cuál trabaja cada empleado.</p></figcaption>
       </figure>
     </div>
     <ul class="tarjetas">
@@ -166,6 +166,30 @@
       <li tabindex="0" style="--c:#f58bb8"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char7-sentado-teclea.png)"></i><b>Kimi</b><small>Integrada, con pruebas limitadas</small></li>
       <li tabindex="0" style="--c:#8c8c96"><i class="sp f2" style="--w:17;--h:24;background-image:url(design_web-assets/char8-sentado-teclea.png)"></i><b>Grok</b><small>Integrada, con pruebas limitadas</small></li>
     </ul>
+  </section>
+
+  <section id="requisitos" class="seccion">
+    <h2>Requisitos</h2>
+    <p class="nota">Con git y una CLI ya puedes abrir la oficina. Lo demás es opcional: herramientas que tus agentes aprovechan si las tienes instaladas en tu CLI.</p>
+    <div class="columnas">
+      <div class="areas">
+        <h4>Lo indispensable</h4>
+        <ul>
+          <li>Git</li>
+          <li>Al menos una CLI compatible, con sesión iniciada</li>
+          <li>Windows 10 u 11 (macOS y Linux, en pruebas)</li>
+          <li>Node 22.5 o superior, solo si compilas desde el código</li>
+        </ul>
+      </div>
+      <div class="recomendado">
+        <h4>Recomendado, por puesto</h4>
+        <dl>
+          <div><dt>DISEÑO</dt><dd><b>Pencil</b><p>Quien ocupa el puesto de diseño dibuja las pantallas en un lienzo y frontend las construye a partir de ahí.</p></dd></div>
+          <div><dt>QA</dt><dd><b>Playwright</b><p>Abre la aplicación en un navegador, recorre el flujo como lo haría un usuario y guarda capturas como evidencia.</p></dd></div>
+          <div><dt>REPOSITORIO</dt><dd><b>GitHub CLI</b><p>Consulta issues y prepara Pull Requests desde la terminal.</p></dd></div>
+        </dl>
+      </div>
+    </div>
   </section>
 
   <section id="descargar" class="seccion">
@@ -208,6 +232,28 @@
       </ul>
     </div>
   </section>
+
+  <section id="apoyo" class="seccion">
+    <h2>Apoya el proyecto</h2>
+    <p class="nota">Orquest AI es gratis. Si quieres apoyarlo, o prefieres que te acompañe a instalarlo, hay dos caminos.</p>
+    <!-- Faltan los dos enlaces: el del café y el de la agenda. -->
+    <ul class="apoyos">
+      <li>
+        <i class="sp" style="--w:7;--h:11;--k:4;background-image:url(design_web-assets/cafetera.png)"></i>
+        <h4>Invítame un café</h4>
+        <p class="precio"><b>Aporte libre</b></p>
+        <p>Si Orquest AI te ahorra tiempo, un café ayuda a que siga avanzando. No desbloquea nada: todo es gratis y de código abierto.</p>
+        <a class="boton" href="#apoyo">Invitar un café</a>
+      </li>
+      <li>
+        <i class="sp" style="--w:15;--h:23;--k:2;background-image:url(design_web-assets/char1.png)"></i>
+        <h4>Asesoría 1 a 1</h4>
+        <p class="precio"><b>20 USD</b> <span>· 2 horas</span></p>
+        <p>Por videollamada: instalamos Orquest AI y tus CLIs, abrimos tu primer proyecto y te explico cómo trabaja la oficina.</p>
+        <a class="boton primario" href="#apoyo">Agendar asesoría</a>
+      </li>
+    </ul>
+  </section>
 </main>
 
 <footer class="pie">
@@ -219,6 +265,7 @@
   </div>
   <p>Desarrollado por Jose Arturo Muñoz Castorena · Licencia Apache 2.0 · Parte del arte proviene del paquete <a href="https://2dpig.itch.io/pixel-office" target="_blank" rel="noopener">Pixel Office de 2dPig</a>.</p>
   <p class="chico">Claude Code, Codex y las demás CLIs pertenecen a sus respectivos titulares; Orquest AI no tiene afiliación con ninguno.</p>
+  <p class="chico">Orquest AI ejecuta las CLIs oficiales con tu propia sesión. El uso de cada una queda sujeto a los términos de su proveedor y es tu responsabilidad.</p>
 </footer>
 
 <script src="main.js" defer></script>
