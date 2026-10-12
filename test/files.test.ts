@@ -1,9 +1,10 @@
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { RuleError } from '../src/core/board.js'
-import { listDir, readText } from '../src/core/files.js'
+import { fileSides, listDir, readText } from '../src/core/files.js'
 
 const made: string[] = []
 function office() {
@@ -57,5 +58,26 @@ describe('explorador de archivos de una oficina', () => {
     await expect(readText(dir, outside)).rejects.toThrow(RuleError)
     await expect(listDir(dir, '..')).rejects.toThrow(RuleError)
     await expect(readText(dir, 'src')).rejects.toThrow(RuleError)
+  })
+
+  it('da los dos lados de un cambio: como estaba en git y como está ahora', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'orq-sides-')))
+    made.push(dir)
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
+    git('init', '-q', '-b', 'main')
+    mkdirSync(join(dir, 'src', 'viejo'), { recursive: true })
+    writeFileSync(join(dir, 'src', 'a.ts'), 'const a = 1\n')
+    writeFileSync(join(dir, 'src', 'viejo', 'b.ts'), 'adiós\n')
+    git('add', '-A')
+    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'inicio')
+    writeFileSync(join(dir, 'src', 'a.ts'), 'const a = 2\n')
+    writeFileSync(join(dir, 'src', 'nuevo.ts'), 'hola\n')
+    rmSync(join(dir, 'src', 'viejo'), { recursive: true })
+    // Cambiado: los dos lados, con su salto de línea final intacto.
+    expect(await fileSides(dir, 'src/a.ts')).toEqual({ before: 'const a = 1\n', after: 'const a = 2\n', binary: false, truncated: false })
+    // Nuevo: no había nada. Borrado (con todo y carpeta): ya no hay nada.
+    expect(await fileSides(dir, 'src/nuevo.ts')).toMatchObject({ before: '', after: 'hola\n' })
+    expect(await fileSides(dir, 'src/viejo/b.ts')).toMatchObject({ before: 'adiós\n', after: '' })
+    await expect(fileSides(dir, '../fuera.ts')).rejects.toThrow(RuleError)
   })
 })

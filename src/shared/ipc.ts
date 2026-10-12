@@ -15,11 +15,11 @@ import type { InstalledTool } from '../core/skills.js'
 import type { EmployeeState } from '../core/state.js'
 import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
-import type { FileEntry, FileText } from '../core/files.js'
+import type { FileEntry, FileSides, FileText } from '../core/files.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
-export type { FileEntry, FileText }
+export type { FileEntry, FileSides, FileText }
 export type { Requirement, CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -135,6 +135,8 @@ export interface OrquestApi {
   tree(id: string, dir: string): Promise<FileEntry[]>
   /** Explorador: el texto de un archivo de su oficina. */
   fileText(id: string, path: string): Promise<FileText>
+  /** Un archivo cambiado, antes y ahora, para verlos uno junto al otro. */
+  fileSides(id: string, path: string): Promise<FileSides>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>
   write(id: string, data: string): void

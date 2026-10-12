@@ -821,9 +821,9 @@ export class Studio extends EventEmitter<StudioEvents> {
   /** El diff de uno de esos archivos. */
   async fileDiff(id: string, path: string): Promise<string> {
     if (!this.grouped) return officeDiff(this.office(id), path)
-    const [name, ...rest] = path.split('/')
-    const copy = (await this.copiesOf(id)).find((c) => c.name === name)
-    return copy && rest.length ? officeDiff(copy.office, rest.join('/')) : ''
+    // El nombre de un repositorio puede traer «/» (`mocks/simulador`): se busca el que encabeza la ruta.
+    const copy = (await this.copiesOf(id)).filter((c) => path.startsWith(`${c.name}/`)).sort((a, b) => b.name.length - a.name.length)[0]
+    return copy ? officeDiff(copy.office, path.slice(copy.name.length + 1)) : ''
   }
 
   /** Las capturas de alguien en un proyecto que agrupa repositorios: las de cada copia, con el repositorio al frente. */

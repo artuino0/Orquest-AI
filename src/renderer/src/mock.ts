@@ -152,6 +152,7 @@ export function installMock(caso: string) {
         'src/components': [['Cart.vue', false], ['Checkout.vue', false]],
         test: [['cart.test.ts', false]],
       } as Record<string, [string, boolean][]>)[dir] ?? []).map(([name, isDir]) => ({ name, path: dir ? `${dir}/${name}` : name, dir: isDir })),
+    fileSides: async () => ({ before: '', after: '', binary: false, truncated: false }),
     fileText: async (_id, path) => {
       const text = path.endsWith('.json')
         ? '{\n  "name": "tienda-en-linea",\n  "version": "1.2.0",\n  "private": true,\n  "scripts": { "dev": "vite", "test": "vitest run" }\n}\n'

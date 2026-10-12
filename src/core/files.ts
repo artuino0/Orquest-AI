@@ -2,8 +2,10 @@
  * El explorador de archivos del panel de un empleado: qué hay en una carpeta de
  * su oficina y el texto de un archivo. Solo lee, y nunca fuera de la oficina.
  */
+import { execFile } from 'node:child_process'
 import { open, readdir, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
 
@@ -39,7 +41,8 @@ async function inside(office: string, path: string): Promise<string> {
   }
   if (escapes(wanted)) throw outside()
   // Un enlace dentro de la oficina puede apuntar afuera: cuenta a dónde llega de verdad.
-  const real = await realpath(wanted)
+  // Lo que ya no existe (un archivo borrado) no llega a ningún lado: vale su ruta tal cual.
+  const real = await realpath(wanted).catch(() => wanted)
   if (escapes(real)) throw outside()
   return real
 }
@@ -71,4 +74,49 @@ export async function readText(office: string, path: string): Promise<FileText> 
   } finally {
     await handle.close()
   }
+}
+
+/** Los dos lados de un cambio, para verlos uno junto al otro. */
+export interface FileSides {
+  /** Como estaba en el último commit; vacío si el archivo es nuevo. */
+  before: string
+  /** Como está ahora en la oficina; vacío si se borró. */
+  after: string
+  binary: boolean
+  truncated: boolean
+}
+
+const run = promisify(execFile)
+const cutText = (bytes: Buffer) => bytes.subarray(0, MAX_TEXT).toString('utf8')
+
+/**
+ * Un archivo de la oficina antes y ahora. El «antes» sale del repositorio que
+ * lo contiene (la oficina puede ser un worktree o una carpeta con varios), así
+ * que git se pregunta desde la carpeta del archivo.
+ */
+export async function fileSides(office: string, path: string): Promise<FileSides> {
+  const full = await inside(office, path)
+  const now = await stat(full).then((i) => (i.isFile() ? i : null), () => null)
+  let after = Buffer.alloc(0)
+  if (now) {
+    const handle = await open(full, 'r')
+    try {
+      const buffer = Buffer.alloc(Math.min(now.size, MAX_TEXT + 1))
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+      after = buffer.subarray(0, bytesRead)
+    } finally {
+      await handle.close()
+    }
+  }
+  // Si su carpeta también se borró, se sube hasta una que exista.
+  let cwd = dirname(full)
+  while (!(await stat(cwd).then((i) => i.isDirectory(), () => false)) && dirname(cwd) !== cwd) cwd = dirname(cwd)
+  const inRepo = `HEAD:./${relative(cwd, full).split(sep).join('/')}`
+  const before = await run('git', ['show', inRepo], { cwd, encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 }).then(
+    (r) => r.stdout,
+    () => Buffer.alloc(0), // nuevo, o fuera de un repositorio
+  )
+  const binary = [before, after].some((b) => b.subarray(0, 8000).includes(0))
+  if (binary) return { before: '', after: '', binary, truncated: false }
+  return { before: cutText(before), after: cutText(after), binary, truncated: before.length > MAX_TEXT || after.length > MAX_TEXT }
 }

@@ -71,6 +71,7 @@ const api: OrquestApi = {
   diff: (id, path) => invoke('employee:diff', id, path),
   tree: (id, dir) => invoke('employee:tree', id, dir),
   fileText: (id, path) => invoke('employee:file', id, path),
+  fileSides: (id, path) => invoke('employee:sides', id, path),
   write: (id, data) => ipcRenderer.send('employee:write', id, data),
   resize: (id, cols, rows) => ipcRenderer.send('employee:resize', id, cols, rows),
   onData: (cb) => listen('employee:data', cb),

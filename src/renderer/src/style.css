@@ -26,12 +26,11 @@
   --pv-grok: #8c8c96;
   --ink: #08070b;
   --term-bg: #08070b;
-  /* Colores de sintaxis del visor de archivos. */
+  /* Colores de sintaxis del editor de archivos (las lee `monaco.ts`). */
   --code-comment: #7d7a8c;
   --code-keyword: #c792ea;
   --code-string: #a5d67a;
   --code-number: #f2a05c;
-  --code-function: #6fb7ff;
   --code-type: #f2c96b;
   --code-attr: #8fd3e0;
   --code-tag: #ef7f8e;
@@ -87,7 +86,6 @@
   --code-keyword: #8b3fc7;
   --code-string: #2f7d32;
   --code-number: #b3560f;
-  --code-function: #1f5fc4;
   --code-type: #8a6400;
   --code-attr: #0f6f80;
   --code-tag: #c0304a;

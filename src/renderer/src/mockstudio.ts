@@ -275,6 +275,15 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     journal: async () => '## Traspaso\n- Endpoint POST /sesiones listo; falta refresh token.\n- La migración 0042 asume que usuarios.email es único: confirmar con DBA.\n- Siguiente paso: pruebas de expiración con reloj falso.\n\n## Hechos\n- Contratada por el jefe (oficina be-12).\n- Entregó BE-11 → QA aprobó → integrada a la primera.\n- Contexto al 82 % → descansó → contexto 9 %.\n',
     changes: async (id) => [...(id === 'jefe' ? [{ path: '.orquest/planes/plan-de-la-tienda.md', status: 'plan' }] : []), { path: 'scripts/seed.ts', status: 'M' }, { path: 'package.json', status: 'M' }] as never,
     diff: async () => DIFF,
+    fileSides: async (_id, path) =>
+      path.endsWith('.json')
+        ? { before: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite" }\n}\n', after: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite", "seed": "tsx scripts/seed.ts" }\n}\n', binary: false, truncated: false }
+        : {
+            before: "import { db } from '../src/db'\n\nexport async function seed() {\n  await db.products.clear()\n  await db.products.add({ name: 'Taza', price: 120 })\n}\n",
+            after: "import { db } from '../src/db'\nimport { products } from './data'\n\n/** Llena la tienda con productos de ejemplo. */\nexport async function seed() {\n  await db.products.clear()\n  for (const p of products) await db.products.add(p)\n  console.log(`${products.length} productos`)\n}\n",
+            binary: false,
+            truncated: false,
+          },
     // Capturas de ejemplo: imágenes del propio proyecto, para ver la pestaña con algo.
     captures: async () => ['escena/fondo.png', 'sprites/billar.png', 'sprites/camioneta-frente.png'].map((path, i) => ({ path: `docs/capturas/T3/${path.split('/').pop()}`, at: Date.now() - i * 60000, size: 1000 })),
     capture: async (_id, path) => {

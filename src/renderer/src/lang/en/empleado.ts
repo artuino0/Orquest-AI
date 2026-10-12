@@ -99,7 +99,7 @@ const en: Record<string, string> = {
   'Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.': 'Closes their terminal and opens a new one: a new conversation, with their instructions and journal. Use it if it got stuck.',
   'Reiniciar': 'Restart',
   'Este archivo no es de texto: no se muestra aquí.': "This file isn't text: it isn't shown here.",
-  '… el archivo es largo: aquí solo sale el principio.': '… the file is long: only the beginning is shown here.',
+  'El archivo es largo: aquí solo sale el principio.': 'The file is long: only the beginning is shown here.',
   'Ver la oficina de otra persona': "See someone else's office",
   'Sus archivos y su terminal ocupando toda la ventana': 'Their files and terminal filling the whole window',
   'Reducir': 'Shrink',

@@ -8,7 +8,7 @@ import TerminalView from './TerminalView.vue'
 import type { Capture, FileChange, FileEntry } from '../../../shared/ipc'
 import { capital, TASK_COLOR, TASK_STATUS } from './taskLabels'
 import { T } from '../../../core/i18n'
-import { escapeHtml, paint } from '../highlight'
+import CodeView from './CodeView.vue'
 
 type Tab = 'terminal' | 'chat' | 'archivos' | 'capturas' | 'actividad' | 'tarea' | 'bitacora'
 const TABS: [Tab, string][] = [
@@ -131,26 +131,36 @@ async function loadChanges() {
 }
 /** Un plan guardado o un archivo del explorador se leen tal cual; un cambio, como diferencia contra lo que había. */
 const openPlan = ref(false)
-/** Lo que se muestra es un aviso (no es texto, no se pudo abrir), no el archivo: va sin colores. */
-const notice = ref(false)
-/** El archivo entero con sus colores de sintaxis, y sus números de renglón. */
-const painted = computed(() => (notice.value ? escapeHtml(diff.value) : paint(diff.value, openFile.value ?? '')))
-const numbers = computed(() => Array.from({ length: diff.value.replace(/\n$/, '').split('\n').length }, (_, i) => i + 1).join('\n'))
-/** Una diferencia, renglón por renglón: el signo y el fondo dicen qué cambió; el resto lleva los colores de su lenguaje. */
-const diffLines = computed(() =>
-  diff.value.split('\n').map((l) => {
-    const kind = mark(l)
-    const header = kind === 'hunk' || /^(diff |index |--- |\+\+\+ |new file|deleted file|similarity|rename |Binary )/.test(l)
-    return { kind: header ? 'hunk' : kind, html: header || !l ? escapeHtml(l) || ' ' : escapeHtml(l[0]) + paint(l.slice(1), openFile.value ?? '') }
-  }),
-)
+/** Un aviso en lugar del archivo: no es texto, o no se pudo abrir. */
+const notice = ref('')
+/** Como estaba antes, si lo abierto es un cambio: el editor muestra los dos lados. */
+const before = ref<string | null>(null)
+const fail = (err: unknown) => (notice.value = err instanceof Error ? err.message : String(err))
+const NOT_TEXT = () => T`Este archivo no es de texto: no se muestra aquí.`
+const LONG = () => T`El archivo es largo: aquí solo sale el principio.`
 async function showDiff(path: string, status = '') {
   openFile.value = path
   openPlan.value = status === 'plan'
-  notice.value = false
+  notice.value = ''
+  before.value = null
+  cut.value = false
   tab.value = 'archivos'
-  diff.value = openPlan.value ? await window.orquest.documentText(path) : await window.orquest.diff(e.value.id, path)
+  try {
+    if (openPlan.value) {
+      diff.value = await window.orquest.documentText(path)
+      return
+    }
+    const sides = await window.orquest.fileSides(e.value.id, path)
+    if (sides.binary) notice.value = NOT_TEXT()
+    cut.value = sides.truncated
+    diff.value = sides.after
+    before.value = sides.before
+  } catch (err) {
+    fail(err)
+  }
 }
+/** Lo abierto llegó cortado por largo. */
+const cut = ref(false)
 
 // Explorador: el árbol de su oficina. Cada carpeta se pide al abrirla.
 const filesView = ref<'changes' | 'tree'>('changes')
@@ -186,14 +196,17 @@ function toggleDir(path: string) {
 async function showFile(path: string) {
   openFile.value = path
   openPlan.value = true
+  notice.value = ''
+  before.value = null
+  cut.value = false
   tab.value = 'archivos'
   try {
     const f = await window.orquest.fileText(e.value.id, path)
-    notice.value = f.binary
-    diff.value = f.binary ? T`Este archivo no es de texto: no se muestra aquí.` : f.truncated ? `${f.text}\n${T`… el archivo es largo: aquí solo sale el principio.`}` : f.text
+    if (f.binary) notice.value = NOT_TEXT()
+    cut.value = f.truncated
+    diff.value = f.text
   } catch (err) {
-    notice.value = true
-    diff.value = err instanceof Error ? err.message : String(err)
+    fail(err)
   }
 }
 
@@ -233,7 +246,6 @@ function say() {
 }
 
 const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
-const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '')
 </script>
 
 <template>
@@ -300,10 +312,10 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 
       <div v-if="tab === 'archivos'" class="files">
         <p v-if="!openFile" class="dim">{{ T`Elige un archivo para verlo.` }}</p>
-        <p v-else class="path"><code>{{ openFile }}</code></p>
-        <!-- Un archivo o un plan: entero, con números de renglón. Lo pintado viene escapado de `highlight.ts`. -->
-        <div v-if="openFile && openPlan" class="code"><pre v-if="!notice" class="nums">{{ numbers }}</pre><pre class="src" v-html="painted" /></div>
-        <pre v-else-if="openFile" class="diff"><span v-for="(l, i) in diffLines" :key="i" :class="l.kind" v-html="l.html" /></pre>
+        <p v-else class="path"><code>{{ openFile }}</code><template v-if="cut"> · {{ LONG() }}</template></p>
+        <p v-if="openFile && notice" class="dim">{{ notice }}</p>
+        <!-- El editor (solo lectura): un archivo o plan entero, o un cambio con sus dos lados. -->
+        <CodeView v-else-if="openFile" class="code" :path="openFile" :text="diff" :original="before" />
       </div>
 
       <div v-if="tab === 'capturas'" class="shots">
@@ -396,6 +408,7 @@ const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'de
 .side code { color: var(--accent); margin-right: 6px; }
 .side li svg { width: 13px; height: 13px; margin-right: 6px; vertical-align: -2px; color: var(--text-secondary); }
 .side li svg.folder { color: var(--accent); }
+.code { min-height: 0; border: 2px solid var(--border); }
 .path { margin: 0; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
 .avatar { width: 48px; height: 56px; object-fit: contain; image-rendering: pixelated; background: var(--bg); border: 2px solid var(--border); padding: 4px; flex: none; }
@@ -437,27 +450,6 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .viewer img { display: block; max-width: none; margin: 0 auto; }
 .viewer img.fit { max-width: 100%; height: auto; }
 .files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
-.diff { margin: 0; overflow: auto; font: 12px/1.6 var(--font); background: var(--term-bg); border: 2px solid var(--border); }
-.diff span { display: block; padding: 0 10px; white-space: pre; }
-.diff .add { background: var(--tint-ok); }
-.diff .del { background: var(--tint-danger); }
-.diff .hunk { color: var(--text-secondary); }
-.code { display: flex; align-items: flex-start; overflow: auto; font: 12px/1.6 var(--font); background: var(--term-bg); border: 2px solid var(--border); }
-.code pre { margin: 0; font: inherit; }
-.code .nums { position: sticky; left: 0; flex: none; padding: 6px 10px; text-align: right; color: var(--text-secondary); opacity: 0.6; background: var(--term-bg); border-right: 2px solid var(--border); user-select: none; }
-.code .src { flex: 1; padding: 6px 12px; white-space: pre; tab-size: 2; }
-/* Colores de sintaxis (clases de highlight.js); la paleta está en style.css, por tema. */
-.code :deep(.hljs-comment), .diff :deep(.hljs-comment), .code :deep(.hljs-quote), .diff :deep(.hljs-quote) { color: var(--code-comment); font-style: italic; }
-.code :deep(.hljs-keyword), .diff :deep(.hljs-keyword), .code :deep(.hljs-selector-tag), .diff :deep(.hljs-selector-tag), .code :deep(.hljs-doctag), .diff :deep(.hljs-doctag) { color: var(--code-keyword); }
-.code :deep(.hljs-string), .diff :deep(.hljs-string), .code :deep(.hljs-regexp), .diff :deep(.hljs-regexp), .code :deep(.hljs-addition), .code :deep(.hljs-meta .hljs-string), .diff :deep(.hljs-meta .hljs-string) { color: var(--code-string); }
-.code :deep(.hljs-number), .diff :deep(.hljs-number), .code :deep(.hljs-literal), .diff :deep(.hljs-literal), .code :deep(.hljs-symbol), .diff :deep(.hljs-symbol), .code :deep(.hljs-bullet), .diff :deep(.hljs-bullet) { color: var(--code-number); }
-.code :deep(.hljs-title), .diff :deep(.hljs-title), .code :deep(.hljs-section), .diff :deep(.hljs-section), .code :deep(.hljs-selector-id), .diff :deep(.hljs-selector-id) { color: var(--code-function); }
-.code :deep(.hljs-type), .diff :deep(.hljs-type), .code :deep(.hljs-built_in), .diff :deep(.hljs-built_in), .code :deep(.hljs-title.class_), .diff :deep(.hljs-title.class_), .code :deep(.hljs-selector-class), .diff :deep(.hljs-selector-class) { color: var(--code-type); }
-.code :deep(.hljs-attr), .diff :deep(.hljs-attr), .code :deep(.hljs-attribute), .diff :deep(.hljs-attribute), .code :deep(.hljs-property), .diff :deep(.hljs-property), .code :deep(.hljs-variable), .diff :deep(.hljs-variable), .code :deep(.hljs-template-variable), .diff :deep(.hljs-template-variable), .code :deep(.hljs-params), .diff :deep(.hljs-params) { color: var(--code-attr); }
-.code :deep(.hljs-tag), .diff :deep(.hljs-tag), .code :deep(.hljs-name), .diff :deep(.hljs-name), .code :deep(.hljs-meta), .diff :deep(.hljs-meta) { color: var(--code-tag); }
-.code :deep(.hljs-link), .code :deep(.hljs-deletion) { color: var(--code-number); }
-.code :deep(.hljs-strong) { font-weight: 700; }
-.code :deep(.hljs-emphasis) { font-style: italic; }
 .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .chat-log { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
 .chat-log .spacer { flex: 1; }
