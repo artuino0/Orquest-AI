@@ -1008,7 +1008,10 @@ export class Studio extends EventEmitter<StudioEvents> {
   async diff(taskId: string): Promise<string> {
     const t = this.board.task(taskId)
     if (!t.delivery?.commit) return ''
-    return deliveryDiff(this.office(t.assignee), t.delivery.commit, await headOf(this.root).catch(() => undefined))
+    const office = this.office(t.assignee)
+    // La oficina de quien ya no trabaja aquí pudo desocuparse: sus commits siguen en el repo y se leen desde ahí.
+    const from = (await exists(office.path)) ? office : { ...office, path: this.root }
+    return deliveryDiff(from, t.delivery.commit, await headOf(this.root).catch(() => undefined))
   }
 
   // ── Vistas ───────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { appendFile, mkdir, readFile, rm } from 'node:fs/promises'
+import { access, appendFile, mkdir, readFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -8,8 +8,15 @@ import { T } from './i18n.js'
 const run = promisify(execFile)
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
-  const { stdout } = await run('git', args, { cwd })
-  return stdout.trim()
+  try {
+    const { stdout } = await run('git', args, { cwd })
+    return stdout.trim()
+  } catch (err) {
+    // «spawn git ENOENT» sale igual si falta git que si falta la carpeta donde se le pidió correr.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    const there = await access(cwd).then(() => true, () => false)
+    throw new RuleError(there ? T`No se encontró git en esta máquina. Instálalo y vuelve a abrir Orquest.` : T`La carpeta ${cwd} ya no existe.`)
+  }
 }
 
 export interface Office {

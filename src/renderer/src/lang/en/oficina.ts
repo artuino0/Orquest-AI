@@ -165,6 +165,14 @@ const en: Record<string, string> = {
   'hace {0} h': '{0} h ago',
   'ayer': 'yesterday',
   'hace {0} días': '{0} days ago',
+  'Falta instalar {0}': '{0} is not installed',
+  'Descargar {0}': 'Download {0}',
+  'Bloqueado hasta instalar {0}': 'Blocked until {0} is installed',
+  'v{0} · requisito': 'v{0} · required',
+  requisito: 'required',
+  'Hace falta para abrir un proyecto': 'Needed to open a project',
+  INSTALADO: 'INSTALLED',
+  'NO INSTALADO': 'NOT INSTALLED',
 }
 
 export default en

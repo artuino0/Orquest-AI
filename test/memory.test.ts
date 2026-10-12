@@ -9,6 +9,7 @@ import { EmployeeManager, type Pty, type Spawner } from '../src/core/employees.j
 import { Journal, MAX_FACTS } from '../src/core/journal.js'
 import { startMcpServer, type McpHandle } from '../src/core/mcp.js'
 import { pickName, slug } from '../src/core/names.js'
+import { officeChanges } from '../src/core/worktree.js'
 import { PROVIDERS } from '../src/core/providers.js'
 import { ScreenReader } from '../src/core/state.js'
 import { BOSS_ID, Studio } from '../src/core/studio.js'
@@ -266,6 +267,8 @@ describe('capacitación', () => {
     await s.fire(id)
     expect(await there()).toBe(false)
     expect(notices).toEqual([])
+    // Pedirle algo a git en una carpeta que ya no está se explica; antes salía «spawn git ENOENT».
+    await expect(officeChanges({ path: office, branch: `orquest/${id}` })).rejects.toThrow('ya no existe')
     expect(await readFile(join(repo, '.orquest', 'capturas', id, 'test-results', 'login.png'), 'utf8')).toBe('png')
     await tick()
     expect(await readFile(join(repo, '.orquest', 'bitacoras', `${id}.md`), 'utf8')).toContain('su oficina se desocupó')

@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs'
 import { access, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
+import { T } from './i18n.js'
 import { PROVIDERS, type Effort, type ProviderAdapter, type ProviderId, type Signup } from './providers.js'
 
 export interface CliStatus {
@@ -180,6 +181,54 @@ export async function detectProvider(p: ProviderAdapter, home = homedir()): Prom
  * Qué modelos ofrece cada CLI lista. Va aparte de detectAll porque algunas se
  * lo preguntan a su servidor y tardan: Inicio no espera por esto.
  */
+/** Un programa que Orquest necesita además de las CLIs de los agentes. */
+export interface Requirement {
+  id: 'git'
+  name: string
+  installed: boolean
+  version?: string
+  /** Para qué lo usa Orquest, dicho para el usuario. */
+  why: string
+  /** Cómo se instala: comando si es uno solo y la página oficial. */
+  install: { command?: string; url: string }
+}
+
+/** Dónde deja git su ejecutable el instalador de Windows. */
+function windowsGitDirs(env = process.env): string[] {
+  return [env.ProgramFiles, env['ProgramFiles(x86)'], env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Programs')].filter((d): d is string => !!d).map((d) => join(d, 'Git', 'cmd'))
+}
+
+/**
+ * Lo que tiene que estar instalado para abrir un proyecto. Hoy, git: cada
+ * empleado trabaja en su propio worktree. En Windows, un git recién instalado
+ * no aparece en el PATH de una app ya abierta: se busca también donde lo deja
+ * su instalador y, si está ahí, se suma al PATH de este proceso para no tener
+ * que cerrar y volver a abrir.
+ */
+export async function detectRequirements(): Promise<Requirement[]> {
+  let binary = await findBinary('git')
+  if (!binary && process.platform === 'win32') {
+    for (const dir of windowsGitDirs()) {
+      if (!(await exists(join(dir, 'git.exe')))) continue
+      process.env.PATH = `${process.env.PATH ?? ''}${delimiter}${dir}`
+      binary = join(dir, 'git.exe')
+      break
+    }
+  }
+  const out = binary ? await runCli(binary, ['--version']) : undefined
+  const command = process.platform === 'win32' ? 'winget install --id Git.Git -e' : process.platform === 'darwin' ? 'xcode-select --install' : undefined
+  return [
+    {
+      id: 'git',
+      name: 'Git',
+      installed: !!binary,
+      version: out && (versionOf(out.stdout) ?? versionOf(out.stderr)),
+      why: T`Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.`,
+      install: { command, url: 'https://git-scm.com/downloads' },
+    },
+  ]
+}
+
 export async function detectModels(clis: CliStatus[], home = homedir()): Promise<Partial<Record<ProviderId, string[]>>> {
   const ready = clis.filter((c) => c.installed && c.binary && c.session !== false)
   const lists = await Promise.all(ready.map((c) => modelsOf(PROVIDERS[c.id], c.binary!, home)))

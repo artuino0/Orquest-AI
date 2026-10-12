@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task } from '../../../shared/ipc'
+import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
@@ -45,6 +45,8 @@ function saveRecents(list: Recent[]) {
 export const useStudio = defineStore('studio', () => {
   const screen = ref<'home' | 'office'>('home')
   const clis = ref<CliStatus[]>([])
+  /** Lo que hace falta instalado además de las CLIs (git). */
+  const requirements = ref<Requirement[]>([])
   const detecting = ref(false)
   const employees = ref<Employee[]>([])
   const repo = ref<string | null>(null)
@@ -150,6 +152,7 @@ export const useStudio = defineStore('studio', () => {
   async function detect() {
     detecting.value = true
     try {
+      requirements.value = await window.orquest.requirements().catch(() => [])
       clis.value = await window.orquest.detectClis()
       checkedAt.value = Date.now()
       // Los modelos llegan después: algunas CLIs se los piden a su servidor.
@@ -288,7 +291,7 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    screen, clis, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
+    screen, clis, requirements, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,

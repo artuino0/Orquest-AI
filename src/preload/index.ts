@@ -20,6 +20,7 @@ const api: OrquestApi = {
   language: () => invoke('language:get'),
   setLanguage: (lang) => invoke('language:set', lang),
   detectClis: () => invoke('clis:detect'),
+  requirements: () => invoke('requirements:detect'),
   cliModels: () => invoke('clis:models'),
   accounts: () => invoke('accounts:list'),
   pickRepo: () => invoke('repo:pick'),

@@ -72,6 +72,8 @@ export function installMock(caso: string) {
       url.searchParams.delete('lang')
       history.replaceState(null, '', url)
     },
+    // ?caso=sin-git: una máquina recién estrenada, sin git.
+    requirements: async () => [{ id: 'git', name: 'Git', installed: caso !== 'sin-git', version: caso !== 'sin-git' ? '2.47.0' : undefined, why: 'Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.', install: { command: 'winget install --id Git.Git -e', url: 'https://git-scm.com/downloads' } }],
     detectClis: async () => {
       // Sin ?caso, las CLIs son las de verdad de esta máquina (las detecta el servidor de vista previa).
       if (!(caso in CLIS)) {

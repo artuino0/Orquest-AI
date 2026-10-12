@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { canHire, detectProvider, findBinary, isReady, runCli } from '../src/core/detect.js'
+import { canHire, detectProvider, detectRequirements, findBinary, isReady, runCli } from '../src/core/detect.js'
 import { PROVIDERS } from '../src/core/providers.js'
 
 const WIN = process.platform === 'win32'
@@ -95,5 +95,18 @@ describe('detección de CLIs', () => {
     expect(canHire([])).toBe(false)
     expect(canHire([{ id: 'codex', name: 'Codex', installed: true, session: false }])).toBe(false)
     expect(canHire([{ id: 'grok', name: 'Grok', installed: true, session: null }])).toBe(true)
+  })
+
+  it('avisa si falta git, que hace falta para abrir un proyecto', async () => {
+    // En esta máquina sí está (las pruebas lo usan): sale instalado y con su versión.
+    const [git] = await detectRequirements()
+    expect(git).toMatchObject({ id: 'git', name: 'Git', installed: true })
+    expect(git.version).toMatch(/^\d+\.\d+/)
+    expect(git.install.url).toContain('git-scm.com')
+    // Sin git en el PATH (ni en las carpetas de su instalador) sale como faltante, sin tronar.
+    if (!WIN) {
+      const empty = await mkdtemp(join(tmpdir(), 'orquest-sin-git-'))
+      expect((await withPath(empty, () => detectRequirements()))[0]).toMatchObject({ installed: false, version: undefined })
+    }
   })
 })

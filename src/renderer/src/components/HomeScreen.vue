@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus } from 'lucide-vue-next'
+import { ExternalLink, BookOpen, FolderGit2, FolderOpen, RefreshCw, TriangleAlert, UserPlus } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CliStatus } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
@@ -39,6 +39,8 @@ function detail(c: CliStatus): string {
 const ready = computed(() => studio.clis.filter((c) => stateOf(c) === 'ready'))
 const noSession = computed(() => studio.clis.filter((c) => stateOf(c) === 'no-session'))
 const missing = computed(() => studio.clis.filter((c) => stateOf(c) === 'missing'))
+/** Programas que faltan además de las CLIs (git): sin ellos tampoco se abre un proyecto. */
+const lacking = computed(() => studio.requirements.filter((r) => !r.installed))
 /** Ya se revisó y ninguna sirve: no se puede abrir proyecto. */
 const blocked = computed(() => studio.checkedAt !== null && !ready.value.length)
 
@@ -87,6 +89,19 @@ import ThemeToggle from './ThemeToggle.vue'
         <p>{{ T`Tu estudio de agentes de código. Cada animación es un estado real.` }}</p>
       </div>
 
+      <div v-for="r in lacking" :key="r.id" class="alert">
+        <TriangleAlert />
+        <div>
+          <strong>{{ T`Falta instalar ${r.name}` }}</strong>
+          <p>{{ r.why }}</p>
+          <code v-if="r.install.command">{{ r.install.command }}</code>
+          <div class="actions">
+            <button class="btn" @click="openLink(r.install.url)"><ExternalLink />{{ T`Descargar ${r.name}` }}</button>
+            <button class="btn" :disabled="studio.detecting" @click="studio.detect()"><RefreshCw :class="{ spin: studio.detecting }" />{{ T`Volver a detectar` }}</button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="blocked" class="alert">
         <TriangleAlert />
         <div>
@@ -104,16 +119,17 @@ import ThemeToggle from './ThemeToggle.vue'
       </div>
 
       <div class="open">
-        <button class="btn primary" :disabled="blocked || studio.checkedAt === null" @click="studio.pickProject()"><FolderOpen />{{ T`Abrir repositorio…` }}</button>
-        <span v-if="blocked" class="why">{{ T`Bloqueado hasta que haya un agente listo` }}</span>
+        <button class="btn primary" :disabled="blocked || !!lacking.length || studio.checkedAt === null" @click="studio.pickProject()"><FolderOpen />{{ T`Abrir repositorio…` }}</button>
+        <span v-if="lacking.length" class="why">{{ T`Bloqueado hasta instalar ${lacking.map((r) => r.name).join(', ')}` }}</span>
+        <span v-else-if="blocked" class="why">{{ T`Bloqueado hasta que haya un agente listo` }}</span>
         <span v-else-if="studio.checkedAt === null">{{ T`Buscando agentes…` }}</span>
         <span v-else>Ctrl+O</span>
       </div>
       <p v-if="studio.error" class="why">{{ studio.error }}</p>
 
-      <div class="recents" :class="{ locked: blocked }">
+      <div class="recents" :class="{ locked: blocked || !!lacking.length }">
         <h2>{{ T`PROYECTOS RECIENTES` }}</h2>
-        <button v-for="r in studio.recents" :key="r.path" class="project" :disabled="blocked || studio.checkedAt === null" @click="studio.openProject(r.path)">
+        <button v-for="r in studio.recents" :key="r.path" class="project" :disabled="blocked || !!lacking.length || studio.checkedAt === null" @click="studio.openProject(r.path)">
           <FolderGit2 />
           <span class="data">
             <strong>{{ name(r.path) }}</strong>
@@ -134,6 +150,14 @@ import ThemeToggle from './ThemeToggle.vue'
         <span v-if="studio.checkedAt !== null" class="count" :class="{ none: !ready.length }">{{ T`${ready.length} de ${studio.clis.length} listas` }}</span>
       </header>
 
+      <div v-for="r in studio.requirements" :key="r.id" class="cli" :class="r.installed ? 'ready' : 'missing lacking'" :title="r.why">
+        <i class="color req" />
+        <span class="data">
+          <strong>{{ r.name }}</strong>
+          <small>{{ r.installed ? (r.version ? T`v${r.version} · requisito` : T`requisito`) : T`Hace falta para abrir un proyecto` }}</small>
+        </span>
+        <span class="chip">{{ r.installed ? T`INSTALADO` : T`NO INSTALADO` }}</span>
+      </div>
       <div v-for="c in studio.clis" :key="c.id" class="cli" :class="stateOf(c)" :title="c.account">
         <i class="color" :style="{ background: `var(--pv-${c.id})` }" />
         <span class="data">
@@ -204,6 +228,10 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .referral { margin: 0; padding: 8px 0 0; border-top: 2px solid var(--border-light); font-size: 10px; line-height: 1.5; color: var(--text-secondary); }
 .cli.ready .chip { color: var(--st-idle); }
 .cli.no-session .chip { color: var(--accent); }
+.cli .color.req { background: var(--text-primary); }
+.cli.lacking .chip { color: var(--st-block); }
+.cli.lacking strong { color: var(--text-primary); }
+.alert code { justify-self: start; font: 12px var(--font); background: var(--term-bg); border: 2px solid var(--border-light); padding: 4px 8px; user-select: all; }
 .cli.missing .chip { color: var(--text-secondary); }
 .cli.missing strong { color: var(--text-secondary); }
 .cli.missing .color { opacity: 0.4; }

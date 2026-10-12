@@ -1,7 +1,7 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
 import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
-import type { CliStatus } from '../core/detect.js'
+import type { CliStatus, Requirement } from '../core/detect.js'
 import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
@@ -16,7 +16,7 @@ import type { FileChange } from '../core/worktree.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
-export type { CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
+export type { Requirement, CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
   /** Cómo se llama; sin nombre es "Jefe". */
@@ -47,6 +47,8 @@ export interface OrquestApi {
   /** Fija el idioma elegido por el usuario. Lo que Orquest les diga a los agentes desde ahora va en ese idioma. */
   setLanguage(lang: Lang): Promise<void>
   detectClis(): Promise<CliStatus[]>
+  /** Lo que hace falta instalado además de las CLIs (git). */
+  requirements(): Promise<Requirement[]>
   /** Modelos que ofrece cada CLI lista, según ella misma. Tarda más que detectClis: se pide aparte. */
   cliModels(): Promise<Partial<Record<ProviderId, string[]>>>
   /** Cuentas de cada CLI en esta máquina, con lo que llevan usado de su límite. */

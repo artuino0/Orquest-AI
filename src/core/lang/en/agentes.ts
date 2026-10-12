@@ -200,6 +200,9 @@ const en: Record<string, string> = {
   "Pensando": "Thinking",
   "Redactando": "Writing a reply",
   "Trabajando": "Working",
+  'No se encontró git en esta máquina. Instálalo y vuelve a abrir Orquest.': "git wasn't found on this machine. Install it and reopen Orquest.",
+  'La carpeta {0} ya no existe.': 'The folder {0} no longer exists.',
+  'Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.': 'Each employee works in its own copy of the repository and deliveries are merged into your branch: git does all of that.',
 }
 
 export default en

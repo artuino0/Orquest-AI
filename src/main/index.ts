@@ -4,7 +4,7 @@ import * as pty from 'node-pty'
 import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
 import { listAccounts } from '../core/accounts.js'
-import { detectAll, detectModels } from '../core/detect.js'
+import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
 import { listDocuments, readDocument } from '../core/documents.js'
@@ -105,6 +105,7 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
 }
 
 handle('clis:detect', () => detectAll())
+handle('requirements:detect', () => detectRequirements())
 handle('clis:models', async () => detectModels(await detectAll()))
 // Con un proyecto abierto se suma lo que cada CLI acaba de reportar; sin él, lo que dejaron en disco.
 handle('accounts:list', () => current?.accounts() ?? listAccounts())
