@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement } from '../../../shared/ipc'
+import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
@@ -198,8 +198,17 @@ export const useStudio = defineStore('studio', () => {
     resuming.value = false
   }
 
+  /** La carpeta que se quiso abrir y lo que le falta para servir (ver RepoSetup.vue). */
+  const repoIssue = ref<({ path: string } & RepoCheck) | null>(null)
   async function openProject(path: string) {
     error.value = null
+    // Antes de abrir: ¿es un repositorio con al menos un commit? Si no, se le ofrece al usuario prepararlo.
+    const check = await window.orquest.checkRepo(path).catch(() => null)
+    if (check && check.state !== 'ok') {
+      repoIssue.value = { path, ...check }
+      return
+    }
+    repoIssue.value = null
     try {
       board.value = await window.orquest.openProject(path)
     } catch (e) {
@@ -243,6 +252,20 @@ export const useStudio = defineStore('studio', () => {
     const id = ++noticeSeq
     notices.value.push({ id, text })
     setTimeout(() => (notices.value = notices.value.filter((n) => n.id !== id)), 7000)
+  }
+
+  /** Prepara la carpeta pendiente (git init y primer commit, lo que falte) y la abre. */
+  async function prepareAndOpen() {
+    const pending = repoIssue.value
+    if (!pending) return
+    error.value = null
+    try {
+      await window.orquest.prepareRepo(pending.path)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return
+    }
+    await openProject(pending.path)
   }
 
   async function pickProject() {
@@ -291,7 +314,7 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    screen, clis, requirements, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
+    screen, clis, requirements, repoIssue, prepareAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,

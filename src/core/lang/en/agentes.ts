@@ -203,6 +203,9 @@ const en: Record<string, string> = {
   'No se encontró git en esta máquina. Instálalo y vuelve a abrir Orquest.': "git wasn't found on this machine. Install it and reopen Orquest.",
   'La carpeta {0} ya no existe.': 'The folder {0} no longer exists.',
   'Cada empleado trabaja en su propia copia del repositorio y las entregas se integran a tu rama: todo eso lo hace git.': 'Each employee works in its own copy of the repository and deliveries are merged into your branch: git does all of that.',
+  '# Creado por Orquest AI al iniciar el repositorio: lo que no se guarda en git.': "# Created by Orquest AI when starting the repository: what git doesn't keep.",
+  'Esta carpeta tiene repositorios dentro: abre uno de ellos en vez de iniciar otro aquí.': 'This folder has repositories inside: open one of them instead of starting another one here.',
+  'Primer commit': 'Initial commit',
 }
 
 export default en

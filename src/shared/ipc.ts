@@ -1,4 +1,5 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
+import type { RepoCheck } from '../core/repo.js'
 import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
 import type { CliStatus, Requirement } from '../core/detect.js'
@@ -54,6 +55,10 @@ export interface OrquestApi {
   /** Cuentas de cada CLI en esta máquina, con lo que llevan usado de su límite. */
   accounts(): Promise<Account[]>
   pickRepo(): Promise<string | null>
+  /** Si la carpeta se puede abrir tal cual o le falta ser repositorio o tener un commit. */
+  checkRepo(path: string): Promise<RepoCheck>
+  /** La deja lista: la inicia como repositorio si hace falta y guarda el primer commit. */
+  prepareRepo(path: string): Promise<void>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>
   /** Abre una página en el navegador del sistema (guías de instalación). */
@@ -121,3 +126,5 @@ export interface OrquestApi {
   documentText(path: string): Promise<string>
   onHired(cb: (e: Employee) => void): () => void
 }
+
+export type { RepoCheck }

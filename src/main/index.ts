@@ -16,6 +16,7 @@ import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
+import { checkRepo, prepareRepo } from '../core/repo.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
@@ -109,6 +110,8 @@ handle('requirements:detect', () => detectRequirements())
 handle('clis:models', async () => detectModels(await detectAll()))
 // Con un proyecto abierto se suma lo que cada CLI acaba de reportar; sin él, lo que dejaron en disco.
 handle('accounts:list', () => current?.accounts() ?? listAccounts())
+handle('repo:check', (path: string) => checkRepo(path))
+handle('repo:prepare', (path: string) => prepareRepo(path))
 handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` })
   return r.canceled ? null : r.filePaths[0]

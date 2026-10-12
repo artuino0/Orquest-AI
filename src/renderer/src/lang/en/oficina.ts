@@ -173,6 +173,18 @@ const en: Record<string, string> = {
   'Hace falta para abrir un proyecto': 'Needed to open a project',
   INSTALADO: 'INSTALLED',
   'NO INSTALADO': 'NOT INSTALLED',
+  'Este repositorio aún no tiene commits': 'This repository has no commits yet',
+  'Esta carpeta no es un repositorio': "This folder isn't a repository",
+  'Cancelar': 'Cancel',
+  'Dentro hay un repositorio. Cada proyecto de Orquest es un repositorio: ábrelo a él.': "There's a repository inside. Each Orquest project is one repository: open that one.",
+  'Dentro hay {0} repositorios. Cada proyecto de Orquest es un repositorio: abre el que quieras trabajar.': 'There are {0} repositories inside. Each Orquest project is one repository: open the one you want to work on.',
+  'Cada empleado trabaja en su propia copia del proyecto y sus entregas se integran a tu rama. Para eso hace falta un repositorio de git con al menos un commit.': 'Each employee works in its own copy of the project and its deliveries are merged into your branch. That needs a git repository with at least one commit.',
+  'Orquest inicia el repositorio en esta carpeta.': 'Orquest starts the repository in this folder.',
+  'Como no hay .gitignore, crea uno básico para dejar fuera dependencias, compilados y archivos .env.': "Since there's no .gitignore, it creates a basic one to leave out dependencies, build output and .env files.",
+  'Guarda un primer commit con lo que hay en la carpeta.': "It saves a first commit with what's in the folder.",
+  'Preparando…': 'Preparing…',
+  'Iniciar repositorio y abrir': 'Start repository and open',
+  'Guardar el primer commit y abrir': 'Save the first commit and open',
 }
 
 export default en

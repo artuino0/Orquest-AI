@@ -73,6 +73,7 @@ onBeforeUnmount(() => {
   clearInterval(clock)
 })
 import LangToggle from './LangToggle.vue'
+import RepoSetup from './RepoSetup.vue'
 import ThemeToggle from './ThemeToggle.vue'
 </script>
 
@@ -179,6 +180,7 @@ import ThemeToggle from './ThemeToggle.vue'
       </footer>
     </aside>
 
+    <RepoSetup v-if="studio.repoIssue" />
     <InstallGuide v-if="guide" :clis="[...noSession, ...missing]" @close="guide = false" />
   </div>
 </template>
