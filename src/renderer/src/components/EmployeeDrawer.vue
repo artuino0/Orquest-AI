@@ -331,7 +331,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
       </div>
       <div class="actions">
         <select v-if="studio.drawerFull && studio.employees.length > 1" class="switch" :disabled="dirty" :value="e.id" :title="T`Ver la oficina de otra persona`" @change="studio.select(($event.target as HTMLSelectElement).value)">
-          <option v-for="p in studio.employees" :key="p.id" :value="p.id">{{ studio.nameOf(p.id) }} · {{ p.role }}</option>
+          <option v-for="p in studio.employees.filter((x) => x.id !== 'jefe' || x.id === e.id)" :key="p.id" :value="p.id">{{ studio.nameOf(p.id) }} · {{ p.role }}</option>
         </select>
         <button class="btn" :title="T`Sus archivos y su terminal ocupando toda la ventana`" @click="studio.drawerFull = !studio.drawerFull">
           <template v-if="studio.drawerFull"><Minimize2 /> {{ T`Reducir` }}</template><template v-else><Maximize2 /> {{ T`Pantalla completa` }}</template>

@@ -312,8 +312,19 @@ export const useStudio = defineStore('studio', () => {
   }
 
   function select(id: string | null) {
+    // Al jefe se le busca en su ventana (el chat). Su terminal y sus archivos se abren solo desde ahí: `openBossDesk`.
+    if (id === 'jefe') {
+      selected.value = null
+      overlay.value = 'boss'
+      return
+    }
     selected.value = id
     if (id) overlay.value = null
+  }
+  /** El panel del jefe con su terminal y sus archivos. Solo se llega desde su ventana. */
+  function openBossDesk() {
+    selected.value = 'jefe'
+    overlay.value = null
   }
 
   window.orquest.onHired((e) => {
@@ -369,6 +380,6 @@ export const useStudio = defineStore('studio', () => {
     screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
-    detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
+    detect, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
   }
 })

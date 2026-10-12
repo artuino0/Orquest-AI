@@ -330,7 +330,7 @@ const pending = computed(() => {
             <span class="meter" :class="{ hot: context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${context}%` }" /></i>{{ context }}%</span>
           </div>
         </div>
-        <button class="btn open" @click="studio.select('jefe')"><Terminal /> {{ T`Abrir terminal del jefe` }}</button>
+        <button class="btn open" @click="studio.openBossDesk()"><Terminal /> {{ T`Abrir terminal del jefe` }}</button>
         <div class="card waits">
           <span class="cap">{{ T`El jefe espera de ti` }}</span>
           <p v-if="!pending.length" class="dim">{{ T`Nada por ahora.` }}</p>
