@@ -199,6 +199,15 @@ const en: Record<string, string> = {
   'Ahora no': 'Not now',
   '{0} está detenido: su CLI le ofrece cambiar de modelo · Abrir su terminal': '{0} is stopped: its CLI offers to switch models · Open its terminal',
   'Decirle «ahora no» y que {0} siga con su modelo': 'Say "not now" and let {0} keep its model',
+  'Aquí no hay ningún repositorio todavía. ¿Cómo va a ser este proyecto?': "There's no repository here yet. What will this project be?",
+  'Un solo repositorio': 'A single repository',
+  'Todo el proyecto vive en esta carpeta. Orquest inicia git aquí.': 'The whole project lives in this folder. Orquest starts git here.',
+  'Una carpeta con varios repositorios': 'A folder with several repositories',
+  'Por ejemplo front y back por separado. A esta carpeta no se le pone git: cada repositorio va en su subcarpeta.': "For example front and back separately. This folder doesn't get git: each repository goes in its own subfolder.",
+  'Escribe los repositorios que va a tener, separados por comas. Orquest crea una subcarpeta para cada uno, con git iniciado y su primer commit.': 'Type the repositories it will have, separated by commas. Orquest creates a subfolder for each one, with git started and its first commit.',
+  'front, back': 'front, back',
+  'Atrás': 'Back',
+  'Crear repositorios y abrir': 'Create repositories and open',
 }
 
 export default en

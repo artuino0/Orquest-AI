@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { RuleError } from '../src/core/board.js'
-import { checkRepo, prepareRepo } from '../src/core/repo.js'
+import { checkGroup, checkRepo, createGroup, prepareRepo } from '../src/core/repo.js'
 import { currentBranch } from '../src/core/worktree.js'
 
 const dirs: string[] = []
@@ -72,5 +72,32 @@ describe('preparar una carpeta para abrirla', () => {
     expect(await checkRepo(dir)).toMatchObject({ state: 'no-commits', inside: [join(dir, 'api'), join(dir, 'web')] })
     await expect(prepareRepo(dir)).rejects.toThrow(RuleError)
     expect(git(dir, 'status', '--porcelain', '--untracked-files=no')).toBe('')
+  })
+
+  it('una carpeta sin git puede pasar a agrupar repositorios: se crean los que se nombren, listos', async () => {
+    const dir = folder()
+    writeFileSync(join(dir, 'notas.txt'), 'ideas')
+    mkdirSync(join(dir, 'back'))
+    writeFileSync(join(dir, 'back', 'server.js'), 'console.log(1)')
+    expect(await createGroup(dir, [' front', 'back ', ''])).toEqual(['front', 'back'])
+    // Cada uno es un repositorio con su primer commit; a la carpeta que los agrupa no se le pone git.
+    expect(existsSync(join(dir, '.git'))).toBe(false)
+    expect(await checkRepo(dir)).toMatchObject({ state: 'no-repo', inside: [join(dir, 'back'), join(dir, 'front')] })
+    expect((await checkGroup(dir)).empty).toEqual([])
+    expect(await currentBranch(join(dir, 'front'))).toBe('main')
+    // Lo que ya había en una subcarpeta entra a su primer commit.
+    expect(git(join(dir, 'back'), 'ls-files').split('\n').sort()).toEqual(['.gitignore', 'server.js'])
+  })
+
+  it('no crea nada con nombres que no sirven, repetidos, o dentro de un repositorio', async () => {
+    const dir = folder()
+    await expect(createGroup(dir, [])).rejects.toThrow(RuleError)
+    await expect(createGroup(dir, ['mi front'])).rejects.toThrow(RuleError)
+    await expect(createGroup(dir, ['../fuera'])).rejects.toThrow(RuleError)
+    await expect(createGroup(dir, ['.orquest'])).rejects.toThrow(RuleError)
+    await expect(createGroup(dir, ['front', 'Front'])).rejects.toThrow(RuleError)
+    expect(existsSync(join(dir, 'front'))).toBe(false)
+    git(dir, 'init', '-q', '-b', 'main')
+    await expect(createGroup(dir, ['front'])).rejects.toThrow(RuleError)
   })
 })

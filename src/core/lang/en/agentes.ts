@@ -214,6 +214,11 @@ const en: Record<string, string> = {
   "Los repositorios {0} todavía no tienen ningún commit. Haz el primero en cada uno y vuelve a abrir el proyecto: la copia de cada empleado parte de él.": "The repositories {0} have no commits yet. Make the first one in each and reopen the project: each employee's copy starts from it.",
   'Primer commit': 'Initial commit',
   'No encontré esa pregunta en su pantalla. Ábrele la terminal y contesta ahí.': "I couldn't find that question on its screen. Open its terminal and answer there.",
+  'Escribe al menos un nombre de repositorio (por ejemplo: front, back).': 'Type at least one repository name (for example: front, back).',
+  'Son demasiados repositorios de una vez (máximo {0}).': 'Too many repositories at once (maximum {0}).',
+  '«{0}» no sirve como nombre de carpeta: usa letras, números, guion o guion bajo, sin espacios.': '"{0}" is not a valid folder name: use letters, numbers, hyphen or underscore, no spaces.',
+  'El nombre «{0}» está repetido.': 'The name "{0}" is repeated.',
+  'Esta carpeta ya es un repositorio: no se le pueden crear otros dentro.': "This folder is already a repository: others can't be created inside it.",
 }
 
 export default en

@@ -16,7 +16,7 @@ import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
-import { checkGroup, checkRepo, prepareRepo } from '../core/repo.js'
+import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
@@ -116,6 +116,7 @@ handle('accounts:list', () => current?.accounts() ?? listAccounts())
 handle('repo:check', (path: string) => checkRepo(path))
 handle('repo:group', (path: string) => checkGroup(path))
 handle('repo:prepare', (path: string) => prepareRepo(path))
+handle('repo:create-group', (path: string, names: string[]) => createGroup(path, names))
 handle('repo:pick', async () => {
   const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` })
   return r.canceled ? null : r.filePaths[0]

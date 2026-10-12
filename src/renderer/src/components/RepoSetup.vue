@@ -23,6 +23,16 @@ async function openGroup() {
   busy.value = false
 }
 
+/** En una carpeta sin ningún git: qué eligió el usuario (un repositorio aquí, o varios dentro). */
+const mode = ref<'one' | 'group' | null>(null)
+const names = ref('')
+async function createGroup() {
+  if (!names.value.trim() || busy.value) return
+  busy.value = true
+  await studio.createGroupAndOpen(names.value.split(','))
+  busy.value = false
+}
+
 async function prepare() {
   busy.value = true
   await studio.prepareAndOpen()
@@ -50,6 +60,31 @@ async function prepare() {
         </div>
       </template>
 
+      <!-- Carpeta sin ningún git, ni dentro: el usuario decide si será un repositorio o una que agrupa varios. -->
+      <template v-else-if="issue.state === 'no-repo' && !mode">
+        <p>{{ T`Aquí no hay ningún repositorio todavía. ¿Cómo va a ser este proyecto?` }}</p>
+        <div class="list">
+          <button class="project choice" @click="mode = 'one'">
+            <GitBranch />
+            <span><strong>{{ T`Un solo repositorio` }}</strong><small>{{ T`Todo el proyecto vive en esta carpeta. Orquest inicia git aquí.` }}</small></span>
+          </button>
+          <button class="project choice" @click="mode = 'group'">
+            <FolderTree />
+            <span><strong>{{ T`Una carpeta con varios repositorios` }}</strong><small>{{ T`Por ejemplo front y back por separado. A esta carpeta no se le pone git: cada repositorio va en su subcarpeta.` }}</small></span>
+          </button>
+        </div>
+      </template>
+
+      <template v-else-if="mode === 'group'">
+        <p>{{ T`Escribe los repositorios que va a tener, separados por comas. Orquest crea una subcarpeta para cada uno, con git iniciado y su primer commit.` }}</p>
+        <input v-model="names" class="names" :placeholder="T`front, back`" @keyup.enter="createGroup" />
+        <p v-if="studio.error" class="err">{{ studio.error }}</p>
+        <footer>
+          <button class="btn" :disabled="busy" @click="mode = null">{{ T`Atrás` }}</button>
+          <button class="btn primary" :disabled="busy || !names.trim()" @click="createGroup"><FolderTree />{{ busy ? T`Preparando…` : T`Crear repositorios y abrir` }}</button>
+        </footer>
+      </template>
+
       <template v-else>
         <p>{{ T`Cada empleado trabaja en su propia copia del proyecto y sus entregas se integran a tu rama. Para eso hace falta un repositorio de git con al menos un commit.` }}</p>
         <ul>
@@ -59,6 +94,7 @@ async function prepare() {
         </ul>
         <p v-if="studio.error" class="err">{{ studio.error }}</p>
         <footer>
+          <button v-if="mode === 'one'" class="btn" :disabled="busy" @click="mode = null">{{ T`Atrás` }}</button>
           <button class="btn primary" :disabled="busy" @click="prepare"><GitBranch />{{ busy ? T`Preparando…` : issue.state === 'no-repo' ? T`Iniciar repositorio y abrir` : T`Guardar el primer commit y abrir` }}</button>
         </footer>
       </template>
@@ -79,5 +115,9 @@ ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 12px; li
 .project { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border: 2px solid var(--border); color: var(--text-primary); font: 13px var(--font); text-align: left; cursor: pointer; }
 .project:hover { border-color: var(--accent); }
 .project svg { width: 16px; height: 16px; color: var(--accent); }
-footer { display: flex; justify-content: flex-end; }
+footer { display: flex; justify-content: flex-end; gap: 8px; }
+.choice { align-items: flex-start; }
+.choice span { display: grid; gap: 3px; }
+.choice small { font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
+.names { font: 13px var(--font); padding: 8px 10px; background: var(--term-bg); color: var(--text-primary); border: 2px solid var(--border-light); }
 </style>

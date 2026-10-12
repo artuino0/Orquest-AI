@@ -77,6 +77,7 @@ export function installMock(caso: string) {
     // ?caso=sin-repo y ?caso=sin-commits: la carpeta elegida no está lista. ?caso=varios-repos: agrupa repositorios.
     checkRepo: async (path) => ({ state: caso === 'sin-repo' || caso === 'varios-repos' ? 'no-repo' : caso === 'sin-commits' ? 'no-commits' : 'ok', inside: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => `${path}/${n}`) : [], gitignore: false }),
     prepareRepo: async () => {},
+    createGroup: async (_path, names) => names,
     checkGroup: async (path) => ({ repos: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => ({ name: n, path: `${path}/${n}` })) : [], empty: [] }),
     version: async () => '0.0.0',
     // ?actualiza=1: como si hubiera una versión nueva publicada.

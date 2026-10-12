@@ -64,6 +64,8 @@ export interface OrquestApi {
   checkRepo(path: string): Promise<RepoCheck>
   /** La deja lista: la inicia como repositorio si hace falta y guarda el primer commit. */
   prepareRepo(path: string): Promise<void>
+  /** Crea dentro de una carpeta sin git los repositorios que va a agrupar (uno por nombre), listos para usarse. */
+  createGroup(path: string, names: string[]): Promise<string[]>
   /** Los repositorios que agrupa una carpeta y cuáles aún no tienen commits: con eso se sabe si se abre como un solo proyecto. */
   checkGroup(path: string): Promise<GroupCheck>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */

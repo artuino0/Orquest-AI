@@ -5,7 +5,7 @@
  * en vez de mandarlo a la terminal.
  */
 import { execFile } from 'node:child_process'
-import { access, readdir, writeFile } from 'node:fs/promises'
+import { access, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -125,4 +125,34 @@ export async function prepareRepo(dir: string): Promise<void> {
   const named = (await git(dir, 'config', 'user.name').catch(() => '')) && (await git(dir, 'config', 'user.email').catch(() => ''))
   const identity = named ? [] : ['-c', 'user.name=Orquest', '-c', 'user.email=orquest@localhost']
   await git(dir, ...identity, 'commit', '-q', '--allow-empty', '--no-verify', '-m', T`Primer commit`)
+}
+
+/** Nombre de carpeta para un repositorio: letras, números, punto, guion y guion bajo. */
+const REPO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/
+const MAX_GROUP = 12
+
+/**
+ * Convierte una carpeta sin git en una que agrupa repositorios: crea dentro una
+ * subcarpeta por nombre y la deja lista (repositorio con su primer commit). A
+ * la carpeta misma no se le pone git. Si una subcarpeta ya existe, se usa tal
+ * cual: lo que tenga entra a su primer commit.
+ */
+export async function createGroup(dir: string, names: string[]): Promise<string[]> {
+  const wanted = names.map((n) => n.trim()).filter(Boolean)
+  if (!wanted.length) throw new RuleError(T`Escribe al menos un nombre de repositorio (por ejemplo: front, back).`)
+  if (wanted.length > MAX_GROUP) throw new RuleError(T`Son demasiados repositorios de una vez (máximo ${MAX_GROUP}).`)
+  const seen = new Set<string>()
+  for (const name of wanted) {
+    if (!REPO_NAME.test(name) || name.startsWith('.')) throw new RuleError(T`«${name}» no sirve como nombre de carpeta: usa letras, números, guion o guion bajo, sin espacios.`)
+    if (seen.has(name.toLowerCase())) throw new RuleError(T`El nombre «${name}» está repetido.`)
+    seen.add(name.toLowerCase())
+  }
+  const here = await checkRepo(dir)
+  if (here.state !== 'no-repo') throw new RuleError(T`Esta carpeta ya es un repositorio: no se le pueden crear otros dentro.`)
+  for (const name of wanted) {
+    const sub = join(dir, name)
+    await mkdir(sub, { recursive: true })
+    await prepareRepo(sub)
+  }
+  return wanted
 }

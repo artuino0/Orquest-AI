@@ -277,6 +277,20 @@ export const useStudio = defineStore('studio', () => {
     await openProject(pending.path)
   }
 
+  /** La carpeta pendiente pasa a agrupar repositorios: se crean los que se nombren y se abre como un solo proyecto. */
+  async function createGroupAndOpen(names: string[]) {
+    const pending = repoIssue.value
+    if (!pending) return
+    error.value = null
+    try {
+      await window.orquest.createGroup(pending.path, names)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+      return
+    }
+    await openProject(pending.path, true)
+  }
+
   async function pickProject() {
     const path = await window.orquest.pickRepo()
     if (path) openProject(path)
@@ -350,7 +364,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     blocks, answerBlock, restart,
     version,
-    screen, clis, requirements, repoIssue, prepareAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
+    screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadSummaries, openProject, pickProject, goHome, fire, select, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,

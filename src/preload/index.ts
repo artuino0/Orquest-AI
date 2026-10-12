@@ -28,6 +28,7 @@ const api: OrquestApi = {
   pickRepo: () => invoke('repo:pick'),
   checkRepo: (path) => invoke('repo:check', path),
   prepareRepo: (path) => invoke('repo:prepare', path),
+  createGroup: (path, names) => invoke('repo:create-group', path, names),
   checkGroup: (path) => invoke('repo:group', path),
   projectSummaries: (repos) => invoke('project:summaries', repos),
   openExternal: (url) => invoke('shell:open', url),
