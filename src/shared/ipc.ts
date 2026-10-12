@@ -137,6 +137,10 @@ export interface OrquestApi {
   fileText(id: string, path: string): Promise<FileText>
   /** Un archivo cambiado, antes y ahora, para verlos uno junto al otro. */
   fileSides(id: string, path: string): Promise<FileSides>
+  /** Guarda lo editado en un archivo de su oficina; solo si su agente no trabaja y el archivo sigue como se abrió (`stamp`). */
+  saveFile(id: string, path: string, text: string, stamp: string): Promise<{ stamp: string }>
+  /** El texto del editor formateado con Prettier, con las opciones del proyecto. No toca el disco. */
+  formatFile(id: string, path: string, text: string): Promise<string>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>
   write(id: string, data: string): void

@@ -108,6 +108,17 @@ const en: Record<string, string> = {
   'Explorador': 'Explorer',
   'No hay archivos en su oficina.': 'There are no files in their office.',
   'Elige un archivo para verlo.': 'Pick a file to view it.',
+  'Tienes cambios sin guardar en {0}: guárdalos o descártalos primero.': 'You have unsaved changes in {0}: save or discard them first.',
+  '{0} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.': '{0} is working: wait until they finish to save. Your changes are still in the editor.',
+  'sin guardar': 'unsaved',
+  'Solo lectura mientras {0} trabaja': 'Read-only while {0} is working',
+  'Acomoda el código con Prettier (Shift+Alt+F). No guarda.': "Tidies the code with Prettier (Shift+Alt+F). Doesn't save.",
+  'Formatear': 'Format',
+  'Descartar': 'Discard',
+  'Guardar (Ctrl+S)': 'Save (Ctrl+S)',
+  'Guardando…': 'Saving…',
+  'Guardar': 'Save',
+  'Formatear con Prettier': 'Format with Prettier',
 }
 
 export default en

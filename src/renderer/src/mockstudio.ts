@@ -277,12 +277,13 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     diff: async () => DIFF,
     fileSides: async (_id, path) =>
       path.endsWith('.json')
-        ? { before: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite" }\n}\n', after: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite", "seed": "tsx scripts/seed.ts" }\n}\n', binary: false, truncated: false }
+        ? { before: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite" }\n}\n', after: '{\n  "name": "tienda",\n  "scripts": { "dev": "vite", "seed": "tsx scripts/seed.ts" }\n}\n', binary: false, truncated: false, stamp: 'demo' }
         : {
             before: "import { db } from '../src/db'\n\nexport async function seed() {\n  await db.products.clear()\n  await db.products.add({ name: 'Taza', price: 120 })\n}\n",
             after: "import { db } from '../src/db'\nimport { products } from './data'\n\n/** Llena la tienda con productos de ejemplo. */\nexport async function seed() {\n  await db.products.clear()\n  for (const p of products) await db.products.add(p)\n  console.log(`${products.length} productos`)\n}\n",
             binary: false,
             truncated: false,
+            stamp: 'demo',
           },
     // Capturas de ejemplo: imágenes del propio proyecto, para ver la pestaña con algo.
     captures: async () => ['escena/fondo.png', 'sprites/billar.png', 'sprites/camioneta-frente.png'].map((path, i) => ({ path: `docs/capturas/T3/${path.split('/').pop()}`, at: Date.now() - i * 60000, size: 1000 })),

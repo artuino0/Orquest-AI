@@ -152,7 +152,10 @@ export function installMock(caso: string) {
         'src/components': [['Cart.vue', false], ['Checkout.vue', false]],
         test: [['cart.test.ts', false]],
       } as Record<string, [string, boolean][]>)[dir] ?? []).map(([name, isDir]) => ({ name, path: dir ? `${dir}/${name}` : name, dir: isDir })),
-    fileSides: async () => ({ before: '', after: '', binary: false, truncated: false }),
+    fileSides: async () => ({ before: '', after: '', binary: false, truncated: false, stamp: '' }),
+    saveFile: async () => ({ stamp: `demo-${Date.now()}` }),
+    // De mentira: quita espacios de más al final de cada renglón.
+    formatFile: async (_id, _path, text) => text.split('\n').map((l) => l.trimEnd()).join('\n'),
     fileText: async (_id, path) => {
       const text = path.endsWith('.json')
         ? '{\n  "name": "tienda-en-linea",\n  "version": "1.2.0",\n  "private": true,\n  "scripts": { "dev": "vite", "test": "vitest run" }\n}\n'
@@ -163,7 +166,7 @@ export function installMock(caso: string) {
             : path.endsWith('.css')
               ? '/* Botones */\n.btn { display: flex; gap: 8px; color: var(--accent); }\n.btn:hover { opacity: 0.8; }\n'
               : `// ${path}\nimport { createApp } from 'vue'\nimport App from './App.vue'\n\ninterface Item {\n  id: number\n  price: number\n}\n\n/** Suma lo que hay en el carrito. */\nexport function total(items: Item[]): number {\n  return items.reduce((sum, i) => sum + i.price, 0)\n}\n\nconst TAX = 0.16\ncreateApp(App).mount('#app')\n`
-      return { text, binary: false, truncated: false, size: text.length }
+      return { text, binary: false, truncated: false, size: text.length, stamp: 'demo' }
     },
     write: () => {},
     resize: () => {},

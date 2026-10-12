@@ -187,6 +187,13 @@ const en: Record<string, string> = {
   'el usuario reinició su terminal': 'the user restarted their terminal',
   'Ese archivo queda fuera de su oficina.': 'That file is outside their office.',
   'Eso no es un archivo.': "That isn't a file.",
+  'Lo que hay dentro de .git no se edita aquí.': "What's inside .git isn't edited here.",
+  'Ese archivo ya no existe: no se guardó nada.': 'That file no longer exists: nothing was saved.',
+  'El archivo cambió en el disco desde que lo abriste: no se guardó nada, para no pisar ese cambio. Vuelve a abrirlo para ver cómo quedó.': 'The file changed on disk since you opened it: nothing was saved, so that change is not overwritten. Open it again to see how it looks now.',
+  '{0} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.': '{0} is working: wait until they finish to save. Your changes are still in the editor.',
+  'el usuario editó {0}': 'the user edited {0}',
+  'Prettier no sabe formatear este tipo de archivo.': "Prettier can't format this kind of file.",
+  'No se pudo formatear: {0}': 'Could not format: {0}',
 }
 
 export default en

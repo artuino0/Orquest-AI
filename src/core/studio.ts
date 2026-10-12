@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import { archiveCaptures, listCaptures, type Capture } from './captures.js'
+import { writeText } from './files.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { getLang, T } from './i18n.js'
@@ -28,6 +29,8 @@ import { commitDelivery, createCopy, currentBranch, deliveryDiff, headOf, mergeO
 const SUBMIT_RETRIES_MS = [1200, 2000, 3000, 4000, 5000, 6000, 8000]
 /** Cuánto se espera, como mucho, a ver en pantalla lo que se le escribió antes de dar Enter. */
 const ECHO_WAIT_MS = 20_000
+/** Cuánto debe llevar alguien sin cambiar de estado para que se pueda guardar en su oficina. */
+const EDIT_CALM_MS = 5000
 
 /** Una CLI que se cierra antes de esto tras pedirle retomar, es que no tenía conversación que retomar. */
 
@@ -67,6 +70,8 @@ export interface StudioOptions {
   mcpUrl: (token: string) => string
   /** Pausa entre escribirle un mensaje a una CLI y darle Enter. */
   submitDelayMs?: number
+  /** Cuánto debe llevar alguien sin cambiar de estado para que el usuario pueda guardar en su oficina. */
+  editCalmMs?: number
   /** Cuánto espera hablar_con la respuesta del empleado. */
   replyTimeoutMs?: number
   /** Expedientes, manuales e historial del estudio; compartidos entre proyectos. */
@@ -118,6 +123,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private resting = new Map<string, string>()
   /** Pasó el umbral a media tarea: descansa en cuanto termine su turno. */
   private restPending = new Set<string>()
+  /** Hasta cuándo cuenta cada quien como «ocupado» para editar en su oficina: se recorre con cada cambio de estado. */
+  private settledAt = new Map<string, number>()
   /** Contexto con que arrancó cada sesión. */
   private contextFloor = new Map<string, number>()
   /** Uso de la cuenta que reporta cada CLI por su barra de estado: `proveedor|carpeta` → dato. */
@@ -137,6 +144,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.board = saved ? Board.restore(saved) : new Board()
     const onState = (id: string, state: EmployeeState) => {
       if (!this.isOurs(id)) return
+      // Entre paso y paso un agente pasa un instante por «en espera»: para editar no cuenta como quieto hasta que dure.
+      this.settledAt.set(id, Date.now() + (this.opts.editCalmMs ?? EDIT_CALM_MS))
       // Se puso a trabajar: la conversación que retomó sí existía.
       if (state === 'working') this.resumeTries.delete(id)
       if (state === 'idle') {
@@ -1280,6 +1289,21 @@ export class Studio extends EventEmitter<StudioEvents> {
   /** Las cuentas de esta máquina con su uso: el que deja cada CLI en disco o el que acaba de reportar. */
   accounts() {
     return listAccounts(this.opts.home).map((a) => ({ ...a, usage: this.reported.get(`${a.provider}|${a.main ? '' : a.dir}`) ?? a.usage }))
+  }
+
+  /**
+   * Guarda lo que el usuario editó en la oficina de alguien. Nunca mientras su
+   * agente trabaja (ni en el instante en que parece quieto entre dos pasos): no
+   * escriben los dos a la vez. Y solo si el archivo sigue como se abrió.
+   */
+  async saveFile(id: string, path: string, text: string, stamp: string): Promise<{ stamp: string }> {
+    const emp = this.opts.manager.get(id)
+    if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
+    const busy = emp.state === 'working' || emp.state === 'starting' || Date.now() < (this.settledAt.get(id) ?? 0)
+    if (busy) throw new RuleError(T`${this.nameOf(id)} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.`)
+    const next = await writeText(emp.office.path, path, text, stamp)
+    this.fact(id, T`el usuario editó ${path}`)
+    return { stamp: next }
   }
 
   /** Bitácora de un agente, para la UI. */

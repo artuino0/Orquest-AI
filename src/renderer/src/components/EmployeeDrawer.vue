@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, AppWindow, ChevronRight, Columns2, File, Folder, FolderOpen, Gamepad2, Maximize2, Minimize2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
+import { AlertTriangle, AppWindow, ChevronRight, Columns2, File, Folder, FolderOpen, Gamepad2, Lock, Maximize2, Minimize2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
@@ -138,26 +138,96 @@ const before = ref<string | null>(null)
 const fail = (err: unknown) => (notice.value = err instanceof Error ? err.message : String(err))
 const NOT_TEXT = () => T`Este archivo no es de texto: no se muestra aquí.`
 const LONG = () => T`El archivo es largo: aquí solo sale el principio.`
-async function showDiff(path: string, status = '') {
+// Editar: solo un archivo que se leyó entero (trae sello) y mientras su agente no trabaja.
+const code = ref<InstanceType<typeof CodeView>>()
+/** Sello de lo que hay en disco; vacío = no se puede editar (plan, cortado, binario, borrado). */
+const stamp = ref('')
+/** Lo que hay en disco y lo que hay en el editor. */
+const onDisk = ref('')
+const draft = ref('')
+const dirty = computed(() => !!stamp.value && draft.value !== onDisk.value)
+/** En calma: quien trabaja sigue «trabajando» entre paso y paso, así el candado no parpadea. */
+const locked = computed(() => ['working', 'starting'].includes(studio.calmStateOf(e.value)))
+const editable = computed(() => !!stamp.value && !locked.value)
+const saving = ref(false)
+const fileError = ref('')
+/** Con cambios sin guardar no se abre otro archivo ni se cierra el panel: primero guardar o descartar. */
+function keepDraft(path?: string): boolean {
+  if (!dirty.value || path === openFile.value) return false
+  fileError.value = T`Tienes cambios sin guardar en ${openFile.value ?? ''}: guárdalos o descártalos primero.`
+  tab.value = 'archivos'
+  return true
+}
+function loaded(text: string, mark: string) {
+  // El editor no muestra la marca de inicio (BOM): se compara sin ella; al guardar se conserva.
+  diff.value = onDisk.value = draft.value = text.replace(/^\uFEFF/, '')
+  stamp.value = mark
+  viewKey.value++
+}
+/** Cada apertura estrena editor: así «Descartar» y volver a abrir traen lo del disco aunque el texto sea el mismo. */
+const viewKey = ref(0)
+function opening(path: string, plan: boolean) {
   openFile.value = path
-  openPlan.value = status === 'plan'
-  notice.value = ''
+  openPlan.value = plan
+  notice.value = fileError.value = ''
   before.value = null
   cut.value = false
+  stamp.value = ''
   tab.value = 'archivos'
+}
+async function showDiff(path: string, status = '') {
+  if (keepDraft(path)) return
+  opening(path, status === 'plan')
   try {
     if (openPlan.value) {
       diff.value = await window.orquest.documentText(path)
+      viewKey.value++
       return
     }
     const sides = await window.orquest.fileSides(e.value.id, path)
     if (sides.binary) notice.value = NOT_TEXT()
     cut.value = sides.truncated
-    diff.value = sides.after
+    loaded(sides.after, sides.stamp)
     before.value = sides.before
   } catch (err) {
     fail(err)
   }
+}
+async function save() {
+  if (!dirty.value || saving.value || !openFile.value) return
+  if (locked.value) {
+    fileError.value = T`${studio.nameOf(e.value.id)} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.`
+    return
+  }
+  saving.value = true
+  fileError.value = ''
+  try {
+    const text = draft.value
+    stamp.value = (await window.orquest.saveFile(e.value.id, openFile.value, text, stamp.value)).stamp
+    onDisk.value = text
+    void loadChanges()
+  } catch (err) {
+    fileError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    saving.value = false
+  }
+}
+async function format() {
+  if (!editable.value || !openFile.value) return
+  fileError.value = ''
+  try {
+    const pretty = await window.orquest.formatFile(e.value.id, openFile.value, draft.value)
+    if (pretty !== draft.value) code.value?.replace(pretty)
+  } catch (err) {
+    fileError.value = err instanceof Error ? err.message : String(err)
+  }
+}
+/** Tira lo que se escribió y vuelve a traer el archivo como está en disco. */
+function discard() {
+  const path = openFile.value
+  if (!path) return
+  draft.value = onDisk.value
+  void (before.value === null ? showFile(path) : showDiff(path))
 }
 /** Lo abierto llegó cortado por largo. */
 const cut = ref(false)
@@ -194,17 +264,13 @@ function toggleDir(path: string) {
   opened.value = next
 }
 async function showFile(path: string) {
-  openFile.value = path
-  openPlan.value = true
-  notice.value = ''
-  before.value = null
-  cut.value = false
-  tab.value = 'archivos'
+  if (keepDraft(path)) return
+  opening(path, false)
   try {
     const f = await window.orquest.fileText(e.value.id, path)
     if (f.binary) notice.value = NOT_TEXT()
     cut.value = f.truncated
-    diff.value = f.text
+    loaded(f.text, f.stamp)
   } catch (err) {
     fail(err)
   }
@@ -232,6 +298,7 @@ watch(
 )
 onBeforeUnmount(() => clearInterval(timer))
 function close() {
+  if (keepDraft()) return
   studio.drawerFull = false
   studio.select(null)
 }
@@ -263,7 +330,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
         <p v-if="hot" class="over">{{ T`Pasó el umbral de ${burnoutAt} %. Mándalo a Descanso para limpiar contexto.` }}</p>
       </div>
       <div class="actions">
-        <select v-if="studio.drawerFull && studio.employees.length > 1" class="switch" :value="e.id" :title="T`Ver la oficina de otra persona`" @change="studio.select(($event.target as HTMLSelectElement).value)">
+        <select v-if="studio.drawerFull && studio.employees.length > 1" class="switch" :disabled="dirty" :value="e.id" :title="T`Ver la oficina de otra persona`" @change="studio.select(($event.target as HTMLSelectElement).value)">
           <option v-for="p in studio.employees" :key="p.id" :value="p.id">{{ studio.nameOf(p.id) }} · {{ p.role }}</option>
         </select>
         <button class="btn" :title="T`Sus archivos y su terminal ocupando toda la ventana`" @click="studio.drawerFull = !studio.drawerFull">
@@ -312,10 +379,19 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 
       <div v-if="tab === 'archivos'" class="files">
         <p v-if="!openFile" class="dim">{{ T`Elige un archivo para verlo.` }}</p>
-        <p v-else class="path"><code>{{ openFile }}</code><template v-if="cut"> · {{ LONG() }}</template></p>
+        <div v-else class="bar">
+          <p class="path"><code>{{ openFile }}</code><b v-if="dirty" class="unsaved"> ● {{ T`sin guardar` }}</b><template v-if="cut"> · {{ LONG() }}</template></p>
+          <template v-if="stamp && !notice">
+            <span v-if="locked" class="lock"><Lock /> {{ T`Solo lectura mientras ${studio.nameOf(e.id)} trabaja` }}</span>
+            <button class="btn" :disabled="!editable" :title="T`Acomoda el código con Prettier (Shift+Alt+F). No guarda.`" @click="format">{{ T`Formatear` }}</button>
+            <button class="btn" :disabled="!dirty" @click="discard">{{ T`Descartar` }}</button>
+            <button class="btn primary" :disabled="!dirty || locked || saving" :title="T`Guardar (Ctrl+S)`" @click="save">{{ saving ? T`Guardando…` : T`Guardar` }}</button>
+          </template>
+        </div>
+        <p v-if="openFile && fileError" class="bad">{{ fileError }}</p>
         <p v-if="openFile && notice" class="dim">{{ notice }}</p>
-        <!-- El editor (solo lectura): un archivo o plan entero, o un cambio con sus dos lados. -->
-        <CodeView v-else-if="openFile" class="code" :path="openFile" :text="diff" :original="before" />
+        <!-- El editor: un archivo o plan entero, o un cambio con sus dos lados. Se escribe solo si su agente no trabaja. -->
+        <CodeView v-else-if="openFile" ref="code" :key="viewKey" class="code" :path="openFile" :text="diff" :original="before" :editable="editable" @change="draft = $event" @save="save" @format="format" />
       </div>
 
       <div v-if="tab === 'capturas'" class="shots">
@@ -408,7 +484,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 .side code { color: var(--accent); margin-right: 6px; }
 .side li svg { width: 13px; height: 13px; margin-right: 6px; vertical-align: -2px; color: var(--text-secondary); }
 .side li svg.folder { color: var(--accent); }
-.code { min-height: 0; border: 2px solid var(--border); }
+.code { flex: 1; min-height: 0; border: 2px solid var(--border); }
 .path { margin: 0; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header { display: flex; align-items: flex-start; gap: 12px; padding: 14px; background: var(--surface-2); border-bottom: 3px solid var(--border); }
 .avatar { width: 48px; height: 56px; object-fit: contain; image-rendering: pixelated; background: var(--bg); border: 2px solid var(--border); padding: 4px; flex: none; }
@@ -449,7 +525,14 @@ h2 { margin: 0; display: flex; align-items: center; gap: 10px; text-transform: n
 .viewer .scroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
 .viewer img { display: block; max-width: none; margin: 0 auto; }
 .viewer img.fit { max-width: 100%; height: auto; }
-.files { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 10px; }
+.files { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.files > p { margin: 0; }
+.bar { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+.bar .path { flex: 1; min-width: 0; }
+.bar .btn { padding: 4px 10px; }
+.unsaved { color: var(--accent); font-weight: 700; }
+.lock { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+.lock svg { width: 12px; height: 12px; }
 .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .chat-log { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
 .chat-log .spacer { flex: 1; }

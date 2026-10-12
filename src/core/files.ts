@@ -3,7 +3,8 @@
  * su oficina y el texto de un archivo. Solo lee, y nunca fuera de la oficina.
  */
 import { execFile } from 'node:child_process'
-import { open, readdir, realpath, stat } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { open, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -23,7 +24,12 @@ export interface FileText {
   /** Es más largo que el tope: `text` trae solo el principio. */
   truncated: boolean
   size: number
+  /** Sello de lo que hay en disco: con él se guarda. Vacío si no se puede editar (cortado, o no es texto). */
+  stamp: string
 }
+
+/** El sello de un contenido: guardar exige que el disco siga teniendo el que se leyó. */
+const stampOf = (bytes: Buffer) => createHash('sha1').update(bytes).digest('hex')
 
 /** Cuánto texto se manda al panel como mucho; un archivo más largo se corta. */
 const MAX_TEXT = 400_000
@@ -69,8 +75,9 @@ export async function readText(office: string, path: string): Promise<FileText> 
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
     const bytes = buffer.subarray(0, bytesRead)
     // Un byte nulo al principio delata lo que no es texto.
-    if (bytes.subarray(0, 8000).includes(0)) return { text: '', binary: true, truncated: false, size: info.size }
-    return { text: bytes.toString('utf8'), binary: false, truncated: info.size > MAX_TEXT, size: info.size }
+    if (bytes.subarray(0, 8000).includes(0)) return { text: '', binary: true, truncated: false, size: info.size, stamp: '' }
+    const truncated = info.size > MAX_TEXT
+    return { text: bytes.toString('utf8'), binary: false, truncated, size: info.size, stamp: truncated ? '' : stampOf(bytes) }
   } finally {
     await handle.close()
   }
@@ -84,6 +91,8 @@ export interface FileSides {
   after: string
   binary: boolean
   truncated: boolean
+  /** Sello del «ahora», para guardar; vacío si no se puede editar (borrado, cortado, o no es texto). */
+  stamp: string
 }
 
 const run = promisify(execFile)
@@ -117,6 +126,29 @@ export async function fileSides(office: string, path: string): Promise<FileSides
     () => Buffer.alloc(0), // nuevo, o fuera de un repositorio
   )
   const binary = [before, after].some((b) => b.subarray(0, 8000).includes(0))
-  if (binary) return { before: '', after: '', binary, truncated: false }
-  return { before: cutText(before), after: cutText(after), binary, truncated: before.length > MAX_TEXT || after.length > MAX_TEXT }
+  if (binary) return { before: '', after: '', binary, truncated: false, stamp: '' }
+  const truncated = before.length > MAX_TEXT || after.length > MAX_TEXT
+  return { before: cutText(before), after: cutText(after), binary, truncated, stamp: now && !truncated ? stampOf(after) : '' }
+}
+
+const BOM = Buffer.from([0xef, 0xbb, 0xbf])
+
+/**
+ * Guarda lo que el usuario editó de un archivo de la oficina. Solo sobre un
+ * archivo que ya existe y que sigue como se leyó (`stamp`): si alguien lo
+ * cambió entre tanto, no se pisa. Devuelve el sello nuevo.
+ */
+export async function writeText(office: string, path: string, text: string, stamp: string): Promise<string> {
+  const full = await inside(office, path)
+  if (relative(await realpath(resolve(office)), full).split(sep).includes('.git')) throw new RuleError(T`Lo que hay dentro de .git no se edita aquí.`)
+  const current = await readFile(full).catch(() => null)
+  if (!current) throw new RuleError(T`Ese archivo ya no existe: no se guardó nada.`)
+  if (!stamp || stampOf(current) !== stamp) {
+    throw new RuleError(T`El archivo cambió en el disco desde que lo abriste: no se guardó nada, para no pisar ese cambio. Vuelve a abrirlo para ver cómo quedó.`)
+  }
+  // El editor no muestra la marca de inicio (BOM); si el archivo la traía, se conserva.
+  const bytes = Buffer.from(text.replace(/^\uFEFF/, ''), 'utf8')
+  const next = current.subarray(0, 3).equals(BOM) ? Buffer.concat([BOM, bytes]) : bytes
+  await writeFile(full, next)
+  return stampOf(next)
 }

@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { RuleError } from '../src/core/board.js'
+import { readText } from '../src/core/files.js'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EmployeeManager, type Pty, type Spawner } from '../src/core/employees.js'
 import { Studio } from '../src/core/studio.js'
@@ -127,6 +129,33 @@ describe('prompt de Claude Code', () => {
     await wait(60)
     expect(manager.get('jefe')?.state).toBe('idle')
     expect(manager.atPrompt('jefe')).toBe(true)
+  })
+})
+
+describe('editar en la oficina de alguien', () => {
+  it('no se guarda mientras su agente trabaja ni en el parpadeo entre dos pasos; quieto, sí', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const dir = repo()
+    writeFileSync(join(dir, 'nota.md'), 'uno\n')
+    studio = await new Studio({ repo: dir, manager, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, editCalmMs: 400 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const stamp = (await readText(dir, 'nota.md')).stamp
+    terminals[0].feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+    await wait(80)
+    await expect(studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)).rejects.toThrow(RuleError)
+    // Se asoma al prompt un instante entre dos pasos: todavía no.
+    terminals[0].feed(CLAUDE_PROMPT)
+    await wait(80)
+    expect(manager.get('jefe')?.state).toBe('idle')
+    await expect(studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)).rejects.toThrow(RuleError)
+    expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('uno\n')
+    // Ya lleva un rato quieto: se guarda, y el sello nuevo sirve para la siguiente.
+    await wait(500)
+    const next = await studio.saveFile('jefe', 'nota.md', 'dos\n', stamp)
+    expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('dos\n')
+    await studio.saveFile('jefe', 'nota.md', 'tres\n', next.stamp)
+    expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('tres\n')
   })
 })
 

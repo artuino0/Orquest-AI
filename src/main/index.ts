@@ -8,6 +8,7 @@ import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
 import { fileSides, listDir, readText } from '../core/files.js'
+import { formatText } from '../core/format.js'
 import { listDocuments, listGroupDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
@@ -265,6 +266,12 @@ handle('employee:sides', (id: string, path: string) => {
   const emp = manager.get(id)
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return fileSides(emp.office.path, path)
+})
+handle('employee:save-file', (id: string, path: string, text: string, stamp: string) => studio().saveFile(id, path, text, stamp))
+handle('employee:format-file', (id: string, path: string, text: string) => {
+  const emp = manager.get(id)
+  if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
+  return formatText(emp.office.path, path, text)
 })
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))
