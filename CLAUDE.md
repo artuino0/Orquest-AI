@@ -4,9 +4,10 @@ Orquestador de agentes de código hecho juego: una oficina en pixel art (vista c
 
 - Plan del producto: `docs/plan.md` (fuente de verdad del alcance y las fases).
 - Estado y detalle por fase: `README.md`.
-- Prompt para el rediseño visual en Pencil: `docs/prompt-rediseno-pencil.md`.
 
 ## Reglas para trabajar aquí
+
+- **El repositorio es público y lleva solo la app y su página.** El material comercial y de promoción (`promo/`, `docs/comercial.md`, `docs/asesoria.md`), los encargos internos (`docs/tareas/`, `docs/prompt-rediseno-pencil.md`) y los archivos de diseño (`web/design_web.pen`) viven en el disco del autor y están en `.gitignore`: no se suben. Se sacaron también del historial.
 
 - **Idioma:** el código se escribe en español (comentarios, commits y todo texto para el usuario o para los agentes) y la app sale en español o inglés. Todo texto que lea una persona o un agente va en la plantilla `T` de `core/i18n.ts` (el español es la clave) y lleva su inglés en `core/lang/en/` (núcleo) o `renderer/src/lang/en/` (interfaz); `test/i18n.test.ts` falla si falta alguno. En `src/core` y `src/main`, `T` nunca se llama al cargar el módulo. El idioma es el que elija el usuario (botón ES/EN, `<userData>/ajustes.json`) o, sin elegir, el de su sistema; los prompts y avisos a los agentes siguen ese idioma. Los nombres de herramientas MCP y de sus campos no se traducen. Identificadores de código en inglés salvo los nombres de herramientas MCP (`leer_tarea`, `asignar_tarea`…), que son en español a propósito.
 - **La UI va a cambiar; la funcionalidad no.** Toda lógica vive en `src/core/` (Node, sin Electron) con pruebas. `src/main` solo expone el núcleo por IPC, `src/preload` lo pasa al renderer, y `src/renderer` solo pide y muestra. No metas reglas de negocio en Vue.
@@ -92,7 +93,7 @@ Jefe: `leer_proyecto`, `leer_expedientes`, `proponer_plantilla`, `levantar_emple
 ## Decisiones tomadas
 
 - Electron + Vue 3 + Pinia + Vite; **PixiJS** para el mapa (Vue lleva los paneles). CSP estricta: se importa `pixi.js/unsafe-eval`.
-- **Estilo del mundo: pixel art detallado en vista cenital 3/4**, no isométrico (el prompt de `docs/prompt-rediseno-pencil.md` quedó viejo en eso). Los sprites se generan y limpian con `assets/sprites/herramientas/`; la app usa los PNG sueltos de cada carpeta, no `hoja.png` ni `original.png`. El proveedor ya no va en la ropa: se ve en el subrayado del nombre.
+- **Estilo del mundo: pixel art detallado en vista cenital 3/4**, no isométrico (el prompt de rediseño para Pencil, que no va en el repositorio, quedó viejo en eso). Los sprites se generan y limpian con `assets/sprites/herramientas/`; la app usa los PNG sueltos de cada carpeta, no `hoja.png` ni `original.png`. El proveedor ya no va en la ropa: se ve en el subrayado del nombre.
 - CLI interactiva en PTY (como Orca), no modo headless.
 - Toda comunicación pasa por el jefe; los empleados no se hablan.
 - Lo que el jefe necesita del usuario no va como mensaje suelto: es una pregunta del tablero (`Board.ask`, `Question`), con respuestas sugeridas, la recomendada y qué detiene. Queda pendiente a la vista (`QuestionsCard.vue`, aviso en la oficina) hasta que el usuario la conteste o el jefe la cierre; al jefe se le recuerda en `leer_proyecto` (`preguntas_pendientes`) y en cada mensaje del usuario mientras siga esperando.

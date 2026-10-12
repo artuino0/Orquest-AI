@@ -13,3 +13,12 @@ promo/salida/
 __pycache__/
 *.pyc
 
+# Lo que no es de la app ni de su página se queda en disco y no se sube:
+# material comercial y de promoción, encargos internos y archivos de diseño.
+/promo/
+/docs/tareas/
+/docs/comercial.md
+/docs/asesoria.md
+/docs/prompt-rediseno-pencil.md
+/web/design_web.pen
+/web/design_web-assets/hd/
