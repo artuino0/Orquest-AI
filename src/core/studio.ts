@@ -716,13 +716,19 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   /** El repositorio que el jefe nombra en una tarea. Si la carpeta solo trae uno, no hace falta decirlo. */
   private async repoNamed(name: unknown): Promise<ProjectRepo> {
-    const wanted = String(name ?? '').trim().replace(/[\\/]+$/, '')
+    const wanted = String(name ?? '').trim().replace(/\\/g, '/').replace(/^\.?\/+|\/+$/g, '')
     const names = () => this.repos.map((r) => r.name).join(', ')
     if (!wanted) {
       if (this.repos.length === 1) return this.repos[0]
       throw new RuleError(T`Este proyecto agrupa varios repositorios: di a cuál pertenece la tarea con repositorio (${names()}). Una tarea, un repositorio.`)
     }
-    const find = () => this.repos.find((r) => r.name === wanted) ?? this.repos.find((r) => r.name.toLowerCase() === wanted.toLowerCase())
+    const find = () => {
+      const exact = this.repos.find((r) => r.name === wanted) ?? this.repos.find((r) => r.name.toLowerCase() === wanted.toLowerCase())
+      if (exact) return exact
+      // Agrupado en una subcarpeta (`mocks/simulador`): también vale solo su carpeta, si no hay otra igual.
+      const last = this.repos.filter((r) => r.name.split('/').pop()!.toLowerCase() === wanted.toLowerCase())
+      return last.length === 1 ? last[0] : undefined
+    }
     let repo = find()
     if (!repo) {
       const empty = await this.scanRepos()

@@ -100,4 +100,27 @@ describe('preparar una carpeta para abrirla', () => {
     git(dir, 'init', '-q', '-b', 'main')
     await expect(createGroup(dir, ['front'])).rejects.toThrow(RuleError)
   })
+
+  it('encuentra también los repositorios agrupados en una subcarpeta, sin entrar a los que ya lo son', async () => {
+    const dir = folder()
+    const make = (...parts: string[]) => {
+      const path = join(dir, ...parts)
+      mkdirSync(path, { recursive: true })
+      git(path, 'init', '-q', '-b', 'main')
+      writeFileSync(join(path, 'a.txt'), 'a')
+      git(path, 'add', '-A')
+      git(path, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'inicio')
+    }
+    make('backend')
+    make('mocks', 'simulador-a')
+    make('mocks', 'simulador-b')
+    // Un repositorio dentro de otro, o en dependencias o carpetas ocultas, no es del proyecto.
+    make('backend', 'libs', 'interna')
+    make('node_modules', 'paquete')
+    make('.cache', 'algo')
+    const group = await checkGroup(dir)
+    expect(group.repos.map((r) => r.name)).toEqual(['backend', 'mocks/simulador-a', 'mocks/simulador-b'])
+    expect(group.repos[1].path).toBe(join(dir, 'mocks', 'simulador-a'))
+    expect(group.empty).toEqual([])
+  })
 })

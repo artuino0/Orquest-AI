@@ -6,7 +6,7 @@
  */
 import { execFile } from 'node:child_process'
 import { access, mkdir, readdir, writeFile } from 'node:fs/promises'
-import { basename, join, resolve } from 'node:path'
+import { basename, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
@@ -18,7 +18,7 @@ const exists = (path: string) => access(path).then(() => true, () => false)
 export interface RepoCheck {
   /** `ok`: se puede abrir. `no-repo`: la carpeta no es un repositorio. `no-commits`: lo es, pero vacío. */
   state: 'ok' | 'no-repo' | 'no-commits'
-  /** Cuando no es repositorio: los que hay dentro, un nivel abajo (rutas completas). */
+  /** Cuando no es repositorio: los que hay dentro, directos o agrupados en subcarpetas (rutas completas). */
   inside: string[]
   /** Ya tiene `.gitignore`; si no, al prepararla se crea uno básico. */
   gitignore: boolean
@@ -44,11 +44,23 @@ const starterIgnore = () =>
     '',
   ].join('\n')
 
-/** Repositorios un nivel abajo de `dir` (rutas completas, en orden). */
-async function nested(dir: string): Promise<string[]> {
+/** Hasta cuántas carpetas abajo se buscan repositorios (`grupo/servicio/repo`). */
+const NESTED_DEPTH = 3
+/** Carpetas en las que no se busca: pesan mucho y lo que traen con `.git` no es del proyecto. */
+const SKIP = new Set(['node_modules', 'vendor', 'dist', 'build', 'out', 'target', 'venv', '__pycache__'])
+
+/**
+ * Repositorios dentro de `dir` (rutas completas, en orden). Pueden estar
+ * agrupados en subcarpetas (`mocks/simulador-a`), así que se baja unos niveles;
+ * dentro de un repositorio ya no se busca, ni en carpetas ocultas.
+ */
+async function nested(dir: string, depth = NESTED_DEPTH): Promise<string[]> {
   const inside: string[] = []
   for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-    if (entry.isDirectory() && (await exists(join(dir, entry.name, '.git')))) inside.push(join(dir, entry.name))
+    if (!entry.isDirectory() || entry.name.startsWith('.') || SKIP.has(entry.name)) continue
+    const path = join(dir, entry.name)
+    if (await exists(join(path, '.git'))) inside.push(path)
+    else if (depth > 1) inside.push(...(await nested(path, depth - 1)))
   }
   return inside.sort()
 }
@@ -59,7 +71,7 @@ const born = (dir: string) => git(dir, 'rev-parse', '--verify', '--quiet', 'HEAD
 export async function checkRepo(dir: string): Promise<RepoCheck> {
   const gitignore = await exists(join(dir, '.gitignore'))
   const isRepo = await git(dir, 'rev-parse', '--is-inside-work-tree').then((out) => out === 'true', () => false)
-  // Repositorios un nivel abajo: una carpeta que agrupa proyectos no se convierte en uno.
+  // Repositorios dentro: una carpeta que agrupa proyectos no se convierte en uno.
   if (!isRepo) return { state: 'no-repo', inside: await nested(dir), gitignore }
   if (await born(dir)) return { state: 'ok', inside: [], gitignore }
   // Con `git init` recién hecho en una carpeta que agrupa repositorios tampoco se guarda nada: los envolvería.
@@ -68,13 +80,16 @@ export async function checkRepo(dir: string): Promise<RepoCheck> {
 
 /** Un repositorio de un proyecto que agrupa varios. */
 export interface ProjectRepo {
-  /** El nombre de su carpeta: así lo nombran el jefe (`repositorio`) y la interfaz. */
+  /**
+   * Su ruta dentro del proyecto, con `/`: el nombre de su carpeta o, si está
+   * agrupado en otra, `grupo/carpeta`. Así lo nombran el jefe (`repositorio`) y la interfaz.
+   */
   name: string
   path: string
 }
 
 export interface GroupCheck {
-  /** Los repositorios de la carpeta, un nivel abajo. */
+  /** Los repositorios de la carpeta, directos o agrupados en subcarpetas. */
   repos: ProjectRepo[]
   /** Nombres de los que todavía no tienen ningún commit: con uno así el proyecto no se puede abrir. */
   empty: string[]
@@ -82,13 +97,13 @@ export interface GroupCheck {
 
 /**
  * Una carpeta que solo agrupa repositorios (ella no lo es, o tiene un `git init`
- * vacío que se ignora) se abre como un solo proyecto: cada subcarpeta directa
- * con `.git` es uno de sus repositorios. Aquí se ve cuáles son y si alguno
+ * vacío que se ignora) se abre como un solo proyecto: cada subcarpeta con
+ * `.git`, directa o agrupada en otra, es uno de sus repositorios. Aquí se ve cuáles son y si alguno
  * todavía no sirve.
  */
 export async function checkGroup(dir: string): Promise<GroupCheck> {
   const root = resolve(dir)
-  const repos = (await nested(root)).map((path) => ({ name: basename(path), path }))
+  const repos = (await nested(root)).map((path) => ({ name: relative(root, path).split(sep).join('/'), path }))
   const empty: string[] = []
   for (const r of repos) if (!(await born(r.path))) empty.push(r.name)
   return { repos, empty }
