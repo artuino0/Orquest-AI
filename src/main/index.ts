@@ -43,7 +43,8 @@ function createWindow() {
     backgroundColor: '#1b1a24',
     title: 'Orquest AI',
     // En desarrollo la app corre con el ejecutable de Electron: sin esto la barra de tareas muestra su ícono.
-    icon: app.isPackaged ? join(__dirname, '../renderer/sprites/oficina.ico') : join(app.getAppPath(), 'assets/herdr-oficina/sprites/oficina.ico'),
+    // Windows quiere .ico; Linux y macOS, .png (con .ico la barra de Linux se queda sin ícono).
+    icon: join(app.isPackaged ? join(__dirname, '../renderer/sprites') : join(app.getAppPath(), 'assets/herdr-oficina/sprites'), process.platform === 'win32' ? 'oficina.ico' : 'oficina.png'),
     // Sin marco ni menú del sistema: el encabezado lo dibuja la app (components/TitleBar.vue).
     frame: false,
     minWidth: 960,

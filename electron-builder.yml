@@ -34,10 +34,12 @@ nsis:
 
 mac:
   target: dmg
+  icon: assets/herdr-oficina/sprites/oficina.png
   category: public.app-category.developer-tools
   artifactName: Orquest-AI-${version}-${arch}.${ext}
 
 linux:
   target: AppImage
+  icon: assets/herdr-oficina/sprites/oficina.png
   category: Development
   artifactName: Orquest-AI-${version}-${arch}.${ext}
