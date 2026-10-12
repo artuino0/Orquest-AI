@@ -325,7 +325,8 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       blocked: [...PERMISSION, /press enter to continue/i, /trust (this|the files in this) folder/i, /choose the text style/i, /select login method/i],
       // La pista "? for shortcuts" desaparece cuando hay barra de estado; la
       // caja de entrada entre dos líneas siempre está.
-      idle: [/\? for shortcuts/i, /─{10,}\n\s*❯[^\n]*\n─{10,}/],
+      // El prompt es «❯»; con símbolos de reserva (una terminal que no anuncia Unicode), «>».
+      idle: [/\? for shortcuts/i, /─{10,}\n\s*[❯>][^\n]*\n─{10,}/],
       // Respaldo si la barra de estado no reporta.
       context: contextFrom([
         [/(\d+)% context used/i, (n) => n],

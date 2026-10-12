@@ -104,6 +104,57 @@ describe('pantallas que detienen a una CLI', () => {
   })
 })
 
+describe('prompt de Claude Code', () => {
+  it('toda terminal nace diciendo que es un xterm, aunque la app no haya heredado ninguna', async () => {
+    const envs: Record<string, string>[] = []
+    const spawn: Spawner = (_file, _args, o) => {
+      envs.push(o.env)
+      return { pid: 1, onData: () => {}, onExit: () => {}, write: () => {}, resize: () => {}, kill: () => {} }
+    }
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const dir = repo()
+    await manager.hire({ id: 'jefe', provider: 'claude', role: 'jefe', repo: dir, office: { path: dir, branch: 'main' } })
+    expect(envs[0]).toMatchObject({ TERM: 'xterm-256color', COLORTERM: 'truecolor' })
+  })
+
+  it('se reconoce también cuando lo dibuja con «>» en vez de «❯»', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const dir = repo()
+    await manager.hire({ id: 'jefe', provider: 'claude', role: 'jefe', repo: dir, office: { path: dir, branch: 'main' } })
+    // Tal como salió con Claude Code real lanzado sin variables de terminal.
+    terminals[0].feed(`${CLEAR}──────────────────────\r\n> Try "how do I log an error?"\r\n──────────────────────\r\n  ⏵⏵ auto mode on (shift+tab to cycle)\r\n`)
+    await wait(60)
+    expect(manager.get('jefe')?.state).toBe('idle')
+    expect(manager.atPrompt('jefe')).toBe(true)
+  })
+})
+
+describe('terminal que nunca se queda quieta', () => {
+  it('con el prompt a la vista se le escribe aunque algo se siga animando en pantalla', async () => {
+    const { terminals, spawn } = screenPty()
+    // Con el tiempo de asentamiento real: es justo lo que la animación nunca dejaba cumplir.
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 300 })
+    const dir = repo()
+    await manager.hire({ id: 'jefe', provider: 'claude', role: 'jefe', repo: dir, office: { path: dir, branch: 'main' } })
+    const [t] = terminals
+    t.feed(CLAUDE_PROMPT)
+    // Un aviso que brilla: redibuja su renglón cada 100 ms, sin tocar el prompt.
+    let frame = 0
+    const shimmer = setInterval(() => t.feed(`\x1b7\x1b[1;1H${frame++ % 2 ? '✦' : '✧'} Aviso con brillo\x1b8`), 100)
+    try {
+      await wait(500)
+      expect(manager.get('jefe')?.state).toBe('idle')
+      // Aún no: puede estar dibujando todavía.
+      expect(manager.atPrompt('jefe')).toBe(false)
+      await wait(2800)
+      expect(manager.atPrompt('jefe')).toBe(true)
+    } finally {
+      clearInterval(shimmer)
+    }
+  })
+})
+
 describe('reiniciar una terminal atorada', () => {
   it('cierra la CLI y entra otra con conversación nueva; lo que no había llegado se entrega después', async () => {
     const { terminals, spawn } = screenPty()

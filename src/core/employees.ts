@@ -98,6 +98,8 @@ const ANSWERS: Partial<Record<BlockKind, RegExp>> = {
 }
 /** Renglón del menú donde está el cursor. */
 const MENU_CURSOR = /^\s*[❯›>]\s/
+/** Cuánto debe llevar el prompt a la vista para escribirle aunque la pantalla siga moviéndose. */
+const PROMPT_STEADY_MS = 2500
 
 interface Live {
   employee: Employee
@@ -105,6 +107,8 @@ interface Live {
   reader: ScreenReader
   buffer: string
   lastDataAt: number
+  /** Desde cuándo se ve su prompt sin interrupción, mientras la pantalla no se queda quieta. */
+  promptSince?: number
   activityTimer?: ReturnType<typeof setTimeout>
   activityKey?: string
   quietTimer?: ReturnType<typeof setTimeout>
@@ -142,7 +146,10 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     const office = req.office ?? (await createOffice(req.repo, id))
     const launch = { model: req.model, effort: req.effort, systemPrompt: req.systemPrompt }
 
-    const env: Record<string, string> = { ...(process.env as Record<string, string>), ...this.opts.env, ...req.env, ORQUEST_EMPLOYEE_ID: id }
+    // TERM dice qué terminal tiene enfrente la CLI. Abierta desde el menú de inicio, la app no hereda
+    // ninguna, y sin ella Claude Code dibuja con símbolos de reserva (su prompt es «>» en vez de «❯»):
+    // Orquest no reconocía el prompt y nunca le entregaba nada. La terminal de la app es un xterm.
+    const env: Record<string, string> = { ...(process.env as Record<string, string>), TERM: 'xterm-256color', COLORTERM: 'truecolor', ...this.opts.env, ...req.env, ORQUEST_EMPLOYEE_ID: id }
     if (req.path?.length) {
       // En Windows la variable suele llamarse Path; se respeta la que ya exista.
       const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
@@ -299,11 +306,25 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
 
   atPrompt(id: string): boolean {
     const e = this.live.get(id)
-    if (!e || e.employee.state !== 'idle') return false
-    // La TUI sigue dibujando: lo tecleado ahora se puede perder.
-    if (Date.now() - e.lastDataAt < (this.opts.settleMs ?? 800)) return false
+    if (!e) return false
+    if (e.employee.state !== 'idle') {
+      e.promptSince = undefined
+      return false
+    }
     // Sin patrones comprobados no se sabe leer su prompt: al menos que ya haya dibujado algo.
-    return getProvider(e.employee.provider).verified ? e.reader.promptVisible() : e.reader.screen().trim().length > 0
+    const visible = getProvider(e.employee.provider).verified ? e.reader.promptVisible() : e.reader.screen().trim().length > 0
+    if (!visible) {
+      e.promptSince = undefined
+      return false
+    }
+    const settle = this.opts.settleMs ?? 800
+    // Quieta y con su prompt a la vista: lista.
+    if (Date.now() - e.lastDataAt >= settle) return true
+    // No está quieta, pero puede que nunca lo esté: hay CLIs que animan un aviso o su barra de
+    // estado sin parar, y esperar al silencio dejaba sin entregar todo lo que se le escribía.
+    // Si su prompt lleva un rato a la vista sin que se ponga a trabajar, también está lista.
+    e.promptSince ??= Date.now()
+    return Date.now() - e.promptSince >= Math.max(settle * 3, PROMPT_STEADY_MS)
   }
 
   /** Por qué está detenida, si lo está por una pantalla que se reconoce. */
