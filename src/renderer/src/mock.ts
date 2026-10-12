@@ -156,6 +156,17 @@ export function installMock(caso: string) {
     saveFile: async () => ({ stamp: `demo-${Date.now()}` }),
     // De mentira: quita espacios de más al final de cada renglón.
     formatFile: async (_id, _path, text) => text.split('\n').map((l) => l.trimEnd()).join('\n'),
+    projectFile: async (path) => window.orquest.fileText('', path),
+    projectChanges: async () => [{ status: 'M', path: 'src/main.ts' }, { status: '??', path: 'test/cart.test.ts' }] as never,
+    saveProjectFile: async () => ({ stamp: `demo-${Date.now()}` }),
+    formatProjectFile: async (_path, text) => text.split('\n').map((l) => l.trimEnd()).join('\n'),
+    projectTree: async (dir) =>
+      (({
+        '': [['src', true], ['test', true], ['package.json', false], ['README.md', false]],
+        src: [['components', true], ['main.ts', false], ['style.css', false]],
+        'src/components': [['Cart.vue', false], ['Checkout.vue', false]],
+        test: [['cart.test.ts', false]],
+      } as Record<string, [string, boolean][]>)[dir] ?? []).map(([name, isDir]) => ({ name, path: dir ? `${dir}/${name}` : name, dir: isDir })),
     fileText: async (_id, path) => {
       const text = path.endsWith('.json')
         ? '{\n  "name": "tienda-en-linea",\n  "version": "1.2.0",\n  "private": true,\n  "scripts": { "dev": "vite", "test": "vitest run" }\n}\n'

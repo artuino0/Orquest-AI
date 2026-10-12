@@ -10,7 +10,8 @@ import { join, resolve } from 'node:path'
 import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import { archiveCaptures, listCaptures, type Capture } from './captures.js'
-import { writeText } from './files.js'
+import { listDir, readText, writeText, type FileEntry, type FileText } from './files.js'
+import { formatText } from './format.js'
 import type { CliStatus } from './detect.js'
 import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { getLang, T } from './i18n.js'
@@ -1299,11 +1300,49 @@ export class Studio extends EventEmitter<StudioEvents> {
   async saveFile(id: string, path: string, text: string, stamp: string): Promise<{ stamp: string }> {
     const emp = this.opts.manager.get(id)
     if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
-    const busy = emp.state === 'working' || emp.state === 'starting' || Date.now() < (this.settledAt.get(id) ?? 0)
-    if (busy) throw new RuleError(T`${this.nameOf(id)} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.`)
+    this.refuseIfBusy(id)
     const next = await writeText(emp.office.path, path, text, stamp)
     this.fact(id, T`el usuario editó ${path}`)
     return { stamp: next }
+  }
+
+  /** Trabaja, o dejó de hacerlo hace un instante: entre paso y paso un agente parece quieto. */
+  private refuseIfBusy(id: string): void {
+    const emp = this.opts.manager.get(id)
+    if (!emp) return
+    const busy = emp.state === 'working' || emp.state === 'starting' || Date.now() < (this.settledAt.get(id) ?? 0)
+    if (busy) throw new RuleError(T`${this.nameOf(id)} está trabajando: espera a que termine para guardar. Tus cambios siguen en el editor.`)
+  }
+
+  // ── El explorador de la barra: la carpeta del proyecto (no la oficina de alguien).
+
+  /** Lo que hay en una carpeta del proyecto. Las oficinas y la memoria del equipo (`.orquest`) no salen aquí. */
+  projectTree(dir: string): Promise<FileEntry[]> {
+    return listDir(this.root, dir, ['.orquest'])
+  }
+
+  projectFile(path: string): Promise<FileText> {
+    return readText(this.root, path)
+  }
+
+  /** Lo cambiado o nuevo en el proyecto según git, para marcarlo en el árbol. */
+  projectChanges(): Promise<FileChange[]> {
+    return this.grouped ? this.changes(BOSS_ID) : officeChanges({ path: this.root, branch: '' })
+  }
+
+  /**
+   * Guarda lo que el usuario editó en la carpeta del proyecto, que es donde se
+   * integran las entregas y donde trabaja el jefe: no mientras él trabaja, y
+   * solo si el archivo sigue como se abrió.
+   */
+  async saveProjectFile(path: string, text: string, stamp: string): Promise<{ stamp: string }> {
+    if (path.split(/[\\/]+/).includes('.orquest')) throw new RuleError(T`Lo de .orquest no se edita aquí: son las oficinas y la memoria del equipo.`)
+    this.refuseIfBusy(BOSS_ID)
+    return { stamp: await writeText(this.root, path, text, stamp) }
+  }
+
+  formatProjectFile(path: string, text: string): Promise<string> {
+    return formatText(this.root, path, text)
   }
 
   /** Bitácora de un agente, para la UI. */

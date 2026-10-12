@@ -28,6 +28,8 @@ describe('explorador de archivos de una oficina', () => {
       { name: 'logo.png', path: 'logo.png', dir: false },
       { name: 'README.md', path: 'README.md', dir: false },
     ])
+    // Quien lo pide puede ocultar más carpetas (el explorador del proyecto oculta .orquest).
+    expect((await listDir(dir, '', ['src'])).map((e) => e.name)).toEqual(['logo.png', 'README.md'])
     expect(await listDir(dir, 'src')).toEqual([
       { name: 'vistas', path: 'src/vistas', dir: true },
       { name: 'main.ts', path: 'src/main.ts', dir: false },

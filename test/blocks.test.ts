@@ -158,6 +158,32 @@ describe('editar en la oficina de alguien', () => {
     await studio.saveFile('jefe', 'nota.md', 'tres\n', next.stamp)
     expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('tres\n')
   })
+
+  it('el explorador del proyecto: no muestra .orquest, no escribe ahí y respeta al jefe mientras trabaja', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const dir = repo()
+    writeFileSync(join(dir, 'nota.md'), 'uno\n')
+    studio = await new Studio({ repo: dir, manager, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, editCalmMs: 1500 }).init()
+    // Sin jefe contratado nadie más escribe ahí: se puede guardar.
+    const first = await studio.projectFile('nota.md')
+    const saved = await studio.saveProjectFile('nota.md', 'dos\n', first.stamp)
+    expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('dos\n')
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const names = (await studio.projectTree('')).map((e) => e.name)
+    expect(names).toContain('nota.md')
+    expect(names).not.toContain('.orquest')
+    expect(names).not.toContain('.git')
+    // La bitácora del jefe vive en .orquest: por aquí no se toca.
+    await expect(studio.saveProjectFile('.orquest/bitacoras/jefe.md', 'x', 'lo-que-sea')).rejects.toThrow(RuleError)
+    // El jefe trabaja: no se guarda, y el archivo queda como estaba.
+    terminals[0].feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+    await expect.poll(() => manager?.get('jefe')?.state, { timeout: 5000 }).toBe('working')
+    await expect(studio.saveProjectFile('nota.md', 'tres\n', saved.stamp)).rejects.toThrow(RuleError)
+    expect(readFileSync(join(dir, 'nota.md'), 'utf8')).toBe('dos\n')
+    // Lo cambiado sale marcado para el árbol.
+    expect((await studio.projectChanges()).map((c) => c.path)).toContain('nota.md')
+  })
 })
 
 describe('máquina lenta', () => {

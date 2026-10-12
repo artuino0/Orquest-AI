@@ -273,6 +273,11 @@ handle('employee:format-file', (id: string, path: string, text: string) => {
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return formatText(emp.office.path, path, text)
 })
+handle('project:tree', (dir: string) => studio().projectTree(dir))
+handle('project:file', (path: string) => studio().projectFile(path))
+handle('project:changes', () => studio().projectChanges())
+handle('project:save-file', (path: string, text: string, stamp: string) => studio().saveProjectFile(path, text, stamp))
+handle('project:format-file', (path: string, text: string) => studio().formatProjectFile(path, text))
 ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
 ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))
 

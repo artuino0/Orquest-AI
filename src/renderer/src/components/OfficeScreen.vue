@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { AlertTriangle, Bell, Crown, FileText, FolderOpen, Gauge, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
 import { OfficeScene } from '../world/scene'
 import EmployeeDrawer from './EmployeeDrawer.vue'
+import ProjectEditor from './ProjectEditor.vue'
+import ProjectFiles from './ProjectFiles.vue'
+import { useIde } from '../stores/ide'
 import HireDialog from './HireDialog.vue'
 import BoardView from './BoardView.vue'
 import InboxPanel from './InboxPanel.vue'
@@ -145,6 +148,13 @@ onBeforeUnmount(() => {
   scene.value?.destroy()
 })
 
+const ide = useIde()
+/** El panel del empleado en modo dividido toma una columna; el de archivos, otra a la derecha, con su ancho. */
+const split = computed(() => !!studio.selected && studio.drawerMode === 'split')
+const columns = computed(() => ['minmax(0, 1fr)', split.value ? 'minmax(0, 1fr)' : '', ide.panelOpen ? `${ide.width}px` : ''].filter(Boolean).join(' '))
+// Lo abierto en el editor era de este proyecto: al salir o cambiar de carpeta, se suelta.
+watch(() => studio.repo, () => ide.reset())
+onBeforeUnmount(() => ide.reset())
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
 const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts') => {
   editing.value = false
@@ -153,7 +163,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
 </script>
 
 <template>
-  <div class="office" :class="{ split: studio.selected && studio.drawerMode === 'split' }">
+  <div class="office" :class="{ split }" :style="{ gridTemplateColumns: columns }">
     <header class="bar">
       <button class="btn" @click="studio.goHome()">{{ T`Inicio` }}</button>
       <strong class="repo">{{ name(studio.repo) }}</strong>
@@ -178,6 +188,8 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
         <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" :title="T`Dibujar la oficina (modo creativo)`" @click="toggleEdit"><PencilRuler /></button>
         <LangToggle />
         <ThemeToggle />
+        <!-- El último: los archivos del proyecto, en un panel a la derecha que angosta la oficina. -->
+        <button class="btn icon" :class="{ on: ide.panelOpen }" :title="T`Archivos del proyecto`" @click="ide.togglePanel()"><FolderTree /><b v-if="ide.dirtyCount" class="badge">{{ ide.dirtyCount }}</b></button>
       </nav>
     </header>
 
@@ -221,6 +233,9 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
         <p v-for="n in studio.notices" :key="n.id" class="alert-card"><Bell />{{ n.text }}</p>
       </div>
 
+      <!-- Un archivo del proyecto abierto ocupa el lugar de la oficina; al volver, las pestañas se conservan. -->
+      <ProjectEditor v-if="ide.visible" />
+
       <HireDialog v-if="studio.overlay === 'hire'" />
       <BoardView v-if="studio.overlay === 'board'" />
       <InboxPanel v-if="studio.overlay === 'inbox'" />
@@ -231,12 +246,14 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
     </div>
 
     <EmployeeDrawer v-if="studio.selectedEmployee" :key="studio.selectedEmployee.id" />
+    <ProjectFiles v-if="ide.panelOpen" class="project-files" :style="{ gridColumn: split ? 3 : 2 }" />
   </div>
 </template>
 
 <style scoped>
 .office { height: 100%; display: grid; grid-template-columns: 1fr; grid-template-rows: 48px 1fr; background: var(--bg); }
 .office.split { grid-template-columns: 1fr 1fr; }
+.project-files { grid-row: 2; }
 .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--surface); border-bottom: 3px solid var(--border); min-width: 0; }
 .repo { font: 700 16px var(--font-pixel); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .legend { display: flex; gap: 10px; font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; min-width: 0; }

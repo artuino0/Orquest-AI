@@ -141,6 +141,14 @@ export interface OrquestApi {
   saveFile(id: string, path: string, text: string, stamp: string): Promise<{ stamp: string }>
   /** El texto del editor formateado con Prettier, con las opciones del proyecto. No toca el disco. */
   formatFile(id: string, path: string, text: string): Promise<string>
+  // El explorador de la barra: la carpeta del proyecto abierto (no la oficina de alguien).
+  projectTree(dir: string): Promise<FileEntry[]>
+  projectFile(path: string): Promise<FileText>
+  /** Lo cambiado o nuevo en el proyecto según git. */
+  projectChanges(): Promise<FileChange[]>
+  /** Guarda en la carpeta del proyecto; no mientras el jefe trabaja ni si el archivo cambió en disco. */
+  saveProjectFile(path: string, text: string, stamp: string): Promise<{ stamp: string }>
+  formatProjectFile(path: string, text: string): Promise<string>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>
   write(id: string, data: string): void

@@ -212,6 +212,18 @@ const en: Record<string, string> = {
   'Ver la asesoría': 'See the session',
   'Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.': 'Orquest AI is free. If it helps you, you can buy a coffee or book a session.',
   'Apoyar': 'Support',
+  'Archivos del proyecto': 'Project files',
+  'Arrastra para ajustar el ancho': 'Drag to adjust the width',
+  'Archivos': 'Files',
+  'Volver a leer la carpeta': 'Read the folder again',
+  'Cerrar el panel': 'Close the panel',
+  'Entra a los archivos que ya tienes abiertos': 'Go to the files you already have open',
+  'Aún no has abierto ningún archivo': "You haven't opened any file yet",
+  'Ver editor': 'Show editor',
+  'No hay archivos en esta carpeta.': 'There are no files in this folder.',
+  'M cambiado · A nuevo · D borrado, según git.': 'M changed · A new · D deleted, according to git.',
+  'Elige un archivo en la lista para abrirlo.': 'Pick a file in the list to open it.',
+  'Tiene cambios sin guardar: guárdalos o descártalos antes de cerrarlo.': 'It has unsaved changes: save or discard them before closing it.',
 }
 
 export default en

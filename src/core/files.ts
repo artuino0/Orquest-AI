@@ -53,12 +53,12 @@ async function inside(office: string, path: string): Promise<string> {
   return real
 }
 
-/** Lo que hay en una carpeta de la oficina (`''` es la raíz): carpetas primero, sin `.git`. */
-export async function listDir(office: string, dir = ''): Promise<FileEntry[]> {
+/** Lo que hay en una carpeta de la oficina (`''` es la raíz): carpetas primero, sin `.git` ni lo que se pida ocultar. */
+export async function listDir(office: string, dir = '', hidden: string[] = []): Promise<FileEntry[]> {
   const full = await inside(office, dir)
   const base = dir.split(/[\\/]+/).filter(Boolean).join('/')
   const entries = (await readdir(full, { withFileTypes: true }))
-    .filter((e) => e.name !== '.git')
+    .filter((e) => e.name !== '.git' && !hidden.includes(e.name))
     .map((e) => ({ name: e.name, path: base ? `${base}/${e.name}` : e.name, dir: e.isDirectory() }))
   entries.sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
   return entries.slice(0, MAX_ENTRIES)

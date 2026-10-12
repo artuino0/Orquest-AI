@@ -194,6 +194,7 @@ const en: Record<string, string> = {
   'el usuario editó {0}': 'the user edited {0}',
   'Prettier no sabe formatear este tipo de archivo.': "Prettier can't format this kind of file.",
   'No se pudo formatear: {0}': 'Could not format: {0}',
+  'Lo de .orquest no se edita aquí: son las oficinas y la memoria del equipo.': "What's in .orquest isn't edited here: it holds the offices and the team's memory.",
 }
 
 export default en
