@@ -25,7 +25,7 @@ await writeFile(resolve(out, 'oficina', 'datos.js'), `// Generado por scripts/we
 
 // La página: la de la app, con las letras desde Google Fonts y los guiones en orden.
 const page = (await readFile(resolve(src, 'oficina.html'), 'utf8'))
-  .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\n?/, '<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">\n')
+  .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\n?/, '<meta name="robots" content="noindex">\n<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">\n')
   .replace(/<!-- inicio\.js[^\n]*\n<script[^>]*><\/script>/, [
     '<!-- ?marco=0: sin encabezado ni lista de eventos, para ir incrustada -->',
     `<script>if (new URLSearchParams(location.search).get('marco') === '0') document.documentElement.classList.add('en-app')</script>`,
