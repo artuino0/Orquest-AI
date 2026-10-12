@@ -33,7 +33,26 @@ export interface Permissions {
   allow: string[]
   /** Comandos prohibidos (p. ej. "git push"). */
   deny: string[]
+  /**
+   * Instala dependencias sin pedir permiso (`INSTALL_COMMANDS`). Un manual guardado
+   * antes de que existiera este permiso lo trae activado; lo prohibido sigue mandando.
+   */
+  install?: boolean
 }
+
+/**
+ * Lo que cubre el permiso de instalar: los gestores de paquetes de uso común.
+ * Son prefijos, como los de `allow`.
+ */
+export const INSTALL_COMMANDS = [
+  'npm install', 'npm i', 'npm ci',
+  'pnpm install', 'pnpm i', 'pnpm add',
+  'yarn install', 'yarn add',
+  'bun install', 'bun add',
+  'pip install', 'pip3 install', 'python -m pip install', 'python3 -m pip install', 'uv pip install', 'uv sync', 'poetry install',
+  'npx playwright install',
+  'composer install', 'bundle install', 'cargo fetch', 'go mod download', 'dotnet restore',
+]
 
 export interface Manual {
   role: Role
@@ -114,7 +133,7 @@ export function defaultManual(role: Role): Manual {
     prompt: defaultPrompts()[role],
     docs: [],
     skills: [],
-    permissions: { edit: true, allow: [...DEV_ALLOW], deny: [...DEV_DENY] },
+    permissions: { edit: true, allow: [...DEV_ALLOW], deny: [...DEV_DENY], install: true },
     delivery: defaultDelivery()[role],
     // Un diseño se entrega viéndose.
     requireScreenshots: role === 'diseno',
@@ -126,6 +145,7 @@ export const BOSS_PERMISSIONS: Permissions = {
   edit: false,
   allow: ['git status', 'git diff', 'git log', 'git show', 'ls', 'cat'],
   deny: ['git push', 'git merge', 'git commit', 'git reset', 'git checkout', 'rm'],
+  install: false,
 }
 
 /** Expedientes con los que arranca un estudio nuevo; el usuario los cambia. */
@@ -157,7 +177,8 @@ export class Library {
     const saved = store?.loadDossiers() ?? []
     for (const d of saved.length ? saved : DEFAULT_DOSSIERS) this.dossiersByKey.set(key(d.provider, d.model), d)
     if (!saved.length) for (const d of DEFAULT_DOSSIERS) store?.saveDossier(d)
-    for (const m of store?.loadManuals() ?? []) this.manualsByRole.set(m.role, m)
+    // Un manual guardado antes de existir el permiso de instalar lo recibe activado.
+    for (const m of store?.loadManuals() ?? []) this.manualsByRole.set(m.role, { ...m, permissions: { ...m.permissions, install: m.permissions.install ?? true } })
     this.history = store?.loadHistory() ?? []
   }
 
@@ -256,6 +277,7 @@ export class Library {
         edit: !!m.permissions.edit,
         allow: m.permissions.allow.map((x) => x.trim()).filter(Boolean),
         deny: m.permissions.deny.map((x) => x.trim()).filter(Boolean),
+        install: m.permissions.install ?? true,
       },
     }
     this.manualsByRole.set(clean.role, clean)

@@ -219,6 +219,7 @@ const en: Record<string, string> = {
   '«{0}» no sirve como nombre de carpeta: usa letras, números, guion o guion bajo, sin espacios.': '"{0}" is not a valid folder name: use letters, numbers, hyphen or underscore, no spaces.',
   'El nombre «{0}» está repetido.': 'The name "{0}" is repeated.',
   'Esta carpeta ya es un repositorio: no se le pueden crear otros dentro.': "This folder is already a repository: others can't be created inside it.",
+  'instalar dependencias (npm, pnpm, yarn, pip y similares), también sin pedir permiso': 'installing dependencies (npm, pnpm, yarn, pip and the like), also without asking',
 }
 
 export default en

@@ -187,6 +187,8 @@ const en: Record<string, string> = {
   '{0} puesto no se alcanza desde la entrada.': '{0} desk cannot be reached from the entrance.',
   '{0} puestos no se alcanzan desde la entrada.': '{0} desks cannot be reached from the entrance.',
   'El escritorio del jefe no se alcanza desde la entrada.': "The boss's desk cannot be reached from the entrance.",
+  'npm, pnpm, yarn, bun, pip y similares. Lo que pongas en prohibidos sigue mandando.': 'npm, pnpm, yarn, bun, pip and the like. Whatever you list as forbidden still wins.',
+  'Instalar dependencias, sin pedir permiso': 'Install dependencies, without asking',
 }
 
 export default en

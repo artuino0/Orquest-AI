@@ -17,6 +17,7 @@ export type ProviderId =
 
 import { T } from './i18n.js'
 import type { Permissions } from './library.js'
+import { INSTALL_COMMANDS } from './library.js'
 
 /** Niveles de esfuerzo que existen; cada CLI recibe solo algunos (ver `efforts`). */
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -55,7 +56,7 @@ const EDIT_TOOLS = ['Edit', 'Write', 'NotebookEdit']
  */
 export function claudePermissions(p: Permissions) {
   return {
-    allow: ['mcp__orquest', ...(p.edit ? EDIT_TOOLS : []), ...p.allow.map((c) => `Bash(${c}:*)`)],
+    allow: ['mcp__orquest', ...(p.edit ? EDIT_TOOLS : []), ...[...p.allow, ...(p.install ? INSTALL_COMMANDS : [])].map((c) => `Bash(${c}:*)`)],
     deny: [...(p.edit ? [] : EDIT_TOOLS), ...p.deny.map((c) => `Bash(${c}:*)`)],
   }
 }
@@ -385,6 +386,9 @@ ${stderr}`
       '-c',
       'mcp_servers.orquest.default_tools_approval_mode="approve"',
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
+      // Instalar dependencias necesita red; en el aislamiento de Codex viene cerrada y por eso pedía permiso.
+      // Sigue aislado: solo escribe en su oficina.
+      ...(permissions?.edit && permissions.install ? ['-c', 'sandbox_workspace_write.network_access=true'] : []),
     ],
     // Codex solo distingue escribir o no; los comandos los aprueba el usuario.
     permissionGaps: (p) => (p.allow.length || p.deny.length ? [T`Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.`] : []),

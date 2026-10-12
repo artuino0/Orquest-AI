@@ -2,7 +2,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { defaultManual, Library } from '../src/core/library.js'
+import { BOSS_PERMISSIONS, Library, defaultManual } from '../src/core/library.js'
 import { claudePermissions, PROVIDERS } from '../src/core/providers.js'
 import { StudioStore } from '../src/core/store.js'
 
@@ -62,6 +62,29 @@ describe('manuales', () => {
     expect(JSON.parse(args[args.indexOf('--settings') + 1]).permissions.deny).toContain('Bash(git reset --hard:*)')
     expect(PROVIDERS.codex.mcpArgs!({ url: 'http://x', permissions: p })).toEqual(expect.arrayContaining(['-s', 'read-only']))
     expect(PROVIDERS.codex.permissionGaps!(p)[0]).toContain('no aplica listas de comandos')
+  })
+
+  it('instalar dependencias es un permiso del manual: activado en los puestos, no en el jefe', () => {
+    const lib = new Library()
+    const dev = lib.manual('backend').permissions
+    expect(dev.install).toBe(true)
+    expect(BOSS_PERMISSIONS.install).toBe(false)
+    // A Claude Code le llega como reglas; lo prohibido se manda aparte y es lo que gana.
+    const rules = claudePermissions({ ...dev, deny: ['npm install'] })
+    expect(rules.allow).toEqual(expect.arrayContaining(['Bash(npm install:*)', 'Bash(npm ci:*)', 'Bash(pip install:*)']))
+    expect(rules.deny).toContain('Bash(npm install:*)')
+    expect(claudePermissions({ ...dev, install: false }).allow).not.toContain('Bash(npm install:*)')
+    expect(claudePermissions(BOSS_PERMISSIONS).allow).not.toContain('Bash(npm install:*)')
+    // A Codex, como red dentro de su aislamiento; sin el permiso, o sin poder editar, no.
+    const net = 'sandbox_workspace_write.network_access=true'
+    expect(PROVIDERS.codex.mcpArgs!({ url: 'http://x', permissions: dev })).toContain(net)
+    expect(PROVIDERS.codex.mcpArgs!({ url: 'http://x', permissions: { ...dev, install: false } })).not.toContain(net)
+    expect(PROVIDERS.codex.mcpArgs!({ url: 'http://x', permissions: { ...dev, edit: false } })).not.toContain(net)
+    // Un manual guardado sin decirlo lo recibe activado; si se desmarca, se respeta.
+    lib.saveManual({ ...defaultManual('qa'), permissions: { edit: false, allow: [], deny: [] } })
+    expect(lib.manual('qa').permissions.install).toBe(true)
+    lib.saveManual({ ...defaultManual('qa'), permissions: { edit: false, allow: [], deny: [], install: false } })
+    expect(lib.manual('qa').permissions.install).toBe(false)
   })
 })
 

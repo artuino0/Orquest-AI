@@ -242,6 +242,7 @@ async function saveManual() {
           <div class="perm edit">
             <span class="cap">{{ T`Puede editar` }}</span>
             <label class="check"><input v-model="manual.permissions.edit" type="checkbox" /><i><Check /></i>{{ T`Archivos de su oficina, sin pedir permiso` }}</label>
+            <label class="check" :title="T`npm, pnpm, yarn, bun, pip y similares. Lo que pongas en prohibidos sigue mandando.`"><input v-model="manual.permissions.install" type="checkbox" /><i><Check /></i>{{ T`Instalar dependencias, sin pedir permiso` }}</label>
           </div>
           <label class="perm allow">
             <span class="cap">{{ T`Comandos permitidos` }}</span>

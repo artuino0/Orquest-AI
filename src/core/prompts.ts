@@ -83,7 +83,7 @@ ${manual.prompt}
 ${manual.docs.length ? `\n${T`Antes de empezar lee: ${manual.docs.join(', ')}.`}` : ''}${manual.skills.length ? `\n${T`Para tu trabajo usa estas skills y herramientas instaladas: ${manual.skills.join(', ')}.`}` : ''}
 
 Tu oficina es ${office.path} (rama ${office.branch}). Trabaja solo ahí.
-Permisos del puesto: ${p.edit ? T`puedes editar archivos` : T`no editas archivos`}${p.allow.length ? `; ${T`comandos sin pedir permiso: ${p.allow.join(', ')}`}` : ''}${p.deny.length ? `; ${T`prohibidos: ${p.deny.join(', ')}`}` : ''}.
+Permisos del puesto: ${p.edit ? T`puedes editar archivos` : T`no editas archivos`}${(p.allow.length ? `; ${T`comandos sin pedir permiso: ${p.allow.join(', ')}`}` : '') + (p.install ? `; ${T`instalar dependencias (npm, pnpm, yarn, pip y similares), también sin pedir permiso`}` : '')}${p.deny.length ? `; ${T`prohibidos: ${p.deny.join(', ')}`}` : ''}.
 
 Coordinación, siempre con las herramientas de Orquest (${via(channel)}):
 - leer_tarea cuando la app te avise de una tarea: trae descripción, dependencias y su contexto.
