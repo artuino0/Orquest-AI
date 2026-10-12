@@ -212,7 +212,7 @@ const en: Record<string, string> = {
   'Ver la asesoría': 'See the session',
   'Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.': 'Orquest AI is free. If it helps you, you can buy a coffee or book a session.',
   'Apoyar': 'Support',
-  'Archivos del proyecto': 'Project files',
+  'Archivos del proyecto (Ctrl+B)': 'Project files (Ctrl+B)',
   'Arrastra para ajustar el ancho': 'Drag to adjust the width',
   'Archivos': 'Files',
   'Volver a leer la carpeta': 'Read the folder again',

@@ -155,6 +155,15 @@ const columns = computed(() => ['minmax(0, 1fr)', split.value ? 'minmax(0, 1fr)'
 // Lo abierto en el editor era de este proyecto: al salir o cambiar de carpeta, se suelta.
 watch(() => studio.repo, () => ide.reset())
 onBeforeUnmount(() => ide.reset())
+// Ctrl+B abre y cierra el panel de archivos, como en un editor. Dentro de una terminal no: ahí esa tecla es del agente.
+function onKey(ev: KeyboardEvent) {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== 'b') return
+  if ((ev.target as HTMLElement | null)?.closest?.('.xterm')) return
+  ev.preventDefault()
+  ide.togglePanel()
+}
+window.addEventListener('keydown', onKey)
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
 const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts') => {
   editing.value = false
@@ -189,7 +198,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
         <LangToggle />
         <ThemeToggle />
         <!-- El último: los archivos del proyecto, en un panel a la derecha que angosta la oficina. -->
-        <button class="btn icon" :class="{ on: ide.panelOpen }" :title="T`Archivos del proyecto`" @click="ide.togglePanel()"><FolderTree /><b v-if="ide.dirtyCount" class="badge">{{ ide.dirtyCount }}</b></button>
+        <button class="btn icon" :class="{ on: ide.panelOpen }" :title="T`Archivos del proyecto (Ctrl+B)`" @click="ide.togglePanel()"><FolderTree /><b v-if="ide.dirtyCount" class="badge">{{ ide.dirtyCount }}</b></button>
       </nav>
     </header>
 
