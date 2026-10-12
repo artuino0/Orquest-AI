@@ -21,6 +21,11 @@ const studio = useStudio()
 const office = useOffice()
 const mapEl = ref<HTMLDivElement>()
 const scene = shallowRef<OfficeScene>()
+/**
+ * El modo creativo dibuja la oficina anterior (la de PixiJS), no la de píxel que se ve:
+ * su botón queda oculto hasta decidir cómo se edita la de píxel. Lo demás sigue en su lugar.
+ */
+const CREATIVE = false
 /** Modo creativo: se dibuja la oficina en vez de trabajar en ella. */
 const editing = ref(false)
 
@@ -154,7 +159,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
           <Inbox /> Entregas<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
         </button>
         <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" title="Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite" @click="toggle('accounts')"><Gauge /></button>
-        <button class="btn icon" :class="{ on: editing }" title="Dibujar la oficina (modo creativo)" @click="toggleEdit"><PencilRuler /></button>
+        <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" title="Dibujar la oficina (modo creativo)" @click="toggleEdit"><PencilRuler /></button>
         <ThemeToggle />
       </nav>
     </header>
