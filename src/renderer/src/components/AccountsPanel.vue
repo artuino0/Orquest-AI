@@ -95,10 +95,11 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
         </article>
       </section>
       <p class="dim hint">
-        {{ T`Otra cuenta del mismo proveedor es otra carpeta con su propia sesión (por ejemplo` }} <code>~/.codex2</code>{{ T`): Orquest la detecta sola y la ofrece al contratar, y así dos cuentas trabajan al mismo tiempo.` }}
+        {{ T`Otra cuenta del mismo proveedor es otra carpeta con su propia sesión (por ejemplo` }} <code>~/.codex2</code>{{ T`): Orquest la detecta sola y la ofrece al contratar.` }}
       </p>
+      <p class="dim hint">{{ T`Orquest AI ejecuta las CLIs oficiales con tu propia sesión y no tiene afiliación con sus proveedores. El uso de cada cuenta queda sujeto a los términos de su proveedor y es tu responsabilidad: usa solo cuentas tuyas.` }}</p>
       <div v-if="signups.length" class="more">
-        <span class="dim">{{ T`¿Se te acaba el límite a media jornada? Otra cuenta lo duplica.` }}</span>
+        <span class="dim">{{ T`¿Aún no tienes cuenta en alguna?` }}</span>
         <button v-for="c in signups" :key="c.id" class="btn" @click="open(c.signup!.url)"><UserPlus /> {{ T`Crear cuenta de ${c.name}` }}</button>
         <span v-if="signups.some((c) => c.signup?.referral)" class="dim note">{{ T`El de ${signups.filter((c) => c.signup?.referral).map((c) => c.name).join(T` y `)} es enlace de referido del autor: a ti no te cuesta más y ayuda a sostener Orquest AI.` }}</span>
       </div>

@@ -54,6 +54,12 @@ The code is written in Spanish (identifiers in English, comments and user-facing
 
 Pull Requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish). The most useful help right now: trying it on macOS and Linux, and finishing the integration of the remaining CLIs.
 
+## Disclaimer
+
+Orquest AI is not affiliated with Anthropic, OpenAI or any other provider; Claude Code, Codex and the other CLIs belong to their respective owners. The app ships no models and never touches your credentials: it runs the official, unmodified CLIs with the session you are already signed in to.
+
+Use of each CLI and each account is subject to its provider's terms, and is your responsibility. Use only your own accounts, and check those terms if you plan to run many agents at once.
+
 ## Credits and license
 
 Apache 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)). The art builds on the [Pixel Office pack by 2dPig](https://2dpig.itch.io/pixel-office) (CC0).

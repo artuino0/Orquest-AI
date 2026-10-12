@@ -135,6 +135,12 @@ El código es abierto y se aceptan Pull Requests. Todo cambio entra por PR y lo 
 - **Arte de la oficina:** parte del paquete [Pixel Office](https://2dpig.itch.io/pixel-office) de **2dPig**, publicado como CC0. Gracias por compartirlo. Las piezas que no traía (personajes extra, poses, pisos, paredes, mobiliario, vehículos, la calle) se pintaron para este proyecto siguiendo su estilo y su paleta.
 - **Referencias de diseño:** las decisiones y de dónde salió cada idea están en [docs/plan.md](docs/plan.md).
 
+## Aviso
+
+Orquest AI no tiene afiliación con Anthropic, OpenAI ni con ningún otro proveedor; Claude Code, Codex y las demás CLIs pertenecen a sus respectivos titulares. La app no incluye modelos ni toca tus credenciales: ejecuta las CLIs oficiales, sin modificar, con la sesión que ya tienes iniciada en cada una.
+
+El uso de cada CLI y de cada cuenta queda sujeto a los términos de su proveedor, y es tu responsabilidad. Usa solo cuentas tuyas, y revisa esos términos si vas a correr muchos agentes a la vez.
+
 ## Licencia
 
 [Apache 2.0](LICENSE). Los avisos de terceros están en [NOTICE](NOTICE).
