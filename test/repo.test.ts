@@ -66,5 +66,11 @@ describe('preparar una carpeta para abrirla', () => {
     expect(await checkRepo(dir)).toEqual({ state: 'no-repo', inside: [join(dir, 'api'), join(dir, 'web')], gitignore: false })
     await expect(prepareRepo(dir)).rejects.toThrow(RuleError)
     expect(existsSync(join(dir, '.git'))).toBe(false)
+
+    // Aunque alguien haya corrido `git init` en la carpeta que los agrupa: no se guarda un commit que los envuelva.
+    git(dir, 'init', '-q', '-b', 'main')
+    expect(await checkRepo(dir)).toMatchObject({ state: 'no-commits', inside: [join(dir, 'api'), join(dir, 'web')] })
+    await expect(prepareRepo(dir)).rejects.toThrow(RuleError)
+    expect(git(dir, 'status', '--porcelain', '--untracked-files=no')).toBe('')
   })
 })

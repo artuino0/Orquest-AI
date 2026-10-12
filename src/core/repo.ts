@@ -47,15 +47,19 @@ const starterIgnore = () =>
 export async function checkRepo(dir: string): Promise<RepoCheck> {
   const gitignore = await exists(join(dir, '.gitignore'))
   const isRepo = await git(dir, 'rev-parse', '--is-inside-work-tree').then((out) => out === 'true', () => false)
-  if (!isRepo) {
+  // Repositorios un nivel abajo: una carpeta que agrupa proyectos no se convierte en uno.
+  const nested = async () => {
     const inside: string[] = []
     for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
       if (entry.isDirectory() && (await exists(join(dir, entry.name, '.git')))) inside.push(join(dir, entry.name))
     }
-    return { state: 'no-repo', inside: inside.sort(), gitignore }
+    return inside.sort()
   }
+  if (!isRepo) return { state: 'no-repo', inside: await nested(), gitignore }
   const born = await git(dir, 'rev-parse', '--verify', '--quiet', 'HEAD').then(() => true, () => false)
-  return { state: born ? 'ok' : 'no-commits', inside: [], gitignore }
+  if (born) return { state: 'ok', inside: [], gitignore }
+  // Con `git init` recién hecho en una carpeta que agrupa repositorios tampoco se guarda nada: los envolvería.
+  return { state: 'no-commits', inside: await nested(), gitignore }
 }
 
 /**
