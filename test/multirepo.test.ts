@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -34,7 +34,7 @@ function makeRepo(dir: string, name: string) {
 const dirs: string[] = []
 /** Carpeta sin git con dos repositorios dentro. */
 function makeGroup(): string {
-  const root = mkdtempSync(join(tmpdir(), 'orquest-varios-'))
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'orquest-varios-')))
   dirs.push(root)
   makeRepo(join(root, 'back'), 'back')
   makeRepo(join(root, 'front'), 'front')
@@ -368,7 +368,7 @@ describe('proyecto con varios repositorios', () => {
     expect(await checkGroup(root)).toMatchObject({ repos: [{ name: 'back' }, { name: 'front' }, { name: 'movil' }], empty: ['movil'] })
     await expect(open(root)).rejects.toThrow(/El repositorio movil todavía no tiene ningún commit/)
     // Una carpeta sin repositorios dentro tampoco es un proyecto de varios.
-    const loose = mkdtempSync(join(tmpdir(), 'orquest-suelta-'))
+    const loose = realpathSync.native(mkdtempSync(join(tmpdir(), 'orquest-suelta-')))
     dirs.push(loose)
     await expect(open(loose)).rejects.toThrow(/no tiene repositorios dentro/)
   }, 60_000)
@@ -389,7 +389,7 @@ describe('proyecto con varios repositorios', () => {
   }, 60_000)
 
   it('con un solo repositorio todo sigue igual: `repositorio` no cuenta y la oficina es la copia', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'orquest-uno-'))
+    const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'orquest-uno-')))
     dirs.push(root)
     makeRepo(root, 'tienda')
     const { s, manager, boss, as, hire, told } = await open(root, false)
