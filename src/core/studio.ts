@@ -25,7 +25,9 @@ import type { StudioStore } from './store.js'
 import { commitDelivery, createCopy, currentBranch, deliveryDiff, headOf, mergeOffice, nothingToMerge, officeChanges, officeDiff, officePending, removeOffice, repoRoot, type FileChange, type Office } from './worktree.js'
 
 /** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
-const SUBMIT_RETRY_MS = 1200
+const SUBMIT_RETRIES_MS = [1200, 2000, 3000, 4000, 5000, 6000, 8000]
+/** Cuánto se espera, como mucho, a ver en pantalla lo que se le escribió antes de dar Enter. */
+const ECHO_WAIT_MS = 20_000
 
 /** Una CLI que se cierra antes de esto tras pedirle retomar, es que no tenía conversación que retomar. */
 
@@ -290,9 +292,17 @@ export class Studio extends EventEmitter<StudioEvents> {
         this.opts.manager.write(id, msg)
         const since = Date.now()
         await wait(pause)
-        // Un texto largo tarda en entrar (el manual del puesto son más de mil caracteres): el Enter
-        // espera a que la pantalla deje de moverse. Con Codex real, a los 0.7 s aún no había acabado.
-        while (pause > 0 && this.opts.manager.quietFor(id) < 500 && Date.now() - since < 20_000) await wait(100)
+        // El Enter espera a que la CLI termine de recibir el texto: si llega antes, lo toma como parte
+        // de lo pegado (un salto de línea) y el mensaje se queda sin enviar. Cuánto tarda depende de la
+        // máquina y del largo (el manual del puesto son más de mil caracteres; en una máquina lenta,
+        // varios segundos), así que no se mide con reloj: se espera a verlo en su pantalla y a que
+        // esta deje de moverse (o, si nunca se queda quieta, a que lleve un rato ahí).
+        let shownAt = 0
+        while (pause > 0 && Date.now() - since < ECHO_WAIT_MS) {
+          if (!shownAt && this.opts.manager.shows(id, msg)) shownAt = Date.now()
+          if (shownAt && (this.opts.manager.quietFor(id) >= 500 || Date.now() - shownAt >= 1500)) break
+          await wait(100)
+        }
         if (!this.opts.manager.isLive(id)) return
         // El Enter puede no entrar a la primera (a Codex le pasa con textos largos: lo toma como un
         // renglón más). Si la CLI no se puso a trabajar, se le da de nuevo, como haría una persona.
@@ -303,8 +313,10 @@ export class Studio extends EventEmitter<StudioEvents> {
         this.opts.manager.on('state', onState)
         try {
           this.opts.manager.write(id, '\r')
-          for (let tries = 0; pause > 0 && tries < 3; tries++) {
-            await wait(SUBMIT_RETRY_MS)
+          // Se insiste cada vez más espaciado, hasta medio minuto: en una máquina lenta los primeros
+          // Enter aún caen dentro del pegado.
+          for (const ms of pause > 0 ? SUBMIT_RETRIES_MS : []) {
+            await wait(ms)
             const state = this.opts.manager.get(id)?.state
             // Trabajando, detenido en una pregunta o fuera: ya no hay Enter que dar.
             if (working || state !== 'idle') break

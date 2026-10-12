@@ -209,9 +209,9 @@ describe('corte al cerrar y pregunta al abrir', () => {
     // …y si esa conversación nunca existió, la CLI se cierra, tarde lo que tarde, y entra con una nueva.
     await new Promise((r) => setTimeout(r, 50))
     exits[1]()
-    await new Promise((r) => setTimeout(r, 50))
-    expect(s.bossOnline).toBe(true)
-    expect(launches).toHaveLength(3)
+    // El relanzamiento es asíncrono: se espera a verlo en vez de contar milisegundos.
+    await expect.poll(() => launches.length, { timeout: 5000 }).toBe(3)
+    await expect.poll(() => s.bossOnline, { timeout: 5000 }).toBe(true)
     expect(launches[2]).not.toContain('--resume')
 
     // Cerrada otra vez, contratar un jefe nuevo también funciona (antes decía «Ya existe el empleado jefe»).

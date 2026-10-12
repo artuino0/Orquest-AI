@@ -130,6 +130,45 @@ describe('prompt de Claude Code', () => {
   })
 })
 
+describe('máquina lenta', () => {
+  it('el Enter espera a que la CLI termine de recibir el texto, en vez de caer dentro de lo pegado', async () => {
+    // Una CLI que tarda 6 s en recibir lo que se le escribe: un Enter que llegue antes es un salto
+    // de línea más; el que llega después, envía.
+    const SLOW = 6000
+    let feed = (_d: string) => {}
+    let received = 0
+    const early: number[] = []
+    let submittedAt = 0
+    const t0 = Date.now()
+    const spawn: Spawner = () => ({
+      pid: 1,
+      onData: (cb) => (feed = cb),
+      onExit: () => {},
+      write: (d) => {
+        if (d === '\r') {
+          if (received && Date.now() >= received) {
+            submittedAt ||= Date.now() - t0
+            feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+          } else early.push(Date.now() - t0)
+          return
+        }
+        received = Date.now() + SLOW
+        setTimeout(() => feed(`${CLEAR}──────────────────────\r\n❯ ${d}\r\n──────────────────────\r\n`), SLOW)
+      },
+      resize: () => {},
+      kill: () => {},
+    })
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    studio = await new Studio({ repo: repo(), manager, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 50 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    feed(CLAUDE_PROMPT)
+    await wait(SLOW + 2500)
+    // Ningún Enter antes de tiempo, y el mensaje sí se envió.
+    expect(early).toEqual([])
+    expect(submittedAt).toBeGreaterThan(SLOW)
+  })
+})
+
 describe('terminal que nunca se queda quieta', () => {
   it('con el prompt a la vista se le escribe aunque algo se siga animando en pantalla', async () => {
     const { terminals, spawn } = screenPty()

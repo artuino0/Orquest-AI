@@ -304,6 +304,19 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     return e ? Date.now() - e.lastDataAt : Number.MAX_SAFE_INTEGER
   }
 
+  /**
+   * ¿Ya se ve en su pantalla lo que se le acaba de escribir? Se busca su final (sin contar
+   * espacios: un texto largo se parte en renglones) o el aviso con que la CLI resume un pegado.
+   */
+  shows(id: string, text: string): boolean {
+    const e = this.live.get(id)
+    if (!e) return false
+    const flat = (s: string) => s.replace(/\s+/g, '')
+    const screen = flat(e.reader.screen())
+    const tail = flat(text).slice(-14)
+    return /\[pasted/i.test(screen) || (tail.length > 0 && screen.includes(tail))
+  }
+
   atPrompt(id: string): boolean {
     const e = this.live.get(id)
     if (!e) return false
