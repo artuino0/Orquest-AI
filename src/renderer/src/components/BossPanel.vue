@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
@@ -26,6 +26,15 @@ watch(leaders, (l) => {
   if (l.length && !l.some((c) => c.id === provider.value)) provider.value = l[0].id
 })
 const model = ref('')
+/** El modelo se escribe a mano en vez de elegirse de la lista. */
+const customModel = ref(false)
+const OTHER = '\u0000otro'
+function pickModel(value: string) {
+  if (value === OTHER) {
+    customModel.value = true
+    model.value = ''
+  } else model.value = value
+}
 // Cuentas del proveedor elegido: solo se pregunta si hay más de una.
 const allAccounts = ref<Account[]>([])
 void window.orquest.accounts().then((a) => (allAccounts.value = a), () => {})
@@ -45,6 +54,7 @@ watch(
   () => [provider.value, efforts.value.join()],
   () => {
     model.value = ''
+    customModel.value = false
     house.value = ''
     // Por defecto "alto" si lo hay; si no, el más alto que reciba.
     effort.value = efforts.value.includes('high') ? 'high' : efforts.value.at(-1)
@@ -230,9 +240,20 @@ const pending = computed(() => {
       <label class="field grow">
         <span>{{ T`Modelo` }}</span>
         <div class="select">
-          <input v-model="model" list="boss-models" :placeholder="models.length ? T`el de la CLI por defecto · ${models.length} para elegir` : T`el de la CLI por defecto (escribe otro si quieres)`" />
-          <ChevronDown />
-          <datalist id="boss-models"><option v-for="m in offered" :key="m" :value="m" /></datalist>
+          <!-- Una lista de verdad: se ve entera al abrirla. Sin lista, o con «Escribir otro…», se escribe. -->
+          <template v-if="models.length && !customModel">
+            <select :value="model" @change="pickModel(($event.target as HTMLSelectElement).value)">
+              <option value="">{{ T`el de la CLI por defecto` }}</option>
+              <option v-for="m in offered" :key="m" :value="m">{{ m }}</option>
+              <option v-if="model && !offered.includes(model)" :value="model">{{ model }}</option>
+              <option :value="OTHER">{{ T`Escribir otro…` }}</option>
+            </select>
+            <ChevronDown />
+          </template>
+          <template v-else>
+            <input v-model="model" :placeholder="T`el de la CLI por defecto (escribe otro si quieres)`" />
+            <button v-if="models.length" type="button" class="back-list" :title="T`Volver a la lista`" @click="customModel = false; model = ''"><X /></button>
+          </template>
         </div>
       </label>
       <label v-if="houses.length > 1" class="field">
@@ -360,6 +381,11 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .row { display: flex; gap: 14px; align-items: flex-end; }
 .grow { flex: 1; }
 .select { position: relative; }
+.select select { width: 100%; appearance: none; font: 12px/1.6 var(--font); color: var(--text-primary); background: var(--bg); border: 2px solid var(--border); padding: 10px 32px 10px 12px; outline: none; cursor: pointer; }
+.select select:focus { border-color: var(--accent); }
+.select option { background: var(--surface); }
+.select .back-list { position: absolute; right: 6px; top: 50%; translate: 0 -50%; display: grid; place-items: center; padding: 3px; background: none; border: 0; color: var(--text-secondary); cursor: pointer; }
+.select .back-list svg { position: static; translate: none; pointer-events: auto; }
 .select svg { position: absolute; right: 10px; top: 50%; translate: 0 -50%; width: 14px; height: 14px; color: var(--text-secondary); pointer-events: none; }
 .segments { display: flex; border: 2px solid var(--border); background: var(--bg); }
 .segments button { border: 0; background: none; padding: 9px 16px; font: 700 12px var(--font); color: var(--text-secondary); }

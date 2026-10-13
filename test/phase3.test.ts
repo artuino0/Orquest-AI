@@ -199,4 +199,21 @@ describe('fase 3: expedientes y manuales', () => {
     expect(await s.call({ kind: 'employee', id: fe }, 'entregar', { reporte: 'listo', capturas: ['shots/home.png'] })).toContain('Entrega recibida')
     await client.close()
   })
+
+  it('lo que el usuario cambia en la plantilla (modelo y esfuerzo) es con lo que se lanza la terminal', async () => {
+    const repo = await makeRepo()
+    const { s, call } = await open(repo, new Library())
+    expect((await call('proponer_plantilla', { puestos: [{ puesto: 'backend', proveedor: 'claude', modelo: 'opus', esfuerzo: 'high', motivo: 'x' }] })).error).toBe(false)
+    const slot = s.board.slots[0]
+    expect(slot).toMatchObject({ model: 'opus', effort: 'high' })
+    // El usuario lo ajusta antes de aprobar.
+    s.approveTemplate([{ id: slot.id, role: 'backend', provider: 'claude', model: 'sonnet', effort: 'low' }])
+    const up = await call('levantar_empleado', { puesto: slot.id })
+    expect(up.error).toBe(false)
+    const id = s.board.staff[0].id
+    const args = launched.get(id)!
+    expect(args[args.indexOf('--model') + 1]).toBe('sonnet')
+    expect(args[args.indexOf('--effort') + 1]).toBe('low')
+    expect(s.board.staff[0]).toMatchObject({ model: 'sonnet', effort: 'low' })
+  })
 })

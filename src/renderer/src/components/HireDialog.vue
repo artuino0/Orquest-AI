@@ -1,6 +1,11 @@
+<script lang="ts">
+/** Lo que el usuario lleva ajustado de la propuesta en curso: el panel se desmonta al cerrarse y esto no. */
+let kept: { key: string; rows: unknown[] } | null = null
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users } from 'lucide-vue-next'
+import { Ban, Check as CheckIcon, Pencil, Plus, Trash2, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
 import { EFFORT_LABEL, LOOK, lookOf, roleLabel } from '../status'
@@ -16,6 +21,8 @@ import { T } from '../../../core/i18n'
  */
 interface Row extends SlotEdit {
   reason?: string
+  /** El modelo se escribe a mano en vez de elegirse de la lista. */
+  custom?: boolean
 }
 
 const studio = useStudio()
@@ -28,11 +35,13 @@ const accountsOf = (provider: string) => accounts.value.filter((a) => a.provider
 
 watch(
   () => studio.proposal.map((s) => s.id).join(),
-  () => {
-    rows.value = studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, account: s.account ?? '', reason: s.reason }))
+  (key) => {
+    // Lo que ya ajustaste de esta misma propuesta se conserva aunque cierres el panel y vuelvas.
+    rows.value = kept?.key === key ? (kept.rows as Row[]) : studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, account: s.account ?? '', reason: s.reason }))
   },
   { immediate: true },
 )
+watch(rows, (r) => (kept = { key: studio.proposal.map((s) => s.id).join(), rows: r }), { deep: true })
 
 // Expedientes: cada fila se revisa al cambiar; lo prohibido no se puede aprobar.
 const checks = ref<Check[]>([])
@@ -57,15 +66,34 @@ const cliName = (id: ProviderId) => studio.clis.find((c) => c.id === id)?.name ?
 const first = (): ProviderId => studio.usable[0]?.id ?? 'claude'
 const cliOf = (id: ProviderId) => studio.clis.find((c) => c.id === id)
 
+const modelsOf = (id: ProviderId) => cliOf(id)?.models ?? []
+/** Al cambiar de proveedor, el modelo y el esfuerzo del anterior ya no valen. */
+function providerChanged(r: Row) {
+  if (r.model && !modelsOf(r.provider).includes(r.model)) r.model = ''
+  if (r.effort && !cliOf(r.provider)?.efforts?.includes(r.effort)) r.effort = undefined
+  r.custom = false
+}
+/** «Escribir otro…» en la lista de modelos: esa fila pasa a escribirse a mano. */
+function pickModel(r: Row, value: string) {
+  if (value === OTHER) {
+    r.custom = true
+    r.model = ''
+  } else r.model = value
+}
+const OTHER = '\u0000otro'
+
 function add() {
   rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '' })
 }
 
 async function approve() {
   busy.value = true
-  const ok = await studio.approveTemplate(rows.value.map(({ reason: _r, ...r }) => ({ ...r, model: r.model || undefined, effort: r.effort || undefined, account: accountsOf(r.provider).some((a) => !a.main && a.dir === r.account) ? r.account : undefined })))
+  const ok = await studio.approveTemplate(rows.value.map(({ reason: _r, custom: _c, ...r }) => ({ ...r, model: r.model || undefined, effort: r.effort || undefined, account: accountsOf(r.provider).some((a) => !a.main && a.dir === r.account) ? r.account : undefined })))
   busy.value = false
-  if (ok) studio.overlay = null
+  if (ok) {
+    kept = null
+    studio.overlay = null
+  }
 }
 
 async function askBoss() {
@@ -115,7 +143,7 @@ const subtitle = computed(() => {
             </td>
             <td>
               <span class="pv"><i :style="{ background: `var(--pv-${r.provider})` }" />
-                <select v-model="r.provider" class="plain">
+                <select v-model="r.provider" class="plain" @change="providerChanged(r)">
                   <option v-for="c in studio.usable" :key="c.id" :value="c.id">{{ c.name }}</option>
                   <option v-if="!studio.usable.some((c) => c.id === r.provider)" :value="r.provider">{{ cliName(r.provider) }}</option>
                 </select>
@@ -125,8 +153,17 @@ const subtitle = computed(() => {
               </select>
             </td>
             <td>
-              <input v-model="r.model" class="plain" :placeholder="T`por defecto`" :list="`models-${r.provider}`" />
-              <datalist :id="`models-${r.provider}`"><option v-for="m in cliOf(r.provider)?.models ?? []" :key="m" :value="m" /></datalist>
+              <!-- Una lista de verdad: se ve entera al abrirla. Si la CLI no dice sus modelos, o se elige «Escribir otro…», se escribe. -->
+              <select v-if="modelsOf(r.provider).length && !r.custom" class="plain" :value="r.model ?? ''" @change="pickModel(r, ($event.target as HTMLSelectElement).value)">
+                <option value="">{{ T`por defecto` }}</option>
+                <option v-for="m in modelsOf(r.provider)" :key="m" :value="m">{{ m }}</option>
+                <option v-if="r.model && !modelsOf(r.provider).includes(r.model)" :value="r.model">{{ r.model }}</option>
+                <option :value="OTHER">{{ T`Escribir otro…` }}</option>
+              </select>
+              <span v-else class="typed">
+                <input v-model="r.model" class="plain" :placeholder="T`por defecto`" />
+                <button v-if="modelsOf(r.provider).length" class="trash" :title="T`Volver a la lista`" @click="r.custom = false; r.model = ''"><X /></button>
+              </span>
             </td>
             <td>
               <select v-model="r.effort" class="plain" :disabled="!cliOf(r.provider)?.efforts?.length" :title="cliOf(r.provider)?.efforts?.length ? '' : T`Esta CLI no recibe esfuerzo`">
@@ -213,6 +250,7 @@ const subtitle = computed(() => {
 .name svg { width: 12px; height: 12px; color: var(--text-secondary); flex: none; }
 .plain { border: 0; background: none; padding: 2px 0; font: 12px var(--font); color: var(--text-primary); outline: none; max-width: 130px; }
 select.plain { cursor: pointer; }
+.typed { display: inline-flex; align-items: center; gap: 4px; }
 select.plain option { background: var(--surface); }
 .why { line-height: 1.5; max-width: 280px; }
 .rule { max-width: 260px; }

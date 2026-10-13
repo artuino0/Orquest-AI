@@ -224,6 +224,8 @@ const en: Record<string, string> = {
   'M cambiado · A nuevo · D borrado, según git.': 'M changed · A new · D deleted, according to git.',
   'Elige un archivo en la lista para abrirlo.': 'Pick a file in the list to open it.',
   'Tiene cambios sin guardar: guárdalos o descártalos antes de cerrarlo.': 'It has unsaved changes: save or discard them before closing it.',
+  'Escribir otro…': 'Type another…',
+  'Volver a la lista': 'Back to the list',
 }
 
 export default en
