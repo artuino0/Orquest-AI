@@ -36,6 +36,7 @@ const api: OrquestApi = {
   removeRecent: (path) => invoke('recents:remove', path),
   importRecents: (entries) => invoke('recents:import', entries),
   openExternal: (url) => invoke('shell:open', url),
+  attention: () => invoke('window:attention'),
   openProject: (repo, group) => invoke('project:open', repo, group),
   hireBoss: (req) => invoke('boss:hire', req),
   sayToBoss: (text) => invoke('boss:say', text),

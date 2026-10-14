@@ -162,6 +162,7 @@ export function installMock(caso: string) {
     retune: async () => {},
     setTeamApproval: async () => {},
     requestReview: async () => {},
+    attention: async () => {},
     stopReview: async () => {},
     // De mentira: quita espacios de más al final de cada renglón.
     formatFile: async (_id, _path, text) => text.split('\n').map((l) => l.trimEnd()).join('\n'),

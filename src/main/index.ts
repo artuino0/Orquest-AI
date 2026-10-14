@@ -54,7 +54,8 @@ function createWindow() {
     frame: false,
     minWidth: 960,
     minHeight: 600,
-    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: false },
+    // Los avisos suenan aunque no se haya hecho clic todavía.
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: false, autoplayPolicy: 'no-user-gesture-required' },
   })
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
@@ -65,6 +66,8 @@ function createWindow() {
     event.preventDefault()
     win?.setFullScreen(!win.isFullScreen())
   })
+  // El parpadeo en la barra de tareas para en cuanto el usuario vuelve a la ventana.
+  win.on('focus', () => win?.flashFrame(false))
   win.on('closed', () => (win = null))
   win.on('maximize', state)
   win.on('unmaximize', state)
@@ -168,6 +171,9 @@ handle('project:summaries', (repos: string[]) =>
   }),
 )
 // Solo páginas web: lo que llega del renderer no abre archivos ni otros protocolos.
+handle('window:attention', () => {
+  if (win && !win.isFocused()) win.flashFrame(true)
+})
 handle('shell:open', (url: string) => (/^https:\/\//.test(url) || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url) ? shell.openExternal(url) : undefined))
 
 // `group`: la carpeta no es un repositorio sino que agrupa varios, y se abre como un solo proyecto con ella de raíz.

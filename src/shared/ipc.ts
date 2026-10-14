@@ -84,6 +84,8 @@ export interface OrquestApi {
   importRecents(entries: RecentProject[]): Promise<RecentProject[]>
   /** Abre una página en el navegador del sistema (guías de instalación). */
   openExternal(url: string): Promise<void>
+  /** Algo espera al usuario: si la ventana no está al frente, parpadea en la barra de tareas. */
+  attention(): Promise<void>
 
   // Proyecto, jefe y tablero.
   /** `group`: la carpeta no es un repositorio sino que agrupa varios, y se abre como un solo proyecto. */

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { T } from '../../core/i18n'
 import { useStudio } from './stores/studio'
+import { watchAttention } from './attention'
 import './theme'
 import HomeScreen from './components/HomeScreen.vue'
 import OfficeScreen from './components/OfficeScreen.vue'
@@ -9,6 +10,8 @@ import TitleBar from './components/TitleBar.vue'
 
 const studio = useStudio()
 onMounted(() => studio.detect())
+// Sonido y parpadeo en la barra de tareas cuando algo espera al usuario.
+watchAttention()
 
 // Al cerrar la ventana, la app espera a que cada agente deje su corte.
 const closing = ref<{ asked: string[]; done: string[] } | null>(null)
