@@ -95,7 +95,15 @@ const BLOCKS: [BlockKind, RegExp][] = [
 const ANSWERS: Partial<Record<BlockKind, RegExp>> = {
   trust: /yes, i trust|trust and continue|yes, proceed/i,
   offer: /^\W*(\d+\.\s*)?not now\s*$/i,
+  // El «Sí» de una sola vez; no el «sí, y no vuelvas a preguntar», que deja reglas guardadas en el proyecto.
+  // En Codex el primero es «Yes, proceed».
+  permission: /^\W*(\d+[.)]\s*)?(yes(, proceed)?|allow|approve)\b(?!,)/i,
 }
+/**
+ * Lo que sí es una pregunta de permiso de la CLI (correr un comando, editar o crear un archivo).
+ * Cualquier otro menú también detiene al agente, pero a ese no se le contesta solo.
+ */
+const APPROVAL_PROMPTS = [/do you want to (proceed|make this edit|create|run)/i, /allow (this )?command\?/i, /would you like to (run|make|apply)\b/i, /approve\?/i]
 /** Renglón del menú donde está el cursor. */
 const MENU_CURSOR = /^\s*[❯›>]\s/
 /** Cuánto debe llevar el prompt a la vista para escribirle aunque la pantalla siga moviéndose. */
@@ -346,6 +354,13 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     if (!e || e.employee.state !== 'blocked') return undefined
     const screen = e.reader.screen()
     return BLOCKS.find(([, pattern]) => pattern.test(screen))?.[0] ?? 'permission'
+  }
+
+  /** Si lo que la detiene es una pregunta de permiso reconocida, su pantalla; si no, undefined. */
+  approvalPrompt(id: string): string | undefined {
+    if (this.blockedBy(id) !== 'permission') return undefined
+    const screen = this.live.get(id)!.reader.screen()
+    return APPROVAL_PROMPTS.some((p) => p.test(screen)) ? screen : undefined
   }
 
   /**

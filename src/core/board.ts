@@ -152,6 +152,12 @@ export interface BossRecord {
   effort?: Effort
   account?: string
   sessionId?: string
+  /**
+   * El jefe autoriza por el usuario las preguntas de permiso de su equipo: Orquest contesta «Sí»
+   * a la pregunta de la CLI de un empleado. Lo prohibido en su manual no; las preguntas del jefe y
+   * los merges siguen siendo del usuario.
+   */
+  approveForTeam?: boolean
 }
 
 export interface BoardSnapshot {

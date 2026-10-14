@@ -211,6 +211,10 @@ const en: Record<string, string> = {
   'y': 'and',
   'semana': 'week',
   '5 horas': '5 hours',
+  '{0} pide permiso para algo prohibido en su manual («{1}»): el jefe no lo autoriza. Contéstale tú en su terminal.': '{0} is asking permission for something forbidden in their manual ("{1}"): the boss won\'t approve it. Answer in their terminal yourself.',
+  'el jefe le autorizó un permiso': 'the boss approved a permission for them',
+  'el usuario le pidió autorizar los permisos de su equipo': "the user asked it to approve its team's permissions",
+  'el usuario dejó de pedirle que autorice los permisos de su equipo': "the user stopped asking it to approve its team's permissions",
 }
 
 export default en

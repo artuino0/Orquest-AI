@@ -248,6 +248,7 @@ handle('employee:fire', (id: string) => {
   if (id !== BOSS_ID) return studio().fire(id)
   void studio().fire(id).catch((err) => send('notice', (err as Error).message))
 })
+handle('boss:team-approval', (on: boolean) => studio().setTeamApproval(on))
 handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => studio().retune(id, change))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
 handle('employee:say', (id: string, text: string) => studio().say(id, text))

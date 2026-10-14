@@ -124,6 +124,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private resting = new Map<string, string>()
   /** Pasó el umbral a media tarea: descansa en cuanto termine su turno. */
   private restPending = new Set<string>()
+  /** La última pregunta de permiso que el jefe le autorizó a cada quien, para no insistir sobre la misma pantalla. */
+  private approvals = new Map<string, { screen: string; tries: number }>()
   /** Hasta cuándo cuenta cada quien como «ocupado» para editar en su oficina: se recorre con cada cambio de estado. */
   private settledAt = new Map<string, number>()
   /** Contexto con que arrancó cada sesión. */
@@ -147,6 +149,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       if (!this.isOurs(id)) return
       // Entre paso y paso un agente pasa un instante por «en espera»: para editar no cuenta como quieto hasta que dure.
       this.settledAt.set(id, Date.now() + (this.opts.editCalmMs ?? EDIT_CALM_MS))
+      if (state === 'blocked' && id !== BOSS_ID && this.board.boss?.approveForTeam) this.approveForTeam(id)
       // Se puso a trabajar: la conversación que retomó sí existía.
       if (state === 'working') this.resumeTries.delete(id)
       if (state === 'idle') {
@@ -388,14 +391,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   /** Contrata al jefe: trabaja en el repo principal, sin worktree. */
-  async hireBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }) {
+  async hireBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string; approveForTeam?: boolean }) {
     if (this.bossOnline) throw new RuleError(T`El jefe ya está en su oficina.`)
     await this.launchBoss(req, false)
     this.fact(BOSS_ID, T`contratado como jefe (${req.provider}${req.model ? ` ${req.model}` : ''}). Objetivo: ${req.goal}`)
     this.changed()
   }
 
-  private async launchBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean, first?: string) {
+  private async launchBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string; approveForTeam?: boolean }, resume: boolean, first?: string) {
     const adapter = getProvider(req.provider)
     const env = accountEnv(req.provider, req.account, this.opts.home)
     const channel = this.channel(req.provider)
@@ -414,7 +417,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const team = this.board.staff.some((m) => !m.gone && this.opts.manager.isLive(m.id))
     const journal = this.journal.path(BOSS_ID)
     // Para que `launch` sepa qué conversación retomar; si es nuevo, parte sin ninguna.
-    this.board.boss = { name, provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined }
+    this.board.boss = { name, provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined, ...(req.approveForTeam ? { approveForTeam: true } : {}) }
     await this.launch(BOSS_ID, {
       token,
       owner,
@@ -670,6 +673,47 @@ export class Studio extends EventEmitter<StudioEvents> {
       this.resting.delete(id)
       this.changed()
     }
+  }
+
+  /**
+   * El jefe autoriza por el usuario: si un empleado se detuvo con una pregunta de permiso de su
+   * CLI, se contesta «Sí». No se autoriza lo prohibido en su manual (se le avisa al usuario), ni
+   * se insiste si la misma pantalla sigue ahí. Se espera un instante a que el menú termine de dibujarse.
+   */
+  private approveForTeam(id: string) {
+    setTimeout(() => {
+      if (!this.board.boss?.approveForTeam || this.opts.manager.get(id)?.state !== 'blocked') return
+      const screen = this.opts.manager.approvalPrompt(id)
+      if (!screen) return
+      const m = this.board.staff.find((x) => x.id === id)
+      const deny = this.library.manual(m?.role ?? '').permissions.deny
+      const forbidden = deny.find((d) => d && screen.toLowerCase().includes(d.toLowerCase()))
+      if (forbidden) {
+        this.emit('notice', T`${this.nameOf(id)} pide permiso para algo prohibido en su manual («${forbidden}»): el jefe no lo autoriza. Contéstale tú en su terminal.`)
+        return
+      }
+      const prev = this.approvals.get(id)
+      const tries = prev?.screen === screen ? prev.tries + 1 : 1
+      if (tries > 2) return
+      this.approvals.set(id, { screen, tries })
+      try {
+        this.opts.manager.answerBlock(id)
+        this.fact(id, T`el jefe le autorizó un permiso`)
+      } catch {
+        // Si no se encontró la opción, queda detenido y el usuario lo ve como siempre.
+      }
+    }, 400).unref?.()
+  }
+
+  /** Enciende o apaga que el jefe autorice los permisos de su equipo. */
+  setTeamApproval(on: boolean) {
+    const boss = this.board.boss
+    if (!boss) throw new RuleError(T`No hay jefe contratado.`)
+    this.board.boss = { ...boss, approveForTeam: on }
+    this.fact(BOSS_ID, on ? T`el usuario le pidió autorizar los permisos de su equipo` : T`el usuario dejó de pedirle que autorice los permisos de su equipo`)
+    this.changed()
+    // Quien ya estaba esperando permiso no tiene que esperar a otra pregunta.
+    if (on) for (const m of this.board.staff) if (this.opts.manager.get(m.id)?.state === 'blocked') this.approveForTeam(m.id)
   }
 
   /** Le pide su traspaso y espera a que lo escriba con escribir_traspaso, o a que se acabe el tiempo. */

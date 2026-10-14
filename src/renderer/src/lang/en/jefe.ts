@@ -192,6 +192,10 @@ const en: Record<string, string> = {
   'Volver a la lista': 'Back to the list',
   'Ver menos': 'Show less',
   'Ver todo': 'Show all',
+  'El jefe autoriza los permisos de su equipo': "The boss approves its team's permissions",
+  'Cuando un empleado pida permiso para correr un comando o editar un archivo, el jefe dice que sí por ti. Lo prohibido en su manual no lo autoriza, y los merges siguen siendo tuyos.': "When an employee asks permission to run a command or edit a file, the boss says yes for you. It won't approve what their manual forbids, and merges are still yours.",
+  'Lo prohibido en su manual no lo autoriza; los merges siguen siendo tuyos.': "It won't approve what their manual forbids; merges are still yours.",
+  'Autoriza los permisos de su equipo': "Approves its team's permissions",
 }
 
 export default en

@@ -51,6 +51,8 @@ const houses = computed(() => [...new Set(models.value.filter((m) => m.includes(
 const house = ref('')
 const offered = computed(() => (house.value ? models.value.filter((m) => m.startsWith(`${house.value}/`)) : models.value))
 const effort = ref<Effort | undefined>()
+/** El jefe autoriza las preguntas de permiso de su equipo (no las suyas ni los merges). */
+const teamApproval = ref(false)
 watch(
   () => [provider.value, efforts.value.join()],
   () => {
@@ -96,7 +98,7 @@ const busy = ref(false)
 
 async function hire() {
   busy.value = true
-  const ok = await studio.hireBoss({ name: bossName.value.trim() || undefined, provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value })
+  const ok = await studio.hireBoss({ name: bossName.value.trim() || undefined, provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value, approveForTeam: teamApproval.value })
   busy.value = false
   if (ok) studio.overlay = null
 }
@@ -309,6 +311,13 @@ const pending = computed(() => {
         </button>
       </div>
     </div>
+    <label class="approve">
+      <input v-model="teamApproval" type="checkbox" />
+      <span>
+        <b>{{ T`El jefe autoriza los permisos de su equipo` }}</b>
+        <small>{{ T`Cuando un empleado pida permiso para correr un comando o editar un archivo, el jefe dice que sí por ti. Lo prohibido en su manual no lo autoriza, y los merges siguen siendo tuyos.` }}</small>
+      </span>
+    </label>
     <p v-if="!leaders.length" class="err">{{ T`Ninguna CLI está lista en esta máquina. Revisa en Inicio cuál falta instalar o iniciar sesión.` }}</p>
     <p v-if="studio.error" class="err">{{ studio.error }}</p>
     <template #footer>
@@ -381,6 +390,10 @@ const pending = computed(() => {
           </div>
         </div>
         <button class="btn open" @click="studio.openBossDesk()"><Terminal /> {{ T`Abrir terminal del jefe` }}</button>
+        <label class="approve small" :title="T`Lo prohibido en su manual no lo autoriza; los merges siguen siendo tuyos.`">
+          <input type="checkbox" :checked="!!studio.board?.boss?.approveForTeam" @change="studio.setTeamApproval(($event.target as HTMLInputElement).checked)" />
+          <span>{{ T`Autoriza los permisos de su equipo` }}</span>
+        </label>
         <div class="card waits">
           <span class="cap">{{ T`El jefe espera de ti` }}</span>
           <p v-if="!pending.length" class="dim">{{ T`Nada por ahora.` }}</p>
@@ -410,6 +423,11 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .row { display: flex; gap: 14px; align-items: flex-end; }
 .grow { flex: 1; }
 .select { position: relative; }
+.approve { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg); border: 2px solid var(--border); cursor: pointer; }
+.approve input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex: none; }
+.approve span { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.approve small { font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
+.approve.small { padding: 8px 10px; align-items: center; }
 .select select { width: 100%; appearance: none; font: 12px/1.6 var(--font); color: var(--text-primary); background: var(--bg); border: 2px solid var(--border); padding: 10px 32px 10px 12px; outline: none; cursor: pointer; }
 .select select:focus { border-color: var(--accent); }
 .select option { background: var(--surface); }

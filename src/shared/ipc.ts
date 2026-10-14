@@ -32,6 +32,8 @@ export interface BossRequest {
   /** Cuenta del proveedor (carpeta de su sesión); sin ella, la principal. */
   account?: string
   goal: string
+  /** El jefe autoriza las preguntas de permiso de su equipo (no las suyas ni los merges). */
+  approveForTeam?: boolean
 }
 
 /** Expediente con su historial contigo, para la UI. */
@@ -90,6 +92,8 @@ export interface OrquestApi {
   resumeProject(): Promise<void>
   skipResume(): Promise<void>
   hireBoss(req: BossRequest): Promise<void>
+  /** Enciende o apaga que el jefe autorice los permisos de su equipo. */
+  setTeamApproval(on: boolean): Promise<void>
   sayToBoss(text: string): Promise<void>
   /** Contesta una pregunta pendiente del jefe (P1, P2…). */
   answerQuestion(id: string, text: string): Promise<void>

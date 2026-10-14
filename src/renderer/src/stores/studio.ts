@@ -273,6 +273,7 @@ export const useStudio = defineStore('studio', () => {
 
   const hireBoss = (req: BossRequest) => attempt(() => window.orquest.hireBoss(req))
   const approveTemplate = (slots: SlotEdit[]) => attempt(() => window.orquest.approveTemplate(slots))
+  const setTeamApproval = (on: boolean) => attempt(() => window.orquest.setTeamApproval(on))
   const retune = (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => attempt(() => window.orquest.retune(id, change))
   const mergeTask = (id: string) => attempt(() => window.orquest.mergeTask(id))
   const returnTask = (id: string, notes: string) => attempt(() => window.orquest.returnTask(id, notes))
@@ -401,6 +402,6 @@ export const useStudio = defineStore('studio', () => {
     screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
-    detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, retune, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
+    detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, retune, setTeamApproval, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
   }
 })

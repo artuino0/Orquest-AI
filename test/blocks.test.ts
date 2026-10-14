@@ -186,6 +186,42 @@ describe('editar en la oficina de alguien', () => {
   })
 })
 
+describe('el jefe autoriza los permisos de su equipo', () => {
+  async function team(on: boolean) {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const dir = repo()
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: dir, manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda', approveForTeam: on })
+    const boss = { kind: 'boss' } as Parameters<Studio['call']>[0]
+    await studio.call(boss, 'proponer_plantilla', { puestos: [{ puesto: 'backend', proveedor: 'claude', motivo: 'x' }] })
+    studio.approveTemplate([{ id: studio.board.slots[0].id, role: 'backend', provider: 'claude' }])
+    await studio.call(boss, 'levantar_empleado', { puesto: studio.board.slots[0].id })
+    return terminals[1]
+  }
+  const ASK = (cmd: string) => `${CLEAR}Bash command\r\n  ${cmd}\r\nDo you want to proceed?\r\n❯ 1. Yes\r\n  2. Yes, and don't ask again for this command\r\n  3. No, and tell Claude what to do differently (esc)\r\n`
+
+  it('a la pregunta de permiso de un empleado se le contesta «Sí» (no el «no vuelvas a preguntar»)', async () => {
+    const t = await team(true)
+    t.feed(ASK('npm run build'))
+    await expect.poll(() => t.typed.includes('\r'), { timeout: 5000 }).toBe(true)
+    // El cursor ya estaba en «1. Yes»: no se mueve, solo Enter.
+    expect(t.typed.filter((x) => x.includes('\x1b['))).toEqual([''].filter(Boolean))
+  })
+
+  it('lo prohibido en su manual no se autoriza; y si está apagado, nada', async () => {
+    const t = await team(true)
+    t.feed(ASK('git push origin main'))
+    await wait(900)
+    expect(t.typed.includes('\r')).toBe(false)
+    const off = await team(false)
+    off.feed(ASK('npm run build'))
+    await wait(900)
+    expect(off.typed.includes('\r')).toBe(false)
+  })
+})
+
 describe('máquina lenta', () => {
   it('el Enter espera a que la CLI termine de recibir el texto, en vez de caer dentro de lo pegado', async () => {
     // Una CLI que tarda 6 s en recibir lo que se le escribe: un Enter que llegue antes es un salto

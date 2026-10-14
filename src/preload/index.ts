@@ -41,6 +41,7 @@ const api: OrquestApi = {
   sayToBoss: (text) => invoke('boss:say', text),
   answerQuestion: (id, text) => invoke('boss:answer', id, text),
   approveTemplate: (slots) => invoke('template:approve', slots),
+  setTeamApproval: (on) => invoke('boss:team-approval', on),
   retune: (id, change) => invoke('employee:retune', id, change),
   mergeTask: (id) => invoke('task:merge', id),
   returnTask: (id, notes) => invoke('task:return', id, notes),
