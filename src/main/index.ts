@@ -172,7 +172,10 @@ handle('project:summaries', (repos: string[]) =>
 )
 // Solo páginas web: lo que llega del renderer no abre archivos ni otros protocolos.
 handle('window:attention', () => {
-  if (win && !win.isFocused()) win.flashFrame(true)
+  if (!win || win.isFocused()) return
+  // En macOS no hay parpadeo de ventana: lo que llama la atención es que el ícono rebote en el Dock.
+  if (process.platform === 'darwin') app.dock?.bounce('informational')
+  else win.flashFrame(true)
 })
 handle('shell:open', (url: string) => (/^https:\/\//.test(url) || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url) ? shell.openExternal(url) : undefined))
 
