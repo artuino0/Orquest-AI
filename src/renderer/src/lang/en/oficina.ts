@@ -226,6 +226,10 @@ const en: Record<string, string> = {
   'Tiene cambios sin guardar: guárdalos o descártalos antes de cerrarlo.': 'It has unsaved changes: save or discard them before closing it.',
   'Escribir otro…': 'Type another…',
   'Volver a la lista': 'Back to the list',
+  'Proyectos recientes': 'Recent projects',
+  'abierto {0}': 'opened {0}',
+  'Quitar de la lista (la carpeta no se toca)': "Remove from the list (the folder isn't touched)",
+  'Ver todos · {0}': 'See all · {0}',
 }
 
 export default en

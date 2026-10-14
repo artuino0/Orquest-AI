@@ -60,6 +60,7 @@ export function installMock(caso: string) {
   // Idioma: ?lang=en manda; si no, el que se eligió aquí; si no, el del navegador.
   const LANG_KEY = 'orquest.lang'
   const saved = () => new URLSearchParams(location.search).get('lang') ?? localStorage.getItem(LANG_KEY)
+  let recentList = RECENTS.map((r) => ({ ...r }))
   const api: OrquestApi = {
     language: async () => {
       const chosen = saved()
@@ -100,6 +101,10 @@ export function installMock(caso: string) {
       { provider: 'codex', dir: '.codex-trabajo', main: false, label: 'trabajo' },
     ],
     pickRepo: async () => null,
+    recents: async () => recentList,
+    touchRecent: async (entry) => (recentList = [entry, ...recentList.filter((r) => r.path !== entry.path)]),
+    removeRecent: async (path) => (recentList = recentList.filter((r) => r.path !== path)),
+    importRecents: async () => recentList,
     projectSummaries: async (repos) => repos.map((r) => SUMMARIES[r] ?? null),
     openExternal: async (url) => void window.open(url, '_blank'),
     openProject: todo('proyectos'),

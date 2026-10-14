@@ -4,11 +4,10 @@
 //                               /preview.html?caso=sin-agentes
 //                               /preview.html?lang=en            en inglés (o es); sin él, el del navegador
 //                               /preview.html?proyecto=1         oficina con un proyecto de mentira (ver mockstudio.ts)
-import { installMock, RECENTS } from './mock'
+import { installMock } from './mock'
 
 const caso = new URLSearchParams(location.search).get('caso') ?? 'real'
 installMock(caso)
-localStorage.setItem('orquest.recents', JSON.stringify(RECENTS))
 
 const { createApp } = await import('vue')
 const { createPinia } = await import('pinia')

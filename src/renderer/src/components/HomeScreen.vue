@@ -6,6 +6,7 @@ import { getLang, T } from '../../../core/i18n'
 import { ago } from '../format'
 import { useStudio, type Recent } from '../stores/studio'
 import InstallGuide from './InstallGuide.vue'
+import RecentsDialog from './RecentsDialog.vue'
 
 const studio = useStudio()
 const guide = ref(false)
@@ -87,9 +88,13 @@ function onKey(ev: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+/** Inicio enseña los últimos cinco; el resto, en la lista completa. */
+const SHOWN = 5
+const allRecents = ref(false)
+onMounted(async () => {
   window.addEventListener('keydown', onKey)
-  studio.loadSummaries()
+  await studio.loadRecents()
+  void studio.loadSummaries()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
@@ -156,18 +161,23 @@ import ThemeToggle from './ThemeToggle.vue'
 
       <div class="recents" :class="{ locked: blocked || !!lacking.length }">
         <h2>{{ T`PROYECTOS RECIENTES` }}</h2>
-        <button v-for="r in studio.recents" :key="r.path" class="project" :disabled="blocked || !!lacking.length || studio.checkedAt === null" @click="studio.openProject(r.path)">
-          <FolderGit2 />
-          <span class="data">
-            <strong>{{ name(r.path) }}</strong>
-            <small>{{ r.path }}</small>
-          </span>
-          <span class="meta">
-            <span>{{ r.at ? ago(r.at, now) : '' }}</span>
-            <small>{{ summary(r) }}</small>
-          </span>
-        </button>
+        <div v-for="r in studio.recents.slice(0, SHOWN)" :key="r.path" class="row">
+          <button class="project" :disabled="blocked || !!lacking.length || studio.checkedAt === null" @click="studio.openProject(r.path)">
+            <FolderGit2 />
+            <span class="data">
+              <strong>{{ name(r.path) }}</strong>
+              <small>{{ r.path }}</small>
+            </span>
+            <span class="meta">
+              <span>{{ r.at ? ago(r.at, now) : '' }}</span>
+              <small>{{ summary(r) }}</small>
+            </span>
+          </button>
+          <button class="forget" :title="T`Quitar de la lista (la carpeta no se toca)`" @click="studio.removeRecent(r.path)"><X /></button>
+        </div>
+        <button v-if="studio.recents.length > SHOWN" class="more" @click="allRecents = true">{{ T`Ver todos · ${studio.recents.length}` }}</button>
         <p v-if="!studio.recents.length" class="empty">{{ T`Aún no abres ningún proyecto.` }}</p>
+        <RecentsDialog v-if="allRecents" :locked="blocked || !!lacking.length || studio.checkedAt === null" @close="allRecents = false" @open="(p) => { allRecents = false; studio.openProject(p) }" />
       </div>
     </section>
 
@@ -242,6 +252,14 @@ h1 { margin: 0; font: 700 48px/58px var(--font-pixel); color: var(--accent); }
 .project { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: none; border: 0; border-bottom: 2px solid var(--border-light); text-align: left; color: inherit; width: 100%; }
 .project:hover:not(:disabled) { background: var(--surface); border-color: var(--accent); }
 .project:disabled { opacity: 1; }
+.row { display: flex; align-items: stretch; }
+.row .project { flex: 1; min-width: 0; }
+.forget { flex: none; width: 36px; display: grid; place-items: center; background: none; border: 0; border-bottom: 2px solid var(--border-light); color: var(--text-secondary); opacity: 0.35; cursor: pointer; }
+.row:hover .forget, .forget:focus-visible { opacity: 1; }
+.forget:hover { color: var(--on-danger); background: var(--st-block); }
+.forget svg { width: 14px; height: 14px; }
+.more { align-self: flex-start; margin: 8px 14px 0; padding: 4px 0; background: none; border: 0; font: 700 11px var(--font); color: var(--accent); cursor: pointer; }
+.more:hover { text-decoration: underline; }
 .project > svg { width: 18px; height: 18px; flex: none; color: var(--accent); }
 .data { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .data strong { font-size: 14px; line-height: 18px; }

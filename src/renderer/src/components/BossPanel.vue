@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
@@ -66,6 +66,24 @@ const blockKind = computed(() => studio.blocks.jefe)
 /** El usuario prefiere contratar otro jefe en vez de retomar al que tenía. */
 const another = ref(false)
 const goal = ref(studio.board?.goal ?? '')
+/** El objetivo a la vista ocupa dos renglones; «Ver todo» lo despliega (con su propio scroll si es enorme). */
+const goalText = ref<HTMLParagraphElement>()
+const goalOpen = ref(false)
+const goalLong = ref(false)
+function measureGoal() {
+  const el = goalText.value
+  if (!el) return
+  // Medido cerrado: si el texto no cabe en dos renglones, hace falta el botón.
+  const open = el.classList.contains('open')
+  if (open) el.classList.remove('open')
+  goalLong.value = el.scrollHeight > el.clientHeight + 1
+  if (open) el.classList.add('open')
+}
+watch(() => studio.board?.goal, () => void nextTick(measureGoal))
+onMounted(() => {
+  measureGoal()
+  if (goalText.value) new ResizeObserver(measureGoal).observe(goalText.value)
+})
 const bossName = ref(studio.board?.boss?.name ?? '')
 const message = ref('')
 const busy = ref(false)
@@ -301,7 +319,12 @@ const pending = computed(() => {
       <div class="main">
         <div class="goal">
           <Target />
-          <div><span class="cap">{{ T`Objetivo` }}</span><p>{{ studio.board?.goal || T`Sin objetivo escrito.` }}</p></div>
+          <div>
+            <span class="cap">{{ T`Objetivo` }}</span>
+            <!-- Dos renglones; si es más largo, se despliega a pedido para no comerse el chat. -->
+            <p ref="goalText" :class="{ open: goalOpen }">{{ studio.board?.goal || T`Sin objetivo escrito.` }}</p>
+            <button v-if="goalLong" class="more" @click="goalOpen = !goalOpen">{{ goalOpen ? T`Ver menos` : T`Ver todo` }}</button>
+          </div>
           <button class="btn" :title="T`Díselo al jefe para cambiarlo`" @click="message = T`Cambia el objetivo a: ${studio.board?.goal ?? ''}`"><Pencil /> {{ T`Editar` }}</button>
         </div>
         <!-- Detenido: su CLI pregunta algo y nada de lo que escribas le llega hasta que contestes. -->
@@ -404,7 +427,10 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .goal { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg); border: 2px solid var(--accent); }
 .goal > svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
 .goal div { flex: 1; min-width: 0; }
-.goal p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; }
+.goal p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
+.goal p.open { display: block; max-height: 30vh; overflow-y: auto; }
+.goal .more { margin-top: 2px; padding: 0; background: none; border: 0; font: 700 11px var(--font); color: var(--accent); cursor: pointer; }
+.goal .more:hover { text-decoration: underline; }
 .stuck-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .stuck { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--tint-danger); border: 2px solid var(--st-block); }
 .stuck p { margin: 0; display: flex; gap: 10px; font-size: 12px; line-height: 1.5; }

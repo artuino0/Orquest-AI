@@ -16,10 +16,11 @@ import type { EmployeeState } from '../core/state.js'
 import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 import type { FileEntry, FileSides, FileText } from '../core/files.js'
+import type { RecentProject } from '../core/recents.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
-export type { FileEntry, FileSides, FileText }
+export type { FileEntry, FileSides, FileText, RecentProject }
 export type { Requirement, CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
 
 export interface BossRequest {
@@ -72,6 +73,13 @@ export interface OrquestApi {
   checkGroup(path: string): Promise<GroupCheck>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>
+  /** Proyectos abiertos en esta máquina, lo más reciente primero (en la carpeta de la app). */
+  recents(): Promise<RecentProject[]>
+  touchRecent(entry: RecentProject): Promise<RecentProject[]>
+  /** Lo quita de la lista; su carpeta no se toca. */
+  removeRecent(path: string): Promise<RecentProject[]>
+  /** Trae lo que una versión anterior guardaba en el navegador. */
+  importRecents(entries: RecentProject[]): Promise<RecentProject[]>
   /** Abre una página en el navegador del sistema (guías de instalación). */
   openExternal(url: string): Promise<void>
 

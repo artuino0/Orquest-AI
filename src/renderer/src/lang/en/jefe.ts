@@ -190,6 +190,8 @@ const en: Record<string, string> = {
   'el de la CLI por defecto': "the CLI's default",
   'Escribir otro…': 'Type another…',
   'Volver a la lista': 'Back to the list',
+  'Ver menos': 'Show less',
+  'Ver todo': 'Show all',
 }
 
 export default en

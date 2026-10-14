@@ -8,6 +8,7 @@ import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
 import { fileSides, listDir, readText } from '../core/files.js'
+import { Recents, type RecentProject } from '../core/recents.js'
 import { formatText } from '../core/format.js'
 import { listDocuments, listGroupDocuments, readDocument } from '../core/documents.js'
 import { readOffice, writeOffice } from '../core/officefile.js'
@@ -284,6 +285,11 @@ ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => ma
 // ── Idioma: el que eligió el usuario o, si no ha elegido, el de su sistema.
 addDictionary('en', en)
 const settingsFile = join(app.getPath('userData'), 'ajustes.json')
+const recents = new Recents(join(app.getPath('userData'), 'recientes.json'))
+handle('recents:list', () => recents.all())
+handle('recents:touch', (entry: RecentProject) => recents.touch(entry))
+handle('recents:remove', (path: string) => recents.remove(path))
+handle('recents:import', (entries: RecentProject[]) => recents.import(entries))
 let settings: Settings = {}
 handle('language:get', () => ({ lang: getLang(), chosen: !!settings.lang }))
 handle('language:set', async (lang: Lang) => {

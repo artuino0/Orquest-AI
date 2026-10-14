@@ -27,20 +27,13 @@ export interface Recent {
   summary?: ProjectSummary | null
 }
 
-function loadRecents(): Recent[] {
+/** Lo que una versión anterior guardaba en el navegador; se pasa una vez a la carpeta de la app. */
+function legacyRecents(): Recent[] {
   try {
     const saved = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as (string | Recent)[]
     return saved.map((r) => (typeof r === 'string' ? { path: r, at: 0 } : { path: r.path, at: r.at, ...(r.group ? { group: true } : {}) }))
   } catch {
     return []
-  }
-}
-
-function saveRecents(list: Recent[]) {
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(list.map(({ path, at, group }) => ({ path, at, group }))))
-  } catch {
-    // Sin almacenamiento solo se pierden los recientes.
   }
 }
 
@@ -55,7 +48,27 @@ export const useStudio = defineStore('studio', () => {
   const detecting = ref(false)
   const employees = ref<Employee[]>([])
   const repo = ref<string | null>(null)
-  const recents = ref<Recent[]>(loadRecents())
+  const recents = ref<Recent[]>([])
+  /** Se conserva lo ya preguntado de cada proyecto (su resumen) al recargar la lista. */
+  const withSummaries = (list: Recent[]) => list.map((r) => ({ ...r, summary: recents.value.find((x) => x.path === r.path)?.summary }))
+  /** La lista guardada en la carpeta de la app; la primera vez trae la que estaba en el navegador. */
+  async function loadRecents() {
+    let list = await window.orquest.recents().catch(() => [] as Recent[])
+    const old = legacyRecents()
+    if (old.length) {
+      list = await window.orquest.importRecents(old).catch(() => list)
+      try {
+        localStorage.removeItem(RECENTS_KEY)
+      } catch {
+        // Si no se puede borrar, la siguiente importación no repite nada.
+      }
+    }
+    recents.value = withSummaries(list)
+  }
+  /** Quita un proyecto de la lista de Inicio; su carpeta no se toca. */
+  async function removeRecent(path: string) {
+    recents.value = withSummaries(await window.orquest.removeRecent(path))
+  }
   /** Cuándo terminó la última revisión de CLIs. */
   const checkedAt = ref<number | null>(null)
   const selected = ref<string | null>(null)
@@ -230,8 +243,8 @@ export const useStudio = defineStore('studio', () => {
     loadBossCharacter(board.value.repo)
     // Se guarda la raíz del repo: es con la que el estudio recuerda el proyecto.
     const root = board.value.repo
-    recents.value = [{ path: root, at: Date.now(), ...(group ? { group: true } : {}) }, ...recents.value.filter((r) => r.path !== root && r.path !== path)].slice(0, 8)
-    saveRecents(recents.value)
+    if (path !== root) await window.orquest.removeRecent(path).catch(() => {})
+    recents.value = withSummaries(await window.orquest.touchRecent({ path: root, at: Date.now(), ...(group ? { group: true } : {}) }).catch(() => recents.value))
     resumeAsked.value = false
     await loadEmployees()
     screen.value = 'office'
@@ -380,6 +393,6 @@ export const useStudio = defineStore('studio', () => {
     screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
-    detect, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
+    detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
   }
 })

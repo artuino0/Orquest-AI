@@ -206,3 +206,5 @@ Primero que funcione como orquestador sin juego; luego se vuelve juego. Cada fas
 - [x] Proveedores iniciales: Claude Code, Codex, Antigravity, OpenCode, Command Code, Kimi y Grok.
 - [ ] Licencias: MIT o Apache 2.0 para el código; CC0 o CC-BY para el arte.
 - [ ] Nombre: Orquest choca en buscadores con una empresa española de gestión de personal y con Orquesta de StackStorm; revisar GitHub, npm y dominio.
+- [ ] Idea por validar: la app como un lienzo casi a pantalla completa, transparente y sin bordes, donde las ventanas (oficina, jefe, editor, terminales) se acomodan libremente y el espacio crece hacia donde se muevan, al estilo de deska.dev. Validar si ayuda o estorba antes de construir nada.
+- [ ] Una ventana por proyecto, con Inicio siempre abierto: hoy hay un solo proyecto a la vez porque el proceso principal sigue a uno (`current` en `src/main`).
