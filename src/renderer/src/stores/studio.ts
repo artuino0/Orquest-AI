@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { Activity, BossRequest, CliStatus, Employee, EmployeeState, GroupCheck, ProjectSummary, SlotEdit, StudioSnapshot, Task, Requirement, RepoCheck, BlockKind, Effort, ProviderId } from '../../../shared/ipc'
 import { T } from '../../../core/i18n'
 import { LOOKS } from '../world/behavior'
-import { CAST_ORDER, CHARACTERS, DEFAULT_BOSS } from '../characters'
+import { CAST_ORDER, CHARACTER_GENDER, CHARACTERS, DEFAULT_BOSS, fits } from '../characters'
+import { genderOf } from '../../../core/gender'
 
 export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | null
 export type DrawerMode = 'float' | 'split'
@@ -109,10 +110,16 @@ export const useStudio = defineStore('studio', () => {
   }
   function characterOf(id: string): number {
     if (id === 'jefe') return bossCharacter.value
-    if (!cast.value[id]) {
+    // Un nombre de mujer lleva personaje de mujer, y uno de hombre, de hombre. Si al repartirlo aún no
+    // se sabía su nombre (el tablero llega después), se corrige la primera vez que no cuadre.
+    const g = genderOf(nameOf(id))
+    const mine = cast.value[id]
+    if (!mine || !fits(mine, g)) {
       const free = CAST_ORDER.filter((n) => n !== bossCharacter.value)
-      const used = new Set(Object.values(cast.value))
-      cast.value[id] = free.find((n) => !used.has(n)) ?? free[Object.keys(cast.value).length % free.length]
+      const used = new Set(Object.entries(cast.value).filter(([who]) => who !== id).map(([, n]) => n))
+      // Primero los que son claramente de su género; los que valen para cualquiera, después.
+      const ok = g ? [...free.filter((n) => CHARACTER_GENDER[n] === g), ...free.filter((n) => !CHARACTER_GENDER[n])] : free
+      cast.value[id] = ok.find((n) => !used.has(n)) ?? free.find((n) => !used.has(n) && !g) ?? ok[Object.keys(cast.value).length % Math.max(1, ok.length)] ?? free[0]
     }
     return cast.value[id]
   }

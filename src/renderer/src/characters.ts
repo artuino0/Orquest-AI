@@ -5,6 +5,13 @@ const URLS = import.meta.glob<string>('../../../assets/herdr-oficina/sprites/cha
 export const CHARACTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 /** En qué orden se reparten a quien va llegando. */
 export const CAST_ORDER = [4, 2, 1, 5, 6, 7, 8, 3]
+/**
+ * De quién parece cada personaje, para darle a cada nombre uno que cuadre (sin
+ * dato, vale para cualquiera): 2, 4 y 5 llevan coleta o trenzas; 1, 3, 7 y 8, no.
+ */
+export const CHARACTER_GENDER: Record<number, 'f' | 'm' | undefined> = { 1: 'm', 2: 'f', 3: 'm', 4: 'f', 5: 'f', 6: undefined, 7: 'm', 8: 'm' }
+/** ¿Cuadra el personaje con alguien de ese género? Sin género conocido, cualquiera cuadra. */
+export const fits = (n: number, g: 'f' | 'm' | undefined) => !g || !CHARACTER_GENDER[n] || CHARACTER_GENDER[n] === g
 /** El del jefe mientras no se elija otro. */
 export const DEFAULT_BOSS = 3
 

@@ -9,7 +9,8 @@ import { EFFORT_LABEL } from '../status'
 import PanelFrame from './PanelFrame.vue'
 import QuestionsCard from './QuestionsCard.vue'
 import TerminalView from './TerminalView.vue'
-import { CHARACTERS, charUrl } from '../characters'
+import { CHARACTER_GENDER, CHARACTERS, charUrl, fits } from '../characters'
+import { genderOf } from '../../../core/gender'
 import { T } from '../../../core/i18n'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
@@ -85,6 +86,11 @@ onMounted(() => {
   if (goalText.value) new ResizeObserver(measureGoal).observe(goalText.value)
 })
 const bossName = ref(studio.board?.boss?.name ?? '')
+// Si el nombre es de mujer y el personaje elegido no, se cambia por uno que cuadre (y al revés). Se puede volver a elegir.
+watch(bossName, (name) => {
+  const g = genderOf(name)
+  if (g && !fits(studio.bossCharacter, g)) studio.setBossCharacter(CHARACTERS.find((n) => CHARACTER_GENDER[n] === g) ?? studio.bossCharacter)
+})
 const message = ref('')
 const busy = ref(false)
 
