@@ -86,7 +86,9 @@ const level = (used: number) => (used >= 90 ? 'hot' : used >= 70 ? 'warm' : '')
             <div v-for="w in a.usage.windows" :key="w.minutes" class="gauge" :class="level(w.used)">
               <span class="label">{{ w.label }}</span>
               <span class="bar" :title="T`${Math.round(w.used)}% usado`"><i v-for="n in BLOCKS" :key="n" :class="{ on: w.used > 0 && n <= Math.max(1, Math.round((w.used / 100) * BLOCKS)) }" /></span>
-              <b class="pct">{{ Math.round(w.used) }}%</b>
+              <!-- Dicho con palabras: Codex, en su terminal, cuenta lo que queda; aquí es lo usado. -->
+              <b class="pct">{{ T`${Math.round(w.used)}% usado` }}</b>
+              <span class="dim left">{{ T`queda ${100 - Math.round(w.used)}%` }}</span>
               <span class="dim reset">{{ w.resetsAt ? T`se reinicia en ${left(w.resetsAt)}` : w.used === 0 ? T`recién reiniciado` : '' }}</span>
             </div>
             <p class="dim age">{{ T`Dato de ${ago(a.usage.at, now)}` }}</p>
@@ -119,13 +121,14 @@ h3 i { width: 10px; height: 10px; }
 .account header b { font: 700 18px var(--font-pixel); color: var(--accent); }
 .who { margin-left: auto; font-size: 11px; }
 .who.none { color: var(--text-secondary); }
-.gauge { display: grid; grid-template-columns: 70px auto 46px 1fr; align-items: center; gap: 10px; font-size: 11px; }
+.gauge { display: grid; grid-template-columns: 70px auto auto auto 1fr; align-items: center; gap: 10px; font-size: 11px; }
 .label { font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 10px; color: var(--text-secondary); }
 .bar { display: flex; gap: 2px; padding: 2px; background: var(--surface); border: 2px solid var(--border-light); }
 .bar i { width: 10px; height: 14px; background: var(--border); }
 .bar i.on { background: var(--st-idle); }
 .gauge.warm .bar i.on { background: var(--st-review); }
 .gauge.hot .bar i.on { background: var(--st-block); }
+.left { font-size: 11px; white-space: nowrap; }
 .pct { font: 700 13px var(--font); text-align: right; }
 .gauge.hot .pct { color: var(--st-block); }
 .age, .hint { margin: 0; font-size: 11px; line-height: 1.6; }

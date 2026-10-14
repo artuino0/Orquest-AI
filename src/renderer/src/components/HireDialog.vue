@@ -194,7 +194,7 @@ const subtitle = computed(() => {
                 </select>
               </span>
               <select v-if="accountsOf(r.provider).length > 1" v-model="r.account" class="plain account" :title="T`Con qué cuenta trabaja`">
-                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.usage?.windows[0] ? T`cuenta ${a.label.toLowerCase()} · ${Math.round(a.usage.windows[0].used)}%` : T`cuenta ${a.label.toLowerCase()}` }}</option>
+                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.usage?.windows[0] ? T`cuenta ${a.label.toLowerCase()} · ${Math.round(a.usage.windows[0].used)}% usado` : T`cuenta ${a.label.toLowerCase()}` }}</option>
               </select>
             </td>
             <td>

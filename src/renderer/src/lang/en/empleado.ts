@@ -120,6 +120,7 @@ const en: Record<string, string> = {
   'Guardando…': 'Saving…',
   'Guardar': 'Save',
   'Formatear con Prettier': 'Format with Prettier',
+  'queda {0}%': '{0}% left',
 }
 
 export default en

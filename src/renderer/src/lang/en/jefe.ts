@@ -104,7 +104,7 @@ const en: Record<string, string> = {
   'Regla del expediente': 'Record rule',
   'se asigna solo': 'auto-assigned',
   'Con qué cuenta trabaja': 'Which account it works with',
-  'cuenta {0} · {1}%': 'account {0} · {1}%',
+  'cuenta {0} · {1}% usado': 'account {0} · {1}% used',
   'cuenta {0}': 'account {0}',
   'por defecto': 'default',
   'Esta CLI no recibe esfuerzo': 'This CLI takes no effort setting',
