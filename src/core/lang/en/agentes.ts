@@ -224,6 +224,22 @@ const en: Record<string, string> = {
   'Te van a relevar: el usuario cambia el modelo del jefe. Detente y escribe ya tu traspaso con escribir_traspaso, pensado para quien entra en tu lugar: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas con el usuario y el siguiente paso.': "You are being replaced: the user is changing the boss's model. Stop and write your handoff now with escribir_traspaso, for whoever takes your place: project status, decisions, what each employee is waiting on, open questions with the user and the next step.",
   'Entras como jefe en relevo del anterior; tu equipo sigue en su escritorio. Lee tu bitácora ({0}): ahí está su traspaso. Sigue donde iba (leer_proyecto).': 'You come in as boss, replacing the previous one; your team is still at their desks. Read your journal ({0}): their handoff is there. Continue where they left off (leer_proyecto).',
   'El usuario te despide. Antes de irte, escribe tu traspaso con escribir_traspaso para el jefe que entre después: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas y el siguiente paso.': 'The user is dismissing you. Before you go, write your handoff with escribir_traspaso for the boss who comes next: project status, decisions, what each employee is waiting on, open questions and the next step.',
+  'Pídele a un empleado que levante su versión (con lo que necesite: backend, base de datos) para que el usuario la vea funcionando antes de integrarla. Él avisa con las direcciones.': 'Ask an employee to start their version (with whatever it needs: backend, database) so the user can see it running before merging it. They report back with the addresses.',
+  'Qué quiere ver el usuario, si lo dijo': 'What the user wants to see, if they said',
+  'Avisa que tu versión ya está arriba para que el usuario la revise: las direcciones para abrirla y cómo se apaga.': 'Report that your version is up for the user to review: the addresses to open it and how to shut it down.',
+  'Por ejemplo http://localhost:5174': 'For example http://localhost:5174',
+  'Qué procesos o comando apagan lo que levantaste': 'Which processes or command shut down what you started',
+  'Usuario de prueba, qué pantalla mirar, etc.': 'Test user, which screen to look at, etc.',
+  'Pedido a {0}. Cuando esté arriba, el usuario recibe las direcciones.': 'Requested from {0}. When it is up, the user gets the addresses.',
+  '{0} ({1}) levantó su versión: {2}. El usuario ya la puede abrir.': '{0} ({1}) started their version: {2}. The user can open it now.',
+  'Avisado. El usuario la abre desde la app; te avisará cuando la apagues.': "Reported. The user opens it from the app; you'll be told when to shut it down.",
+  'El jefe': 'The boss',
+  'El usuario': 'The user',
+  '{0} quiere ver tu versión funcionando antes de integrarla. Levanta el proyecto desde tu oficina ({1}) con lo que necesite para funcionar (por ejemplo el backend y la base de datos), en segundo plano para que tu terminal siga libre, y en puertos que no choquen con los que use el usuario. No cambies código para esto. Cuando esté arriba, avisa con revision_lista: las direcciones para abrirlo y cómo se apaga.{2}': "{0} wants to see your version running before merging it. Start the project from your office ({1}) with whatever it needs to work (for example the backend and the database), in the background so your terminal stays free, and on ports that don't clash with the user's. Don't change code for this. When it's up, report with revision_lista: the addresses to open it and how to shut it down.{2}",
+  'Lo que quiere ver: {0}': 'What they want to see: {0}',
+  'El usuario terminó de revisar tu versión. Apaga lo que levantaste para eso{0} y sigue con lo tuyo.': 'The user finished reviewing your version. Shut down what you started for it{0} and carry on with your work.',
+  'Si el usuario quiere ver funcionando lo de un empleado antes de integrarlo, pídeselo con ejecutar_revision: él lo levanta y el usuario recibe las direcciones.': "If the user wants to see an employee's work running before merging it, ask for it with ejecutar_revision: they start it and the user gets the addresses.",
+  'Si te piden levantar tu versión para revisión, hazlo desde tu oficina con lo que necesite (backend, base de datos), en segundo plano, y avisa con revision_lista.': 'If you are asked to start your version for review, do it from your office with whatever it needs (backend, database), in the background, and report with revision_lista.',
 }
 
 export default en

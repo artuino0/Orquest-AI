@@ -161,6 +161,8 @@ export function installMock(caso: string) {
     saveFile: async () => ({ stamp: `demo-${Date.now()}` }),
     retune: async () => {},
     setTeamApproval: async () => {},
+    requestReview: async () => {},
+    stopReview: async () => {},
     // De mentira: quita espacios de más al final de cada renglón.
     formatFile: async (_id, _path, text) => text.split('\n').map((l) => l.trimEnd()).join('\n'),
     projectFile: async (path) => window.orquest.fileText('', path),

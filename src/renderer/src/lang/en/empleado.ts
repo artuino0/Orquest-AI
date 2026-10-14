@@ -121,6 +121,15 @@ const en: Record<string, string> = {
   'Guardar': 'Save',
   'Formatear con Prettier': 'Format with Prettier',
   'queda {0}%': '{0}% left',
+  'Le pide levantar su versión (con lo que necesite: backend, base de datos) para verla funcionando antes de integrarla': 'Asks them to start their version (with whatever it needs: backend, database) to see it running before merging it',
+  'Ver su versión': 'See their version',
+  'Levantando su versión… avisa cuando esté arriba.': "Starting their version… they'll report when it's up.",
+  'Su versión:': 'Their version:',
+  'Abrir en el navegador': 'Open in the browser',
+  'Le pide apagarla: {0}': 'Asks them to shut it down: {0}',
+  'Le pide apagar lo que levantó': 'Asks them to shut down what they started',
+  'Ya la vi, apágala': "I've seen it, shut it down",
+  'Cancelar': 'Cancel',
 }
 
 export default en

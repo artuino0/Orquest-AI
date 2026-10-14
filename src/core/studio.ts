@@ -705,6 +705,32 @@ export class Studio extends EventEmitter<StudioEvents> {
     }, 400).unref?.()
   }
 
+  /**
+   * Que un empleado levante su versión para que el usuario la vea funcionando antes de integrarla.
+   * Cada proyecto se levanta distinto: lo hace el agente, que conoce el suyo, con lo que necesite
+   * (backend, base de datos), en segundo plano y sin tocar el código. Avisa con revision_lista.
+   */
+  requestReview(id: string, by: 'usuario' | 'jefe' = 'usuario', notes?: string) {
+    const m = this.board.member(id)
+    if (!this.opts.manager.isLive(id)) throw new RuleError(T`${m.name} no está en la oficina: tráelo de vuelta para levantar su versión.`)
+    const office = this.office(id)
+    this.board.requestReview(id, by, notes)
+    const who = by === 'jefe' ? T`El jefe` : T`El usuario`
+    this.notify(
+      id,
+      T`${who} quiere ver tu versión funcionando antes de integrarla. Levanta el proyecto desde tu oficina (${office.path}) con lo que necesite para funcionar (por ejemplo el backend y la base de datos), en segundo plano para que tu terminal siga libre, y en puertos que no choquen con los que use el usuario. No cambies código para esto. Cuando esté arriba, avisa con revision_lista: las direcciones para abrirlo y cómo se apaga.${notes ? ` ${T`Lo que quiere ver: ${notes}`}` : ''}`,
+    )
+    this.fact(id, T`le pidieron levantar su versión para revisión`)
+    this.changed()
+  }
+
+  /** El usuario ya la vio: el empleado apaga lo que levantó. */
+  stopReview(id: string) {
+    const r = this.board.endReview(id)
+    if (r && this.opts.manager.isLive(id)) this.notify(id, T`El usuario terminó de revisar tu versión. Apaga lo que levantaste para eso${r.stop ? ` (${r.stop})` : ''} y sigue con lo tuyo.`)
+    this.changed()
+  }
+
   /** Enciende o apaga que el jefe autorice los permisos de su equipo. */
   setTeamApproval(on: boolean) {
     const boss = this.board.boss
@@ -1152,6 +1178,12 @@ export class Studio extends EventEmitter<StudioEvents> {
           ? T`Entregado al usuario. Tu mensaje trae una pregunta: si necesitas su respuesta para seguir, mándala también con preguntar_al_usuario (con opciones, tu recomendada y qué detiene); así queda pendiente a su vista y no se pierde en el chat.`
           : T`Entregado al usuario.`
       }
+      case 'ejecutar_revision': {
+        const to = b.member(String(a.empleado))
+        this.requestReview(to.id, 'jefe', a.nota ? String(a.nota) : undefined)
+        return T`Pedido a ${to.name}. Cuando esté arriba, el usuario recibe las direcciones.`
+      }
+
       case 'hablar_con': {
         const to = b.member(String(a.empleado))
         if (!this.opts.manager.isLive(to.id)) throw new RuleError(T`${to.id} ya no está en la oficina.`)
@@ -1228,6 +1260,15 @@ export class Studio extends EventEmitter<StudioEvents> {
         b.say(id, BOSS_ID, String(a.pregunta))
         this.notify(BOSS_ID, T`${this.nameOf(id)} (${id}) pregunta: ${a.pregunta} (responde con hablar_con)`)
         return T`Pregunta enviada al jefe; su respuesta llegará a tu terminal.`
+      }
+
+      case 'revision_lista': {
+        const urls = (a.direcciones as string[] | undefined) ?? []
+        const r = b.reviewReady(id, urls, String(a.como_detener ?? ''), a.notas ? String(a.notas) : undefined)
+        this.emit('notice', T`${this.nameOf(id)} levantó su versión para que la veas: ${r.urls.join(' · ')}`)
+        if (r.by === 'jefe') this.notify(BOSS_ID, T`${this.nameOf(id)} (${id}) levantó su versión: ${r.urls.join(' · ')}. El usuario ya la puede abrir.`)
+        this.changed()
+        return T`Avisado. El usuario la abre desde la app; te avisará cuando la apagues.`
       }
 
       case 'reportar_estado': {
@@ -1654,5 +1695,6 @@ export const BOSS_TOOLS = new Set([
   'hablar_con',
   'revisar_entrega',
   'mandar_a_qa',
+  'ejecutar_revision',
 ])
-export const EMPLOYEE_TOOLS = new Set(['leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar'])
+export const EMPLOYEE_TOOLS = new Set(['leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])

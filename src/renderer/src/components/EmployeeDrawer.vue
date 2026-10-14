@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, AppWindow, ChevronRight, Columns2, File, Folder, FolderOpen, Gamepad2, Lock, Maximize2, Minimize2, RotateCcw, UserMinus, X } from 'lucide-vue-next'
+import { AlertTriangle, AppWindow, ChevronRight, Columns2, ExternalLink, File, Folder, FolderOpen, Gamepad2, Lock, Maximize2, Minimize2, MonitorPlay, RotateCcw, UserMinus, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
@@ -23,6 +23,9 @@ const TABS: [Tab, string][] = [
 const studio = useStudio()
 const e = computed(() => studio.selectedEmployee!)
 const tab = ref<Tab>('terminal')
+/** Su versión levantada para revisión, si la hay. */
+const review = computed(() => studio.board?.reviews?.find((r) => r.employeeId === e.value.id))
+const open = (url: string) => window.orquest.openExternal(url)
 const changes = ref<FileChange[]>([])
 const openFile = ref<string | null>(null)
 const diff = ref('')
@@ -342,9 +345,25 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
         <button class="btn" @click="close"><X /> {{ T`Cerrar` }}</button>
         <button class="btn" :disabled="gaming || e.state === 'exited'" :title="T`Escribe su traspaso y se reinicia con el contexto limpio`" @click="studio.rest(e.id)"><Gamepad2 /> {{ T`Descanso` }}</button>
         <button class="btn" :disabled="gaming" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.`" @click="studio.restart(e.id)"><RotateCcw /> {{ T`Reiniciar` }}</button>
+        <button v-if="e.id !== 'jefe'" class="btn" :disabled="!!review || e.state === 'exited'" :title="T`Le pide levantar su versión (con lo que necesite: backend, base de datos) para verla funcionando antes de integrarla`" @click="studio.requestReview(e.id)"><MonitorPlay /> {{ T`Ver su versión` }}</button>
         <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> {{ T`Despedir` }}</button>
       </div>
     </header>
+
+    <!-- Su versión levantada para revisión: mientras se levanta, y luego sus direcciones. -->
+    <div v-if="review" class="review" :class="review.status">
+      <MonitorPlay />
+      <template v-if="review.status === 'requested'">
+        <span>{{ T`Levantando su versión… avisa cuando esté arriba.` }}</span>
+      </template>
+      <template v-else>
+        <span>{{ T`Su versión:` }}</span>
+        <button v-for="u in review.urls" :key="u" class="link" :title="T`Abrir en el navegador`" @click="open(u)"><ExternalLink />{{ u }}</button>
+        <small v-if="review.notes" class="dim">{{ review.notes }}</small>
+      </template>
+      <span class="grow" />
+      <button class="btn" :title="review.stop ? T`Le pide apagarla: ${review.stop}` : T`Le pide apagar lo que levantó`" @click="studio.stopReview(e.id)">{{ review.status === 'ready' ? T`Ya la vi, apágala` : T`Cancelar` }}</button>
+    </div>
 
     <nav class="tabs">
       <button v-for="[id, label] in TABS" :key="id" :class="{ on: tab === id }" @click="tab = id">{{ label }}</button>
@@ -463,6 +482,13 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 
 <style scoped>
 .drawer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.review { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 14px; font-size: 12px; background: var(--surface); border-bottom: 3px solid var(--border); }
+.review > svg { width: 16px; height: 16px; color: var(--st-work); flex: none; }
+.review.ready > svg { color: var(--st-idle); }
+.review .link { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; font: 700 12px var(--font); color: var(--accent); background: var(--bg); border: 2px solid var(--border); cursor: pointer; }
+.review .link svg { width: 12px; height: 12px; }
+.review .grow { flex: 1; }
+.review .btn { padding: 4px 10px; }
 .drawer.float { position: fixed; right: 16px; top: 96px; bottom: 16px; width: min(640px, 56vw); z-index: 6; }
 .drawer.split { grid-row: 2; grid-column: 2; border-width: 0 0 0 3px; box-shadow: none; }
 /* Pantalla completa: toda la ventana bajo su encabezado (32 px). */

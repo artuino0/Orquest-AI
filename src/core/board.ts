@@ -160,6 +160,22 @@ export interface BossRecord {
   approveForTeam?: boolean
 }
 
+/**
+ * La versión de un empleado levantada para que el usuario la vea antes de integrarla: se pide
+ * (`requested`) y el empleado avisa cuando está arriba (`ready`) con sus direcciones.
+ */
+export interface Review {
+  employeeId: string
+  status: 'requested' | 'ready'
+  /** Quién la pidió: el usuario desde la app o el jefe con ejecutar_revision. */
+  by: 'usuario' | 'jefe'
+  urls: string[]
+  /** Cómo se apaga, dicho por el empleado. */
+  stop?: string
+  notes?: string
+  at: number
+}
+
 export interface BoardSnapshot {
   goal: string
   boss?: BossRecord
@@ -169,6 +185,8 @@ export interface BoardSnapshot {
   messages: Message[]
   /** Lo que el jefe le preguntó al usuario, pendiente o ya cerrado. */
   questions: Question[]
+  /** Versiones levantadas para revisión (una por empleado). */
+  reviews?: Review[]
   seq: { task: number; slot: number; question?: number }
 }
 
@@ -204,6 +222,7 @@ export class Board {
   tasks: Task[] = []
   messages: Message[] = []
   questions: Question[] = []
+  reviews: Review[] = []
   private seq: { task: number; slot: number; question?: number } = { task: 0, slot: 0, question: 0 }
 
   constructor(private now: () => number = Date.now) {}
@@ -326,6 +345,32 @@ export class Board {
     if (!m || !slot) throw new RuleError(T`No existe el empleado ${employeeId}.`)
     Object.assign(m, { model, effort })
     Object.assign(slot, { model, effort })
+  }
+
+  /** Se pide la versión de alguien para revisión; reemplaza la que hubiera. */
+  requestReview(employeeId: string, by: Review['by'], notes?: string): Review {
+    this.member(employeeId)
+    const r: Review = { employeeId, status: 'requested', by, urls: [], notes, at: this.now() }
+    this.reviews = [...this.reviews.filter((x) => x.employeeId !== employeeId), r]
+    return r
+  }
+
+  /** El empleado avisa que su versión está arriba. Las direcciones son de esta máquina o web (http/https). */
+  reviewReady(employeeId: string, urls: string[], stop: string, notes?: string): Review {
+    const clean = urls.map((u) => u.trim()).filter(Boolean)
+    if (!clean.length) throw new RuleError(T`Di al menos una dirección para abrir tu versión (por ejemplo http://localhost:5174).`)
+    for (const u of clean) if (!/^https?:\/\/\S+$/i.test(u)) throw new RuleError(T`«${u}» no es una dirección que se pueda abrir: empieza con http:// o https://.`)
+    if (!stop.trim()) throw new RuleError(T`Di cómo se apaga lo que levantaste (los procesos o el comando).`)
+    const prev = this.reviews.find((x) => x.employeeId === employeeId)
+    const r: Review = { employeeId, status: 'ready', by: prev?.by ?? 'usuario', urls: clean, stop: stop.trim(), notes: notes?.trim() || prev?.notes, at: this.now() }
+    this.reviews = [...this.reviews.filter((x) => x.employeeId !== employeeId), r]
+    return r
+  }
+
+  endReview(employeeId: string): Review | undefined {
+    const r = this.reviews.find((x) => x.employeeId === employeeId)
+    this.reviews = this.reviews.filter((x) => x.employeeId !== employeeId)
+    return r
   }
 
   dismiss(employeeId: string, context?: number) {
@@ -699,6 +744,7 @@ export class Board {
       tasks: this.tasks,
       messages: this.messages,
       questions: this.questions,
+      reviews: this.reviews,
       seq: this.seq,
     })
   }
@@ -716,6 +762,8 @@ export class Board {
     b.messages = c.messages
     // Los tableros guardados antes de que hubiera preguntas no las traen.
     b.questions = c.questions ?? []
+    // Lo levantado para revisión no sobrevive a cerrar la app: los procesos se fueron con ella.
+    b.reviews = []
     b.seq = { question: 0, ...c.seq }
     return b
   }

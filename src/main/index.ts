@@ -168,7 +168,7 @@ handle('project:summaries', (repos: string[]) =>
   }),
 )
 // Solo páginas web: lo que llega del renderer no abre archivos ni otros protocolos.
-handle('shell:open', (url: string) => (/^https:\/\//.test(url) ? shell.openExternal(url) : undefined))
+handle('shell:open', (url: string) => (/^https:\/\//.test(url) || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url) ? shell.openExternal(url) : undefined))
 
 // `group`: la carpeta no es un repositorio sino que agrupa varios, y se abre como un solo proyecto con ella de raíz.
 handle('project:open', async (repo: string, group?: boolean) => {
@@ -248,6 +248,8 @@ handle('employee:fire', (id: string) => {
   if (id !== BOSS_ID) return studio().fire(id)
   void studio().fire(id).catch((err) => send('notice', (err as Error).message))
 })
+handle('employee:review', (id: string) => studio().requestReview(id))
+handle('employee:review-stop', (id: string) => studio().stopReview(id))
 handle('boss:team-approval', (on: boolean) => studio().setTeamApproval(on))
 handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => studio().retune(id, change))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.

@@ -222,6 +222,38 @@ describe('el jefe autoriza los permisos de su equipo', () => {
   })
 })
 
+describe('ver la versión de un empleado antes de integrarla', () => {
+  it('se le pide levantarla; avisa con sus direcciones y cómo se apaga; luego se le pide apagarla', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: repo(), manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const boss = { kind: 'boss' } as Parameters<Studio['call']>[0]
+    await studio.call(boss, 'proponer_plantilla', { puestos: [{ puesto: 'backend', proveedor: 'claude', motivo: 'x' }] })
+    studio.approveTemplate([{ id: studio.board.slots[0].id, role: 'backend', provider: 'claude' }])
+    await studio.call(boss, 'levantar_empleado', { puesto: studio.board.slots[0].id })
+    const id = studio.board.staff[0].id
+    const t = terminals[1]
+    t.feed(CLAUDE_PROMPT)
+    // El jefe la pide: al empleado le llega cómo levantarla.
+    await studio.call(boss, 'ejecutar_revision', { empleado: id, nota: 'el carrito' })
+    expect(studio.snapshot().reviews).toMatchObject([{ employeeId: id, status: 'requested', by: 'jefe' }])
+    await expect.poll(() => t.typed.join('').includes('revision_lista'), { timeout: 5000 }).toBe(true)
+    // Avisa sin direcciones o con algo que no se abre: no vale.
+    const me = { kind: 'employee', id } as Parameters<Studio['call']>[0]
+    await expect(studio.call(me, 'revision_lista', { direcciones: [], como_detener: 'x' })).rejects.toThrow(RuleError)
+    await expect(studio.call(me, 'revision_lista', { direcciones: ['file:///etc/passwd'], como_detener: 'x' })).rejects.toThrow(RuleError)
+    await studio.call(me, 'revision_lista', { direcciones: ['http://localhost:5174', 'http://localhost:8080/api'], como_detener: 'cerrar npm run dev y docker compose down' })
+    expect(studio.snapshot().reviews).toMatchObject([{ status: 'ready', urls: ['http://localhost:5174', 'http://localhost:8080/api'] }])
+    // Ya se vio: se le pide apagarla, con lo que él dijo.
+    t.typed.length = 0
+    studio.stopReview(id)
+    expect(studio.snapshot().reviews).toEqual([])
+    await expect.poll(() => t.typed.join('').includes('docker compose down'), { timeout: 5000 }).toBe(true)
+  })
+})
+
 describe('máquina lenta', () => {
   it('el Enter espera a que la CLI termine de recibir el texto, en vez de caer dentro de lo pegado', async () => {
     // Una CLI que tarda 6 s en recibir lo que se le escribe: un Enter que llegue antes es un salto

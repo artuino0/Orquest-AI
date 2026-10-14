@@ -202,6 +202,28 @@ export const TOOLS: Record<string, ToolDef> = {
       respuesta: z.string().optional(),
     },
   },
+  ejecutar_revision: {
+    who: 'boss',
+    get description() {
+      return T`Pídele a un empleado que levante su versión (con lo que necesite: backend, base de datos) para que el usuario la vea funcionando antes de integrarla. Él avisa con las direcciones.`
+    },
+    get input() {
+      return { empleado: z.string(), nota: z.string().optional().describe(T`Qué quiere ver el usuario, si lo dijo`) }
+    },
+  },
+  revision_lista: {
+    who: 'employee',
+    get description() {
+      return T`Avisa que tu versión ya está arriba para que el usuario la revise: las direcciones para abrirla y cómo se apaga.`
+    },
+    get input() {
+      return {
+        direcciones: z.array(z.string()).describe(T`Por ejemplo http://localhost:5174`),
+        como_detener: z.string().describe(T`Qué procesos o comando apagan lo que levantaste`),
+        notas: z.string().optional().describe(T`Usuario de prueba, qué pantalla mirar, etc.`),
+      }
+    },
+  },
   escribir_traspaso: {
     who: 'both',
     get description() {

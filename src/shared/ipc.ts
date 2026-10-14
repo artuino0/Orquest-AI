@@ -94,6 +94,10 @@ export interface OrquestApi {
   hireBoss(req: BossRequest): Promise<void>
   /** Enciende o apaga que el jefe autorice los permisos de su equipo. */
   setTeamApproval(on: boolean): Promise<void>
+  /** Que un empleado levante su versión para verla funcionando; avisa con sus direcciones. */
+  requestReview(id: string): Promise<void>
+  /** Ya se vio: que la apague. */
+  stopReview(id: string): Promise<void>
   sayToBoss(text: string): Promise<void>
   /** Contesta una pregunta pendiente del jefe (P1, P2…). */
   answerQuestion(id: string, text: string): Promise<void>

@@ -215,6 +215,12 @@ const en: Record<string, string> = {
   'el jefe le autorizó un permiso': 'the boss approved a permission for them',
   'el usuario le pidió autorizar los permisos de su equipo': "the user asked it to approve its team's permissions",
   'el usuario dejó de pedirle que autorice los permisos de su equipo': "the user stopped asking it to approve its team's permissions",
+  'Di al menos una dirección para abrir tu versión (por ejemplo http://localhost:5174).': 'Give at least one address to open your version (for example http://localhost:5174).',
+  '«{0}» no es una dirección que se pueda abrir: empieza con http:// o https://.': '"{0}" is not an address that can be opened: start it with http:// or https://.',
+  'Di cómo se apaga lo que levantaste (los procesos o el comando).': 'Say how to shut down what you started (the processes or the command).',
+  '{0} levantó su versión para que la veas: {1}': '{0} started their version for you to see: {1}',
+  '{0} no está en la oficina: tráelo de vuelta para levantar su versión.': "{0} isn't in the office: bring them back to start their version.",
+  'le pidieron levantar su versión para revisión': 'was asked to start their version for review',
 }
 
 export default en
