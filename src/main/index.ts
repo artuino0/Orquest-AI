@@ -1,10 +1,12 @@
 import { join, resolve } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as pty from 'node-pty'
+import { mkdir } from 'node:fs/promises'
 import { RuleError, summarize } from '../core/board.js'
 import { installCli } from '../core/cli.js'
-import { listAccounts } from '../core/accounts.js'
-import { detectAll, detectModels, detectRequirements } from '../core/detect.js'
+import { listAccounts, type Account, type AccountUsage } from '../core/accounts.js'
+import { probeAgyUsage } from '../core/agyusage.js'
+import { detectAll, detectModels, detectProvider, detectRequirements } from '../core/detect.js'
 import { listTools } from '../core/skills.js'
 import { listCaptures, readCapture } from '../core/captures.js'
 import { fileSides, listDir, readText } from '../core/files.js'
@@ -15,7 +17,7 @@ import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
-import { PROVIDER_IDS, type Effort, type ProviderId } from '../core/providers.js'
+import { PROVIDER_IDS, PROVIDERS, type Effort, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
@@ -122,7 +124,34 @@ handle('clis:detect', () => detectAll())
 handle('requirements:detect', () => detectRequirements())
 handle('clis:models', async () => detectModels(await detectAll()))
 // Con un proyecto abierto se suma lo que cada CLI acaba de reportar; sin él, lo que dejaron en disco.
-handle('accounts:list', () => current?.accounts() ?? listAccounts())
+// Antigravity no anota su cuota en ningún archivo: se le pregunta con /usage en una terminal aparte (`core/agyusage.ts`).
+// Solo cuando alguien pide las cuentas, y como mucho cada 5 minutos; mientras, se da el último dato.
+const agy: { checkedAt: number; binary?: string; usage?: AccountUsage; probedAt: number; probing: boolean } = { checkedAt: 0, probedAt: 0, probing: false }
+async function agyAccount(): Promise<Account | undefined> {
+  if (Date.now() - agy.checkedAt > 60_000) {
+    const s = await detectProvider(PROVIDERS.antigravity).catch(() => undefined)
+    agy.checkedAt = Date.now()
+    agy.binary = s?.installed && s.session === true ? s.binary : undefined
+  }
+  if (!agy.binary) return undefined
+  if (!agy.probing && Date.now() - agy.probedAt > 5 * 60_000) {
+    agy.probing = true
+    agy.probedAt = Date.now()
+    const dir = join(app.getPath('userData'), 'agy-uso')
+    void mkdir(dir, { recursive: true })
+      .then(() => probeAgyUsage({ binary: agy.binary!, dir, spawn: (file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }) }))
+      .then((u) => {
+        if (u) agy.usage = u
+      })
+      .catch(() => {})
+      .finally(() => (agy.probing = false))
+  }
+  return { provider: 'antigravity', dir: '', main: true, label: T`Principal`, usage: agy.usage }
+}
+handle('accounts:list', async () => {
+  const one = await agyAccount()
+  return [...(current?.accounts() ?? listAccounts()), ...(one ? [one] : [])]
+})
 handle('repo:check', (path: string) => checkRepo(path))
 handle('repo:group', (path: string) => checkGroup(path))
 handle('repo:prepare', (path: string) => prepareRepo(path))

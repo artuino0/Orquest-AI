@@ -208,6 +208,9 @@ const en: Record<string, string> = {
   'relevado: entra un jefe con {0}{1}': 'replaced: a boss with {0}{1} comes in',
   'No se pudo relevar al jefe: {0}': "Couldn't replace the boss: {0}",
   'El jefe deja su traspaso y se va.': 'The boss is leaving a handoff and going.',
+  'y': 'and',
+  'semana': 'week',
+  '5 horas': '5 hours',
 }
 
 export default en
