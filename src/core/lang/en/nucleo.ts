@@ -195,6 +195,19 @@ const en: Record<string, string> = {
   'Prettier no sabe formatear este tipo de archivo.': "Prettier can't format this kind of file.",
   'No se pudo formatear: {0}': 'Could not format: {0}',
   'Lo de .orquest no se edita aquí: son las oficinas y la memoria del equipo.': "What's in .orquest isn't edited here: it holds the offices and the team's memory.",
+  'El proveedor de {0} no se cambia: para otro proveedor, contrata a alguien más.': "{0}'s provider can't be changed: for another provider, hire someone else.",
+  'el usuario le cambió el modelo a {0} y el esfuerzo a {1}': 'the user changed their model to {0} and effort to {1}',
+  'el de su CLI': "their CLI's default",
+  'No se pudo cambiar el modelo de {0}: {1}': "Couldn't change {0}'s model: {1}",
+  'cambio de modelo': 'model change',
+  'No hay jefe contratado.': 'There is no boss hired.',
+  'el usuario cambió al jefe a {0}{1}; entra así al volver': 'the user changed the boss to {0}{1}; it comes back like that',
+  'El jefe está descansando: espera a que vuelva.': 'The boss is resting: wait until it comes back.',
+  'relevo': 'replacement',
+  'El jefe deja su traspaso para que entre el relevo.': 'The boss is leaving a handoff for the replacement.',
+  'relevado: entra un jefe con {0}{1}': 'replaced: a boss with {0}{1} comes in',
+  'No se pudo relevar al jefe: {0}': "Couldn't replace the boss: {0}",
+  'El jefe deja su traspaso y se va.': 'The boss is leaving a handoff and going.',
 }
 
 export default en

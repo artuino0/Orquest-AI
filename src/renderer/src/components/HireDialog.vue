@@ -10,7 +10,7 @@ import { useStudio } from '../stores/studio'
 import { DEPARTMENTS } from '../world/layout'
 import { EFFORT_LABEL, LOOK, lookOf, roleLabel } from '../status'
 import type { Account } from '../../../core/accounts'
-import type { Check, ProviderId, SlotEdit } from '../../../shared/ipc'
+import type { Check, Effort, ProviderId, SlotEdit } from '../../../shared/ipc'
 import PanelFrame from './PanelFrame.vue'
 import { T } from '../../../core/i18n'
 
@@ -119,6 +119,51 @@ const states = computed(() => [...new Set(staff.value.filter((m) => showGone.val
 // Los despedidos no salen si no se piden: ya no son parte de la plantilla.
 const showGone = ref(false)
 const goneCount = computed(() => staff.value.filter((m) => m.gone).length)
+
+/** El jefe va arriba de la tabla: es el único al que también se le cambia el proveedor. */
+const bossRow = computed(() => {
+  const b = studio.board?.boss
+  if (!b) return null
+  const e = studio.employees.find((x) => x.id === 'jefe')
+  const context = studio.board?.context.jefe ?? e?.context
+  return { id: 'jefe', name: studio.nameOf('jefe'), provider: b.provider, model: b.model, effort: b.effort, look: LOOK[e ? lookOf(e, studio.board?.hints) : 'exited'], out: !e, known: context !== undefined, context: Math.round(context ?? 0) }
+})
+
+// Cambiar modelo y esfuerzo de quien ya trabaja: se elige en la fila y se aplica con su botón,
+// porque aplicar le pide su traspaso y lo hace entrar de nuevo.
+interface Tune { provider: ProviderId; model: string; effort?: Effort; custom?: boolean }
+type Tunable = { id: string; provider: ProviderId; model?: string; effort?: Effort }
+const tunes = ref<Record<string, Tune>>({})
+const tuneOf = (m: Tunable): Tune => tunes.value[m.id] ?? { provider: m.provider, model: m.model ?? '', effort: m.effort }
+function edit(m: Tunable, patch: Partial<Tune>) {
+  tunes.value = { ...tunes.value, [m.id]: { ...tuneOf(m), ...patch } }
+}
+const tuned = (m: Tunable) => {
+  const t = tunes.value[m.id]
+  return !!t && (t.provider !== m.provider || t.model !== (m.model ?? '') || (t.effort ?? '') !== (m.effort ?? ''))
+}
+function forget(m: Tunable) {
+  const next = { ...tunes.value }
+  delete next[m.id]
+  tunes.value = next
+}
+function tuneModel(m: Tunable, value: string) {
+  if (value === OTHER) edit(m, { custom: true, model: '' })
+  else edit(m, { model: value })
+}
+function tuneProvider(m: Tunable, provider: ProviderId) {
+  const t = tuneOf(m)
+  edit(m, { provider, model: modelsOf(provider).includes(t.model) ? t.model : '', effort: t.effort && cliOf(provider)?.efforts?.includes(t.effort) ? t.effort : undefined, custom: false })
+}
+const applying = ref('')
+async function applyTune(m: Tunable) {
+  const t = tunes.value[m.id]
+  if (!t) return
+  applying.value = m.id
+  const ok = await studio.retune(m.id, { provider: m.id === 'jefe' ? t.provider : undefined, model: t.model || undefined, effort: t.effort })
+  applying.value = ''
+  if (ok) forget(m)
+}
 const shownStaff = computed(() => staff.value.filter((m) => (showGone.value || !m.gone) && (!area.value || m.role === area.value) && (!state.value || (m.gone ? T`Despedido` : m.look.label) === state.value)))
 
 const subtitle = computed(() => {
@@ -218,15 +263,71 @@ const subtitle = computed(() => {
       </div>
       <table class="tbl">
         <thead>
-          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Estado` }}</th><th>{{ T`Contexto` }}</th></tr>
+          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Estado` }}</th><th>{{ T`Contexto` }}</th><th /></tr>
         </thead>
         <tbody>
+          <!-- El jefe: se le cambia hasta el proveedor; aplicar lo releva (deja su traspaso y entra otro con lo nuevo). -->
+          <tr v-if="bossRow && !area && !state" class="boss pick" @click="studio.select('jefe')">
+            <td class="strong">{{ bossRow.name }}</td>
+            <td>{{ T`jefe` }}</td>
+            <td @click.stop>
+              <span class="pv"><i :style="{ background: `var(--pv-${tuneOf(bossRow).provider})` }" />
+                <select class="plain" :value="tuneOf(bossRow).provider" @change="tuneProvider(bossRow, ($event.target as HTMLSelectElement).value as ProviderId)">
+                  <option v-for="c in studio.usable" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  <option v-if="!studio.usable.some((c) => c.id === tuneOf(bossRow!).provider)" :value="tuneOf(bossRow).provider">{{ cliName(tuneOf(bossRow).provider) }}</option>
+                </select>
+              </span>
+            </td>
+            <td @click.stop>
+              <select v-if="modelsOf(tuneOf(bossRow).provider).length && !tuneOf(bossRow).custom" class="plain" :value="tuneOf(bossRow).model" @change="tuneModel(bossRow, ($event.target as HTMLSelectElement).value)">
+                <option value="">{{ T`por defecto` }}</option>
+                <option v-for="x in modelsOf(tuneOf(bossRow).provider)" :key="x" :value="x">{{ x }}</option>
+                <option v-if="tuneOf(bossRow).model && !modelsOf(tuneOf(bossRow).provider).includes(tuneOf(bossRow).model)" :value="tuneOf(bossRow).model">{{ tuneOf(bossRow).model }}</option>
+                <option :value="OTHER">{{ T`Escribir otro…` }}</option>
+              </select>
+              <input v-else class="plain" :value="tuneOf(bossRow).model" :placeholder="T`por defecto`" @input="edit(bossRow, { model: ($event.target as HTMLInputElement).value })" />
+            </td>
+            <td @click.stop>
+              <select class="plain" :value="tuneOf(bossRow).effort ?? ''" :disabled="!cliOf(tuneOf(bossRow).provider)?.efforts?.length" @change="edit(bossRow, { effort: (($event.target as HTMLSelectElement).value || undefined) as Effort | undefined })">
+                <option value="">—</option>
+                <option v-for="f in cliOf(tuneOf(bossRow).provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
+              </select>
+            </td>
+            <td><span class="chip" :style="{ color: `var(--st-${bossRow.look.color})` }">■ {{ bossRow.look.label }}</span></td>
+            <td>
+              <span v-if="bossRow.known" class="meter" :class="{ hot: bossRow.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${bossRow.context}%` }" /></i>{{ bossRow.context }}%</span>
+              <span v-else class="dim">{{ T`sin dato` }}</span>
+            </td>
+            <td class="acts" @click.stop>
+              <template v-if="tuned(bossRow)">
+                <button class="btn primary" :disabled="applying === 'jefe'" :title="T`El jefe deja su traspaso y entra el relevo con lo nuevo`" @click="applyTune(bossRow)">{{ T`Relevar` }}</button>
+                <button class="btn" @click="forget(bossRow)">{{ T`Cancelar` }}</button>
+              </template>
+              <button v-else class="btn danger" :title="T`Deja su traspaso y se va; luego contratas a otro jefe`" @click="studio.fire('jefe')">{{ T`Despedir` }}</button>
+            </td>
+          </tr>
           <tr v-for="m in shownStaff" :key="m.id" :class="{ pick: !m.out, out: m.out }" @click="!m.out && studio.select(m.id)">
             <td class="strong">{{ m.name }}</td>
             <td>{{ roleLabel(m.role) }}</td>
             <td><span class="pv"><i :style="{ background: `var(--pv-${m.provider})` }" />{{ cliName(m.provider) }}</span></td>
-            <td class="dim">{{ m.model ?? '—' }}</td>
-            <td>{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
+            <!-- Modelo y esfuerzo se cambian aquí; el proveedor de un empleado no. -->
+            <td v-if="m.gone" class="dim">{{ m.model ?? '—' }}</td>
+            <td v-else @click.stop>
+              <select v-if="modelsOf(m.provider).length && !tuneOf(m).custom" class="plain" :value="tuneOf(m).model" @change="tuneModel(m, ($event.target as HTMLSelectElement).value)">
+                <option value="">{{ T`por defecto` }}</option>
+                <option v-for="x in modelsOf(m.provider)" :key="x" :value="x">{{ x }}</option>
+                <option v-if="tuneOf(m).model && !modelsOf(m.provider).includes(tuneOf(m).model)" :value="tuneOf(m).model">{{ tuneOf(m).model }}</option>
+                <option :value="OTHER">{{ T`Escribir otro…` }}</option>
+              </select>
+              <input v-else class="plain" :value="tuneOf(m).model" :placeholder="T`por defecto`" @input="edit(m, { model: ($event.target as HTMLInputElement).value })" />
+            </td>
+            <td v-if="m.gone">{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
+            <td v-else @click.stop>
+              <select class="plain" :value="tuneOf(m).effort ?? ''" :disabled="!cliOf(m.provider)?.efforts?.length" @change="edit(m, { effort: (($event.target as HTMLSelectElement).value || undefined) as Effort | undefined })">
+                <option value="">—</option>
+                <option v-for="f in cliOf(m.provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
+              </select>
+            </td>
             <td>
               <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? T`Despedido` : m.look.label }}</span>
               <button v-if="m.out && !m.gone" class="btn back" :title="T`Su CLI se cerró: vuelve a abrirla en su misma oficina`" @click.stop="studio.bringBack(m.id)">{{ T`Traer de vuelta` }}</button>
@@ -234,6 +335,12 @@ const subtitle = computed(() => {
             <td>
               <span v-if="m.known" class="meter" :class="{ hot: m.context >= (studio.board?.burnoutAt ?? 80) }" :title="m.gone ? T`Contexto usado cuando se fue` : T`Contexto usado`"><i><b :style="{ width: `${m.context}%` }" /></i>{{ m.context }}%<template v-if="m.gone"> {{ T`al irse` }}</template></span>
               <span v-else class="dim">{{ m.gone ? T`sin dato al irse` : T`sin dato` }}</span>
+            </td>
+            <td class="acts" @click.stop>
+              <template v-if="!m.gone && tuned(m)">
+                <button class="btn primary" :disabled="applying === m.id" :title="T`Deja su traspaso y vuelve a entrar con lo nuevo`" @click="applyTune(m)">{{ T`Aplicar` }}</button>
+                <button class="btn" @click="forget(m)">{{ T`Cancelar` }}</button>
+              </template>
             </td>
           </tr>
         </tbody>
@@ -273,6 +380,10 @@ tr.no .chip, tr.no .rule p { color: var(--st-block); }
 .out td { color: var(--text-secondary); }
 .back { margin-left: 8px; padding: 3px 8px; font-size: 11px; }
 .pick { cursor: pointer; }
+.boss td { background: var(--surface); }
+.boss td:first-child { box-shadow: inset 3px 0 var(--accent); }
+.acts { white-space: nowrap; text-align: right; }
+.acts .btn { padding: 4px 10px; margin-left: 6px; }
 .pick:hover td { background: var(--surface); }
 .tbl .chip { text-transform: none; }
 .proposal .chip { text-transform: uppercase; }

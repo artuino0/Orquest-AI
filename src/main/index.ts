@@ -15,7 +15,7 @@ import { readOffice, writeOffice } from '../core/officefile.js'
 import { EmployeeManager } from '../core/employees.js'
 import { Library, type Dossier, type Manual } from '../core/library.js'
 import { startMcpServer, type McpHandle } from '../core/mcp.js'
-import { PROVIDER_IDS, type ProviderId } from '../core/providers.js'
+import { PROVIDER_IDS, type Effort, type ProviderId } from '../core/providers.js'
 import { StudioStore } from '../core/store.js'
 import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
@@ -214,7 +214,12 @@ const officePath = () => join(app.getPath('userData'), 'oficina.json')
 handle('office:load', () => readOffice(officePath()))
 handle('office:save', (office: unknown) => writeOffice(officePath(), office))
 
-handle('employee:fire', (id: string) => studio().fire(id))
+handle('employee:fire', (id: string) => {
+  // Al jefe se le pide antes su traspaso, que tarda lo que tarda: la UI no espera.
+  if (id !== BOSS_ID) return studio().fire(id)
+  void studio().fire(id).catch((err) => send('notice', (err as Error).message))
+})
+handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => studio().retune(id, change))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
 handle('employee:say', (id: string, text: string) => studio().say(id, text))
 handle('employee:back', (id: string) => studio().bringBack(id))

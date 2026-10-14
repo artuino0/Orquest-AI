@@ -230,6 +230,14 @@ const en: Record<string, string> = {
   'abierto {0}': 'opened {0}',
   'Quitar de la lista (la carpeta no se toca)': "Remove from the list (the folder isn't touched)",
   'Ver todos · {0}': 'See all · {0}',
+  'jefe': 'boss',
+  'El jefe deja su traspaso y entra el relevo con lo nuevo': 'The boss leaves a handoff and the replacement comes in with the new settings',
+  'Relevar': 'Replace',
+  'Deja su traspaso y se va; luego contratas a otro jefe': 'Leaves a handoff and goes; then you hire another boss',
+  'Despedir': 'Dismiss',
+  'Deja su traspaso y vuelve a entrar con lo nuevo': 'Leaves a handoff and comes back in with the new settings',
+  'Aplicar': 'Apply',
+  'sin dato': 'no data',
 }
 
 export default en

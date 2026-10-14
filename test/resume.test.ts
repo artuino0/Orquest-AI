@@ -32,7 +32,7 @@ function recorder() {
 }
 
 const open = async (repo: string, store: StudioStore, spawn: Spawner) => {
-  const s = await new Studio({ repo, manager: new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 }), store, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}` }).init()
+  const s = await new Studio({ repo, manager: new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 }), store, detect: async () => [], mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, handoffTimeoutMs: 50 }).init()
   studios.push(s)
   return s
 }

@@ -94,6 +94,8 @@ export interface OrquestApi {
   /** Contesta una pregunta pendiente del jefe (P1, P2…). */
   answerQuestion(id: string, text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
+  /** Cambia modelo y esfuerzo de alguien (al jefe, también el proveedor): deja su traspaso y vuelve a entrar con lo nuevo. */
+  retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }): Promise<void>
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>
   taskDiff(id: string): Promise<string>

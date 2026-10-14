@@ -395,7 +395,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.changed()
   }
 
-  private async launchBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean) {
+  private async launchBoss(req: { name?: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; goal: string }, resume: boolean, first?: string) {
     const adapter = getProvider(req.provider)
     const env = accountEnv(req.provider, req.account, this.opts.home)
     const channel = this.channel(req.provider)
@@ -410,6 +410,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     const owner: JournalOwner = { id: BOSS_ID, name: name ?? T`Jefe`, role: 'jefe', provider: req.provider, model: req.model }
     await this.journal.open(owner)
     const previous = this.board.tasks.length > 0
+    // Quien entra después de un jefe despedido encuentra al equipo trabajando.
+    const team = this.board.staff.some((m) => !m.gone && this.opts.manager.isLive(m.id))
     const journal = this.journal.path(BOSS_ID)
     // Para que `launch` sepa qué conversación retomar; si es nuevo, parte sin ninguna.
     this.board.boss = { name, provider: req.provider, model: req.model, effort: req.effort, account: req.account, sessionId: resume ? this.board.boss?.sessionId : undefined }
@@ -431,13 +433,15 @@ export class Studio extends EventEmitter<StudioEvents> {
       },
       intro: () => (viaArg ? [] : [prompt]),
     }, (emp) => [
-      emp.resumed
+      first ?? (emp.resumed
         ? T`La app se reabrió y retomaste tu sesión. Tu equipo también vuelve a su escritorio. Revisa el corte que dejaste en tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${planReminder()} ${askReminder()}`
         : resume
           ? T`La app se reabrió. Tu equipo vuelve a su escritorio. Lee tu bitácora (${journal}) y sigue donde ibas (leer_proyecto). ${planReminder()} ${askReminder()}`
+          : previous && team
+            ? T`Entras como jefe de un proyecto en marcha; tu equipo sigue en su escritorio. Lee tu bitácora (${journal}): el jefe anterior dejó ahí su traspaso. Sigue con leer_proyecto.`
           : previous
             ? T`Retomas un proyecto con tablero previo; los empleados anteriores ya no están. Lee tu bitácora (${journal}) y el proyecto, levanta de nuevo a quien haga falta y reasigna sus tareas abiertas. ${planReminder()}`
-            : T`Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.`,
+            : T`Proyecto abierto. Lee el proyecto y los expedientes y propón la plantilla.`),
     ], resume)
   }
 
@@ -650,14 +654,10 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.emit('notice', T`${l.owner.name} se va a jugar videojuegos (${reason}).`)
     this.changed()
     try {
-      const wrote = new Promise<void>((ok) => this.handoffWaiters.set(id, ok))
-      const timeout = new Promise<void>((ok) => setTimeout(ok, this.opts.handoffTimeoutMs ?? 180_000).unref?.())
-      this.notify(
+      await this.askHandoff(
         id,
         T`Te toca descansar (${reason}). Antes, escribe tu traspaso con escribir_traspaso: qué hiciste, decisiones, pendientes, trampas del código y tu siguiente paso. Al volver lo leerás con el contexto limpio.`,
       )
-      await Promise.race([wrote, timeout])
-      this.handoffWaiters.delete(id)
       this.fact(id, T`se fue a jugar videojuegos para limpiar contexto (${reason})`)
       // Se cierra y se relanza igual: mismo proveedor, modelo, manual, oficina y token.
       this.queues.delete(id)
@@ -670,6 +670,83 @@ export class Studio extends EventEmitter<StudioEvents> {
       this.resting.delete(id)
       this.changed()
     }
+  }
+
+  /** Le pide su traspaso y espera a que lo escriba con escribir_traspaso, o a que se acabe el tiempo. */
+  private async askHandoff(id: string, message: string): Promise<void> {
+    const wrote = new Promise<void>((ok) => this.handoffWaiters.set(id, ok))
+    const timeout = new Promise<void>((ok) => setTimeout(ok, this.opts.handoffTimeoutMs ?? 180_000).unref?.())
+    this.notify(id, message)
+    await Promise.race([wrote, timeout])
+    this.handoffWaiters.delete(id)
+  }
+
+  /**
+   * El usuario cambia el modelo o el esfuerzo de alguien; al jefe, también el
+   * proveedor (a un empleado no: para otro proveedor se contrata a otra persona).
+   * Si está en la oficina, se hace como un descanso: deja su traspaso, se cierra
+   * y entra de nuevo con lo nuevo, leyendo su bitácora. No espera a que termine.
+   */
+  async retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }): Promise<void> {
+    const model = change.model?.trim() || undefined
+    const effort = change.effort || undefined
+    if (id === BOSS_ID) return this.retuneBoss(change.provider, model, effort)
+    const m = this.board.staff.find((x) => x.id === id && !x.gone)
+    const slot = this.board.slots.find((x) => x.employeeId === id)
+    if (!m || !slot) throw new RuleError(T`No existe el empleado ${id}.`)
+    if (change.provider && change.provider !== slot.provider) throw new RuleError(T`El proveedor de ${m.name} no se cambia: para otro proveedor, contrata a alguien más.`)
+    if (model === slot.model && effort === slot.effort) return
+    const check = this.rule({ ...slot, model })
+    if (!check.ok) throw new RuleError(check.reason)
+    this.board.retune(id, model, effort)
+    const l = this.launches.get(id)
+    if (l) {
+      l.req.model = model
+      l.req.effort = effort
+      l.owner = { ...l.owner, model }
+    }
+    this.fact(id, T`el usuario le cambió el modelo a ${model ?? T`el de su CLI`} y el esfuerzo a ${effort ?? T`el de su CLI`}`)
+    this.changed()
+    // Sin terminal abierta, el cambio vale para cuando vuelva.
+    if (l && this.opts.manager.isLive(id)) void this.rest(id, T`cambio de modelo`).catch((err) => this.emit('notice', T`No se pudo cambiar el modelo de ${m.name}: ${(err as Error).message}`))
+  }
+
+  /** Al jefe se le releva: deja su traspaso y entra otro con lo nuevo, que lo lee al llegar. */
+  private async retuneBoss(provider: ProviderId | undefined, model: string | undefined, effort: Effort | undefined): Promise<void> {
+    const boss = this.board.boss
+    if (!boss) throw new RuleError(T`No hay jefe contratado.`)
+    const to = provider ?? boss.provider
+    if (to === boss.provider && model === boss.model && effort === boss.effort) return
+    if (!this.channel(to)) throw new RuleError(T`${getProvider(to).name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
+    // La cuenta es de un proveedor: con otro, la suya por defecto.
+    const next: BossRecord = { ...boss, provider: to, model, effort, account: to === boss.provider ? boss.account : undefined, sessionId: undefined }
+    if (!this.opts.manager.isLive(BOSS_ID)) {
+      this.board.boss = next
+      this.fact(BOSS_ID, T`el usuario cambió al jefe a ${to}${model ? ` ${model}` : ''}; entra así al volver`)
+      this.changed()
+      return
+    }
+    if (this.resting.has(BOSS_ID)) throw new RuleError(T`El jefe está descansando: espera a que vuelva.`)
+    this.resting.set(BOSS_ID, T`relevo`)
+    this.emit('notice', T`El jefe deja su traspaso para que entre el relevo.`)
+    this.changed()
+    void (async () => {
+      try {
+        await this.askHandoff(
+          BOSS_ID,
+          T`Te van a relevar: el usuario cambia el modelo del jefe. Detente y escribe ya tu traspaso con escribir_traspaso, pensado para quien entra en tu lugar: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas con el usuario y el siguiente paso.`,
+        )
+        this.fact(BOSS_ID, T`relevado: entra un jefe con ${to}${model ? ` ${model}` : ''}`)
+        this.queues.delete(BOSS_ID)
+        await this.opts.manager.fire(BOSS_ID, this.root)
+        await this.launchBoss({ ...next, goal: this.board.goal }, false, T`Entras como jefe en relevo del anterior; tu equipo sigue en su escritorio. Lee tu bitácora (${this.journal.path(BOSS_ID)}): ahí está su traspaso. Sigue donde iba (leer_proyecto).`)
+      } catch (err) {
+        this.emit('notice', T`No se pudo relevar al jefe: ${(err as Error).message}`)
+      } finally {
+        this.resting.delete(BOSS_ID)
+        this.changed()
+      }
+    })()
   }
 
   private restarting = new Set<string>()
@@ -1352,6 +1429,10 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   /** El usuario despide a alguien: su CLI se cierra y su oficina se desocupa si no deja nada pendiente; su rama y su tablero quedan. */
   async fire(id: string) {
+    if (id === BOSS_ID && this.opts.manager.isLive(BOSS_ID) && !this.resting.has(BOSS_ID)) {
+      this.emit('notice', T`El jefe deja su traspaso y se va.`)
+      await this.askHandoff(BOSS_ID, T`El usuario te despide. Antes de irte, escribe tu traspaso con escribir_traspaso para el jefe que entre después: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas y el siguiente paso.`)
+    }
     this.fact(id, T`despedido; su bitácora queda para capacitar a quien ocupe el puesto`)
     this.launches.delete(id)
     // Con cuánto contexto usado se va: se ve después en Plantilla, entre los despedidos.

@@ -220,6 +220,10 @@ const en: Record<string, string> = {
   'El nombre «{0}» está repetido.': 'The name "{0}" is repeated.',
   'Esta carpeta ya es un repositorio: no se le pueden crear otros dentro.': "This folder is already a repository: others can't be created inside it.",
   'instalar dependencias (npm, pnpm, yarn, pip y similares), también sin pedir permiso': 'installing dependencies (npm, pnpm, yarn, pip and the like), also without asking',
+  'Entras como jefe de un proyecto en marcha; tu equipo sigue en su escritorio. Lee tu bitácora ({0}): el jefe anterior dejó ahí su traspaso. Sigue con leer_proyecto.': 'You come in as boss of a project already under way; your team is still at their desks. Read your journal ({0}): the previous boss left their handoff there. Continue with leer_proyecto.',
+  'Te van a relevar: el usuario cambia el modelo del jefe. Detente y escribe ya tu traspaso con escribir_traspaso, pensado para quien entra en tu lugar: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas con el usuario y el siguiente paso.': "You are being replaced: the user is changing the boss's model. Stop and write your handoff now with escribir_traspaso, for whoever takes your place: project status, decisions, what each employee is waiting on, open questions with the user and the next step.",
+  'Entras como jefe en relevo del anterior; tu equipo sigue en su escritorio. Lee tu bitácora ({0}): ahí está su traspaso. Sigue donde iba (leer_proyecto).': 'You come in as boss, replacing the previous one; your team is still at their desks. Read your journal ({0}): their handoff is there. Continue where they left off (leer_proyecto).',
+  'El usuario te despide. Antes de irte, escribe tu traspaso con escribir_traspaso para el jefe que entre después: estado del proyecto, decisiones, qué espera cada empleado, preguntas abiertas y el siguiente paso.': 'The user is dismissing you. Before you go, write your handoff with escribir_traspaso for the boss who comes next: project status, decisions, what each employee is waiting on, open questions and the next step.',
 }
 
 export default en

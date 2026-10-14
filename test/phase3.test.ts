@@ -11,6 +11,7 @@ import { defaultManual, Library } from '../src/core/library.js'
 import { startMcpServer, type McpHandle } from '../src/core/mcp.js'
 import { StudioStore } from '../src/core/store.js'
 import { BOSS_ID, Studio } from '../src/core/studio.js'
+import { RuleError } from '../src/core/board.js'
 
 async function makeRepo(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'orquest-p3-'))
@@ -41,6 +42,7 @@ const spawn: Spawner = (_f, args, o) => {
 
 const CLIS: CliStatus[] = [
   { id: 'claude', name: 'Claude Code', installed: true, session: true },
+  { id: 'codex', name: 'Codex', installed: true, session: true },
   { id: 'antigravity', name: 'Antigravity', installed: true, session: null },
 ]
 
@@ -51,14 +53,14 @@ afterEach(async () => {
   await mcp?.close()
 })
 
-async function open(repo: string, library: Library) {
+async function open(repo: string, library: Library, extra: { handoffTimeoutMs?: number } = {}) {
   const manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
   let s!: Studio
   mcp = await startMcpServer((t) => {
     const c = s.caller(t)
     return c && { studio: s, caller: c }
   })
-  s = await new Studio({ repo, manager, library, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), submitDelayMs: 0 }).init()
+  s = await new Studio({ repo, manager, library, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), submitDelayMs: 0, ...extra }).init()
   studios.push(s)
   await s.hireBoss({ provider: 'claude', goal: 'x' })
   const args = launched.get(BOSS_ID)!
@@ -215,5 +217,39 @@ describe('fase 3: expedientes y manuales', () => {
     expect(args[args.indexOf('--model') + 1]).toBe('sonnet')
     expect(args[args.indexOf('--effort') + 1]).toBe('low')
     expect(s.board.staff[0]).toMatchObject({ model: 'sonnet', effort: 'low' })
+  })
+
+  it('al cambiarle modelo y esfuerzo a un empleado, deja su traspaso y vuelve a entrar con lo nuevo', async () => {
+    const repo = await makeRepo()
+    const { s, call } = await open(repo, new Library(), { handoffTimeoutMs: 50 })
+    await call('proponer_plantilla', { puestos: [{ puesto: 'backend', proveedor: 'claude', modelo: 'opus', esfuerzo: 'high', motivo: 'x' }] })
+    s.approveTemplate([{ id: s.board.slots[0].id, role: 'backend', provider: 'claude', model: 'opus', effort: 'high' }])
+    await call('levantar_empleado', { puesto: s.board.slots[0].id })
+    const id = s.board.staff[0].id
+    const before = launched.get(id)!
+    // El proveedor de un empleado no se cambia.
+    await expect(s.retune(id, { provider: 'codex', model: 'gpt-5' })).rejects.toThrow(/no se cambia/)
+    await s.retune(id, { model: 'sonnet', effort: 'low' })
+    expect(s.board.staff[0]).toMatchObject({ model: 'sonnet', effort: 'low' })
+    expect(s.board.slots[0]).toMatchObject({ model: 'sonnet', effort: 'low' })
+    // Deja su traspaso (aquí, se acaba el tiempo) y vuelve a entrar con el modelo nuevo.
+    await expect.poll(() => launched.get(id) !== before, { timeout: 5000 }).toBe(true)
+    const args = launched.get(id)!
+    expect(args[args.indexOf('--model') + 1]).toBe('sonnet')
+    expect(args[args.indexOf('--effort') + 1]).toBe('low')
+  })
+
+  it('al jefe se le puede cambiar hasta el proveedor: deja su traspaso y entra el relevo', async () => {
+    const repo = await makeRepo()
+    const { s } = await open(repo, new Library(), { handoffTimeoutMs: 50 })
+    const before = launched.get(BOSS_ID)!
+    await s.retune(BOSS_ID, { provider: 'codex', model: 'gpt-5', effort: 'medium' })
+    await expect.poll(() => launched.get(BOSS_ID) !== before, { timeout: 5000 }).toBe(true)
+    const args = launched.get(BOSS_ID)!
+    expect(args).toEqual(expect.arrayContaining(['-m', 'gpt-5']))
+    expect(s.board.boss).toMatchObject({ provider: 'codex', model: 'gpt-5', effort: 'medium' })
+    // Un proveedor que no sabe conectarse a Orquest no puede ser jefe.
+    await expect.poll(() => s.snapshot().bossOnline, { timeout: 5000 }).toBe(true)
+    await expect(s.retune(BOSS_ID, { provider: 'grok' })).rejects.toThrow(RuleError)
   })
 })
