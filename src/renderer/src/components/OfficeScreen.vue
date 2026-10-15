@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { AlertTriangle, Bell, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, Loader2, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
@@ -44,6 +44,8 @@ function look(e: (typeof studio.employees)[number]) {
   if (h?.state === 'gaming') return 'gaming' as const
   // Sin los parpadeos entre paso y paso: sigue "trabajando" hasta que de verdad para.
   const state = studio.calmStateOf(e)
+  // Va llegando: eso se ve antes que su tarea.
+  if (state === 'starting' && studio.board?.arriving?.some((a) => a.id === e.id)) return state
   const quiet = state === 'idle' || state === 'starting'
   if (quiet && h?.state === 'waiting') return 'waiting' as const
   if (quiet && h?.state === 'delivering') return 'delivering' as const
@@ -80,17 +82,34 @@ const legend = computed(() => {
     { n: s('waiting'), color: 'dep', text: T`espera a otro` },
     { n: s('delivering'), color: 'review', text: s('delivering') === 1 ? T`entrega` : T`entregas` },
     { n: s('gaming'), color: 'play', text: T`jugando` },
-    { n: s('idle') + s('starting'), color: 'idle', text: T`en espera` },
+    { n: s('starting'), color: 'arrive', text: T`llegando` },
+    { n: s('idle'), color: 'idle', text: T`en espera` },
   ].filter((x) => x.n)
 })
 
 /** Avisos fijos abajo a la izquierda: quién te necesita y qué propone el jefe. */
 const alerts = computed(() => {
-  const list: { danger?: boolean; text: string; go: () => void }[] = []
+  const list: { danger?: boolean; busy?: boolean; text: string; go: () => void }[] = []
   for (const e of studio.employees) {
-    if (e.state !== 'blocked') continue
     const name = studio.nameOf(e.id)
     const open = () => studio.select(e.id)
+    // Su CLI dijo que no puede trabajar (modelo que no tiene, sin saldo): se queda aquí hasta que pueda.
+    if (e.problem && e.state !== 'working' && e.state !== 'exited') {
+      list.push({ danger: true, text: T`${name} no puede trabajar: «${e.problem}» · Abrir su terminal`, go: open })
+      continue
+    }
+    // Su terminal arranca y aún no le llega su primer mensaje. Si pregunta algo, lo dice el aviso de abajo.
+    const coming = studio.board?.arriving?.find((a) => a.id === e.id)
+    if (coming && e.state !== 'blocked' && e.state !== 'exited') {
+      // El jefe sin nombre es «el jefe», no «Jefe».
+      const plain = e.id === 'jefe' && !studio.board?.boss?.name
+      const text = coming.back
+        ? plain ? T`El jefe vuelve a su escritorio… su terminal está arrancando` : T`${name} vuelve a su escritorio… su terminal está arrancando`
+        : plain ? T`Contratando al jefe… su terminal está arrancando` : T`Contratando a ${name}… su terminal está arrancando`
+      list.push({ busy: true, text, go: open })
+      continue
+    }
+    if (e.state !== 'blocked') continue
     const why = studio.blocks[e.id]
     if (why === 'trust') {
       // La CLI pregunta si confías en la carpeta y espera: se puede contestar desde aquí.
@@ -237,7 +256,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
 
       <div v-if="!editing" class="alerts">
         <button v-for="(a, i) in alerts" :key="i" class="alert-card" :class="{ danger: a.danger }" @click="a.go">
-          <AlertTriangle v-if="a.danger" /><Bell v-else />{{ a.text }}
+          <AlertTriangle v-if="a.danger" /><Loader2 v-else-if="a.busy" class="spin" /><Bell v-else />{{ a.text }}
         </button>
         <p v-for="n in studio.notices" :key="n.id" class="alert-card"><Bell />{{ n.text }}</p>
       </div>
@@ -289,6 +308,9 @@ nav .btn.icon { padding: 7px 9px; }
 .alert-card { margin: 0; display: flex; align-items: center; gap: 10px; padding: 9px 14px; font: 12px var(--font); color: var(--text-primary); text-align: left; background: var(--surface); border: 3px solid var(--accent); box-shadow: 3px 3px 0 var(--shadow); }
 .alert-card svg { width: 16px; height: 16px; flex: none; color: var(--accent); }
 .alert-card.danger { border-color: var(--st-block); }
+.alert-card .spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .alert-card .spin { animation: none; } }
 .alert-card.danger svg { color: var(--st-block); }
 .dim { color: var(--text-secondary); }
 </style>

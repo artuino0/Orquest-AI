@@ -372,3 +372,20 @@ describe('detener al jefe', () => {
     expect(t.typed).toEqual(['\x1b'])
   })
 })
+
+describe('llegando', () => {
+  it('va llegando desde que se lanza su terminal hasta que recibe su primer mensaje', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: repo(), manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    // Su CLI aún no dibuja su caja: va llegando, y es nuevo.
+    expect(studio.snapshot().arriving).toEqual([{ id: 'jefe', back: false }])
+    await wait(100)
+    expect(studio.snapshot().arriving).toHaveLength(1)
+    // Ya está lista: se le entrega su primer mensaje y llegó.
+    terminals[0].feed(CLAUDE_PROMPT)
+    await expect.poll(() => studio!.snapshot().arriving, { timeout: 5000 }).toEqual([])
+  })
+})

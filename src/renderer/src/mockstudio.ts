@@ -111,6 +111,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const STEPS = [['Pensando'], ['Leyendo', 'src/api.ts'], ['Planeando'], ['Escribiendo', 'src/api.ts'], ['Ejecutando', 'npm test']] as const
   const listeners = { board: new Set<(s: StudioSnapshot) => void>(), state: new Set<(id: string, s: EmployeeState) => void>(), hired: new Set<(e: Employee) => void>() }
 
+  /** Quiénes van llegando (su terminal arrancando). */
+  const arriving = new Set<string>()
   const snapshot = (): StudioSnapshot => {
     const hints: StudioSnapshot['hints'] = {}
     for (const e of employees) {
@@ -118,7 +120,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       if (tasks.some((t) => t.assignee === e.id && ['delivered', 'in_qa', 'approved'].includes(t.status))) hints[e.id] = { state: 'delivering' }
     }
     return {
-      resumable: [], repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline, boss: { provider: 'claude', name: bossName },
+      resumable: [], arriving: [...arriving].map((id) => ({ id, back: false })), repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline, boss: { provider: 'claude', name: bossName },
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
@@ -148,7 +150,13 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     const e: Employee = { id, provider, model, role, office: { path: `${MOCK_REPO}\\.orquest\\oficinas\\${id}`, branch: `orquest/${id}` }, state: 'idle', pid: 1000 + employees.length, warnings: [] }
     employees.push(e)
     listeners.hired.forEach((fn) => fn(e))
+    // Su terminal tarda en arrancar: va llegando unos segundos.
+    arriving.add(id)
     publish()
+    setTimeout(() => {
+      arriving.delete(id)
+      publish()
+    }, 6000 * speed)
   }
 
   async function cycle(id: string, delay: number) {

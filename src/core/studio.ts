@@ -50,6 +50,11 @@ export interface StudioSnapshot extends BoardSnapshot {
   hints: Record<string, NonNullable<ReturnType<Board['hint']>> | { state: 'gaming' }>
   /** Quiénes volverían a su escritorio si se retoma (al abrir un proyecto que quedó con gente). */
   resumable: string[]
+  /**
+   * Quiénes van llegando: su terminal ya se lanzó pero todavía no se le entrega su primer mensaje
+   * (su CLI tarda en arrancar o pregunta algo). `back`: vuelve (de descansar, reiniciar o reabrir).
+   */
+  arriving: { id: string; back: boolean }[]
   /** % de contexto usado por agente, si se conoce. */
   context: Record<string, number>
   /** Desde qué % se manda a descansar. */
@@ -115,6 +120,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   board: Board
   private tokens = new Map<string, Caller>()
   private queues = new Map<string, string[]>()
+  /** Quiénes van llegando (ver StudioSnapshot.arriving): true si vuelve. */
+  private arriving = new Map<string, boolean>()
   private waiters = new Map<string, (answer: string) => void>()
   private offices = new Map<string, Office>()
   private launches = new Map<string, Launch>()
@@ -161,7 +168,9 @@ export class Studio extends EventEmitter<StudioEvents> {
       this.changed()
     }
     const onExit = (id: string) => {
-      if (!this.isOurs(id) || this.resting.has(id) || this.restarting.has(id)) return
+      if (!this.isOurs(id)) return
+      this.arriving.delete(id)
+      if (this.resting.has(id) || this.restarting.has(id)) return
       // Quiso retomar su conversación y la CLI se cerró sin haber llegado a servir: no había qué
       // retomar. Entra de nuevo, desde cero. No se mide con reloj: antes de cerrarse pudo quedarse
       // un rato en una pantalla de primer arranque (confiar en la carpeta) esperando al usuario.
@@ -346,6 +355,8 @@ export class Studio extends EventEmitter<StudioEvents> {
         this.opts.manager.on('state', onState)
         try {
           this.opts.manager.write(id, '\r')
+          // Su primer mensaje ya está en su terminal: llegó.
+          if (this.arriving.delete(id)) this.changed()
           // Se insiste cada vez más espaciado, hasta medio minuto: en una máquina lenta los primeros
           // Enter aún caen dentro del pegado.
           for (const ms of pause > 0 ? SUBMIT_RETRIES_MS : []) {
@@ -382,6 +393,9 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (req.office && id !== BOSS_ID) await this.restoreOffice(id, req.office)
     // Toda terminal recibe el comando, también las que hablan MCP: su token la identifica igual.
     const emp = await this.opts.manager.hire(cli ? { ...req, env: { ...req.env, ORQUEST_URL: cli.url(l.token), ORQUEST_LANG: getLang() }, path: [cli.dir] } : req)
+    // Va llegando hasta que se le entregue su primer mensaje: su CLI puede tardar varios segundos en
+    // arrancar o preguntar algo. Vuelve si ya había estado (descanso, reinicio) o retoma su conversación.
+    this.arriving.set(id, resume || this.launches.has(id))
     this.offices.set(id, emp.office)
     // De aquí en adelante, relanzar reusa la misma oficina.
     l.req = { ...l.req, office: emp.office }
@@ -392,7 +406,10 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (emp.resumed) this.resumeTries.add(id)
     // Quien retomó ya trae su manual en la conversación.
     const intro = emp.resumed ? [] : l.intro(emp.office)
-    for (const m of [...intro, ...(typeof extra === 'function' ? extra(emp) : extra)]) this.notify(id, m)
+    const first = [...intro, ...(typeof extra === 'function' ? extra(emp) : extra)]
+    // Sin nada que entregarle, ya llegó.
+    if (!first.length) this.arriving.delete(id)
+    for (const m of first) this.notify(id, m)
     return emp
   }
 
@@ -1584,7 +1601,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       const c = this.opts.manager.get(id)?.context
       if (c !== undefined) context[id] = c
     }
-    return { ...this.board.snapshot(), repo: this.root, ...(this.grouped ? { repos: this.repos } : {}), bossOnline: this.bossOnline || this.resting.has(BOSS_ID), resumable: this.resumable, hints, context, burnoutAt: this.burnoutAt }
+    return { ...this.board.snapshot(), repo: this.root, ...(this.grouped ? { repos: this.repos } : {}), bossOnline: this.bossOnline || this.resting.has(BOSS_ID), resumable: this.resumable, arriving: [...this.arriving].map(([id, back]) => ({ id, back })), hints, context, burnoutAt: this.burnoutAt }
   }
 
   /** Lo que reporta la barra de estado de una CLI (Claude Code): % de contexto. */
@@ -1668,6 +1685,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     this.fact(id, T`despedido; su bitácora queda para capacitar a quien ocupe el puesto`)
     this.launches.delete(id)
+    this.arriving.delete(id)
     // Con cuánto contexto usado se va: se ve después en Plantilla, entre los despedidos.
     const context = this.opts.manager.get(id)?.context
     const office = id === BOSS_ID ? undefined : (this.opts.manager.get(id)?.office ?? this.board.staff.find((m) => m.id === id)?.office)

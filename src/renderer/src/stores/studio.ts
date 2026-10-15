@@ -165,7 +165,10 @@ export const useStudio = defineStore('studio', () => {
 
   /** Quien no puede trabajar (su CLI lo dijo) espera como si nada: se ve como que te necesita. */
   const failed = (e: Employee) => !!e.problem && e.state !== 'working' && e.state !== 'exited'
-  const calmStateOf = (e: Employee): EmployeeState => (failed(e) ? 'blocked' : calm.value[e.id] ?? e.state)
+  /** Su terminal ya arrancó pero aún no le llega su primer mensaje: va llegando (ver StudioSnapshot.arriving). */
+  const arriving = (id: string) => !!board.value?.arriving?.some((a) => a.id === id)
+  const calmStateOf = (e: Employee): EmployeeState =>
+    failed(e) ? 'blocked' : arriving(e.id) && e.state !== 'blocked' && e.state !== 'exited' ? 'starting' : calm.value[e.id] ?? e.state
 
   const usable = computed(() => clis.value.filter((c) => c.installed && c.session !== false))
   const canHire = computed(() => usable.value.length > 0 && !!repo.value)
@@ -379,7 +382,16 @@ export const useStudio = defineStore('studio', () => {
     log(e.id, T`contratado como ${e.role}`)
     for (const w of e.warnings) log(e.id, `⚠ ${w}`)
   })
-  window.orquest.onBoard((b) => (board.value = b))
+  window.orquest.onBoard((b) => {
+    // Quien iba llegando y ya recibió su primer mensaje: llegó. Lo que ya estaba al abrir no se anuncia.
+    const before = board.value?.repo === b.repo ? (board.value.arriving ?? []) : []
+    board.value = b
+    for (const a of before) {
+      if (b.arriving?.some((x) => x.id === a.id)) continue
+      const e = employees.value.find((x) => x.id === a.id)
+      if (e && e.state !== 'exited') notice(a.id === 'jefe' && !b.boss?.name ? T`El jefe llegó a su escritorio.` : T`${nameOf(a.id)} llegó a su escritorio.`)
+    }
+  })
   window.orquest.onNotice(notice)
   window.orquest.onActivity((id, a) => {
     if (a) doing.value = { ...doing.value, [id]: a }

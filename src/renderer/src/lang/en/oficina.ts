@@ -239,6 +239,14 @@ const en: Record<string, string> = {
   'Aplicar': 'Apply',
   'sin dato': 'no data',
   "descartada": "discarded",
+  "{0} no puede trabajar: «{1}» · Abrir su terminal": "{0} can't work: “{1}” · Open their terminal",
+  "{0} vuelve a su escritorio… su terminal está arrancando": "{0} is coming back to their desk… their terminal is starting",
+  "Contratando a {0}… su terminal está arrancando": "Hiring {0}… their terminal is starting",
+  "{0} llegó a su escritorio.": "{0} reached their desk.",
+  "llegando": "arriving",
+  "El jefe vuelve a su escritorio… su terminal está arrancando": "The boss is coming back to their desk… their terminal is starting",
+  "Contratando al jefe… su terminal está arrancando": "Hiring the boss… their terminal is starting",
+  "El jefe llegó a su escritorio.": "The boss reached their desk.",
 }
 
 export default en
