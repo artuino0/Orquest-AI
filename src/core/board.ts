@@ -20,7 +20,7 @@ import type { Effort, ProviderId } from './providers.js'
 /** Regla de expedientes: ¿puede este proveedor/modelo ocupar este puesto? */
 export type SlotRule = (s: { provider: ProviderId; model?: string; role: string }) => Check
 
-export type TaskStatus = 'waiting' | 'ready' | 'in_progress' | 'delivered' | 'in_qa' | 'approved' | 'merged' | 'done'
+export type TaskStatus = 'waiting' | 'ready' | 'in_progress' | 'delivered' | 'in_qa' | 'approved' | 'merged' | 'done' | 'discarded'
 export type TaskKind = 'work' | 'qa'
 
 export interface Delivery {
@@ -621,6 +621,23 @@ export class Board {
     if (!['approved', 'delivered'].includes(t.status)) throw new RuleError(T`${t.id} no está esperando tu revisión.`)
     this.sendBack(t, T`el usuario la regresó: ${notes}`)
     return t
+  }
+
+  /**
+   * El usuario no quiere esa entrega: se cierra sin integrar. Quien la esperaba deja de
+   * esperarla (si no, se quedaría esperando para siempre) y se devuelve para avisarle al jefe.
+   */
+  discard(taskId: string, reason?: string): { task: Task; released: Task[]; freed: Task[] } {
+    const t = this.task(taskId)
+    if (!['approved', 'delivered'].includes(t.status)) throw new RuleError(T`${t.id} no está esperando tu revisión.`)
+    t.status = 'discarded'
+    this.log(t, reason ? T`el usuario la descartó: ${reason}` : T`el usuario la descartó`)
+    const freed = this.tasks.filter((x) => x.deps.includes(t.id))
+    for (const x of freed) {
+      x.deps = x.deps.filter((d) => d !== t.id)
+      this.log(x, T`ya no espera a ${t.id}: se descartó`)
+    }
+    return { task: t, released: freed.filter((x) => this.refresh(x)), freed }
   }
 
   private sendBack(t: Task, why: string) {

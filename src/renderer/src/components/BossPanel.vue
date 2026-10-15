@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users, X } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Square, Target, Terminal, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
@@ -93,7 +93,8 @@ watch(bossName, (name) => {
   const g = genderOf(name)
   if (g && !fits(studio.bossCharacter, g)) studio.setBossCharacter(CHARACTERS.find((n) => CHARACTER_GENDER[n] === g) ?? studio.bossCharacter)
 })
-const message = ref('')
+// Lo escrito se conserva al irse a otra pantalla y volver.
+const message = studio.draft('jefe')
 const busy = ref(false)
 
 async function hire() {
@@ -106,6 +107,18 @@ async function hire() {
 async function send() {
   if (!message.value.trim()) return
   if (await studio.sayToBoss(message.value.trim())) message.value = ''
+}
+
+/** Lo detiene; si recién le mandaste algo, tu mensaje vuelve a la caja para corregirlo. */
+const stopping = ref(false)
+async function stop() {
+  stopping.value = true
+  let r: { restored?: string } = {}
+  if (await studio.attempt(async () => (r = await window.orquest.stopBoss()))) {
+    if (r.restored && !message.value.trim()) message.value = r.restored
+    studio.notice(r.restored ? T`Detenido. Tu mensaje volvió a la caja para que lo corrijas.` : T`Detenido.`)
+  }
+  stopping.value = false
 }
 
 // ── Conversación ──────────────────────────────────────────────────────────
@@ -342,6 +355,11 @@ const pending = computed(() => {
           </div>
           <button class="btn" :title="T`Díselo al jefe para cambiarlo`" @click="message = T`Cambia el objetivo a: ${studio.board?.goal ?? ''}`"><Pencil /> {{ T`Editar` }}</button>
         </div>
+        <!-- Su CLI dice que no puede trabajar (modelo que no tiene, sin saldo): espera como si nada, pero no avanza. -->
+        <div v-if="boss?.problem" class="failed">
+          <AlertTriangle />
+          <span><b>{{ T`El jefe no puede trabajar.` }}</b> {{ T`Su terminal dice: «${boss.problem}». Revisa que su modelo exista y que su cuenta tenga credencial y saldo; puedes cambiarle el modelo o el proveedor en Plantilla.` }}</span>
+        </div>
         <!-- Detenido: su CLI pregunta algo y nada de lo que escribas le llega hasta que contestes. -->
         <div v-if="boss?.state === 'blocked'" class="stuck">
           <p><AlertTriangle /> <span><b>{{ T`El jefe está detenido: su CLI te pregunta algo.` }}</b> {{ T`Contéstale aquí mismo. La primera vez en una carpeta pregunta si confías en ella: baja con la flecha a «Yes, I trust this folder» y Enter (Enter solo elige «No, exit» y lo cierra). Tus mensajes se entregan en cuanto contestes.` }}</span></p>
@@ -375,6 +393,7 @@ const pending = computed(() => {
         <form class="say" @submit.prevent="send">
           <input v-model="message" :placeholder="sayPlaceholder" />
           <button type="submit" class="btn primary"><Send /> {{ T`Enviar` }}</button>
+          <button type="button" class="btn" :disabled="stopping" :title="T`Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.`" @click="stop"><Square /> {{ T`Detener` }}</button>
         </form>
         <p v-if="studio.error" class="err">{{ studio.error }}</p>
       </div>
@@ -455,6 +474,8 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .goal p.open { display: block; max-height: 30vh; overflow-y: auto; }
 .goal .more { margin-top: 2px; padding: 0; background: none; border: 0; font: 700 11px var(--font); color: var(--accent); cursor: pointer; }
 .goal .more:hover { text-decoration: underline; }
+.failed { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.5; background: var(--tint-danger); border: 2px solid var(--st-block); overflow-wrap: anywhere; }
+.failed > svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
 .stuck-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .stuck { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--tint-danger); border: 2px solid var(--st-block); }
 .stuck p { margin: 0; display: flex; gap: 10px; font-size: 12px; line-height: 1.5; }

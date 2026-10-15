@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { delimiter } from 'node:path'
 import { getProvider, type Effort, type ProviderId } from './providers.js'
 import { ScreenReader, type EmployeeState } from './state.js'
-import { createOffice, removeOffice, type Office } from './worktree.js'
+import { createOffice, placeWorkspaceFiles, removeOffice, type Office } from './worktree.js'
 
 /** Lo mínimo de node-pty que usamos; permite probar sin terminal real. */
 export interface Pty {
@@ -47,6 +47,8 @@ export interface HireRequest {
   path?: string[]
   /** Retomar su conversación anterior en vez de empezar una nueva (ver ProviderAdapter.sessions). */
   session?: { id?: string; resume: boolean }
+  /** Archivos que su CLI lee de su carpeta de trabajo (ver ProviderAdapter.workspaceFiles). */
+  files?: Record<string, string>
 }
 
 export interface Employee {
@@ -66,6 +68,8 @@ export interface Employee {
   sessionId?: string
   /** true si arrancó retomando su conversación anterior. */
   resumed?: boolean
+  /** Lo que su CLI avisó que le impide trabajar (modelo que no tiene, sin saldo…), mientras siga así. */
+  problem?: string
 }
 
 export interface ManagerEvents {
@@ -76,6 +80,8 @@ export interface ManagerEvents {
   context: [id: string, pct: number]
   /** Qué hace quien está trabajando; null cuando deja de trabajar. */
   activity: [id: string, activity: Activity | null]
+  /** Su CLI avisa que no puede trabajar (el renglón del aviso); null cuando ya trabaja. */
+  failure: [id: string, problem: string | null]
 }
 
 /** Una pantalla conocida que detiene a una CLI y espera al usuario. `permission`: cualquier otra pregunta. */
@@ -103,7 +109,9 @@ const ANSWERS: Partial<Record<BlockKind, RegExp>> = {
  * Lo que sí es una pregunta de permiso de la CLI (correr un comando, editar o crear un archivo).
  * Cualquier otro menú también detiene al agente, pero a ese no se le contesta solo.
  */
-const APPROVAL_PROMPTS = [/do you want to (proceed|make this edit|create|run)/i, /allow (this )?command\?/i, /would you like to (run|make|apply)\b/i, /approve\?/i]
+const APPROVAL_PROMPTS = [/do you want to (proceed|make this edit|create|run)/i, /allow (this )?command\?/i, /would you like to (run|make|apply)\b/i, /approve\?/i, /permission required/i]
+/** Menú en un solo renglón con «Allow once» primero y ya marcado (OpenCode): Enter lo elige. */
+const INLINE_ALLOW = /allow once\s{2,}allow always/i
 /** Renglón del menú donde está el cursor. */
 const MENU_CURSOR = /^\s*[❯›>]\s/
 /** Cuánto debe llevar el prompt a la vista para escribirle aunque la pantalla siga moviéndose. */
@@ -118,6 +126,7 @@ interface Live {
   /** Desde cuándo se ve su prompt sin interrupción, mientras la pantalla no se queda quieta. */
   promptSince?: number
   activityTimer?: ReturnType<typeof setTimeout>
+  failureTimer?: ReturnType<typeof setTimeout>
   activityKey?: string
   quietTimer?: ReturnType<typeof setTimeout>
 }
@@ -153,6 +162,8 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     const ownOffice = !req.office
     const office = req.office ?? (await createOffice(req.repo, id))
     const launch = { model: req.model, effort: req.effort, systemPrompt: req.systemPrompt }
+    // Lo que su CLI lee de su carpeta para aplicar los permisos del puesto; uno que ya traiga el proyecto no se toca.
+    const kept = req.files ? await placeWorkspaceFiles(office.path, req.files) : []
 
     // TERM dice qué terminal tiene enfrente la CLI. Abierta desde el menú de inicio, la app no hereda
     // ninguna, y sin ella Claude Code dibuja con símbolos de reserva (su prompt es «>» en vez de «❯»):
@@ -202,7 +213,10 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       office,
       state: 'starting',
       pid: pty.pid,
-      warnings: adapter.unsupported(launch),
+      warnings: [
+        ...adapter.unsupported(launch),
+        ...kept.map((f) => T`Su carpeta ya trae ${f} del proyecto: no se le pudo poner el de Orquest, y lo prohibido del manual no se le aplica.`),
+      ],
       sessionId,
       resumed,
     }
@@ -238,6 +252,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
 
     entry.reader.feed(data)
     this.tellActivity(entry)
+    this.tellFailure(entry)
 
     clearTimeout(entry.quietTimer)
     const recheck = () => {
@@ -264,6 +279,27 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       entry.activityKey = key
       this.emit('activity', entry.employee.id, now)
     }, 400)
+  }
+
+  /**
+   * Avisa cuando su CLI dice que no puede trabajar, una vez por aviso distinto. Se borra cuando el
+   * aviso ya no está y se puso a trabajar: ya pudo.
+   */
+  private tellFailure(entry: Live) {
+    if (entry.failureTimer) return
+    entry.failureTimer = setTimeout(() => {
+      entry.failureTimer = undefined
+      if (this.live.get(entry.employee.id) !== entry) return
+      const seen = entry.reader.failure()
+      const e = entry.employee
+      if (seen && seen !== e.problem) {
+        e.problem = seen
+        this.emit('failure', e.id, seen)
+      } else if (!seen && e.problem && e.state === 'working') {
+        e.problem = undefined
+        this.emit('failure', e.id, null)
+      }
+    }, 300)
   }
 
   private setState(entry: Live, state: EmployeeState) {
@@ -325,6 +361,19 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     return /\[pasted/i.test(screen) || (tail.length > 0 && screen.includes(tail))
   }
 
+  /**
+   * ¿Su caja de entrada quedó con ese texto? Pasa al detenerla recién enviado: Claude Code regresa el
+   * mensaje a su caja. Se mira solo lo de abajo de la pantalla, donde está la caja.
+   */
+  inputHolds(id: string, text: string): boolean {
+    const e = this.live.get(id)
+    if (!e) return false
+    const flat = (s: string) => s.replace(/\s+/g, '')
+    const bottom = flat(e.reader.screen().split('\n').filter((l) => l.trim()).slice(-10).join(''))
+    const wanted = flat(text)
+    return wanted.length > 0 && bottom.includes(wanted.slice(-40))
+  }
+
   atPrompt(id: string): boolean {
     const e = this.live.get(id)
     if (!e) return false
@@ -374,6 +423,10 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     const wanted = kind && ANSWERS[kind]
     const lines = e.reader.screen().split('\n')
     const target = wanted ? lines.findIndex((l) => wanted.test(l)) : -1
+    if (kind === 'permission' && target >= 0 && INLINE_ALLOW.test(lines[target])) {
+      e.pty.write('\r')
+      return
+    }
     // El cursor del menú es el más cercano a esa opción: más arriba puede verse el del prompt de la CLI.
     const cursor = lines.map((l, i) => (MENU_CURSOR.test(l) ? i : -1)).filter((i) => i >= 0).sort((x, y) => Math.abs(x - target) - Math.abs(y - target))[0] ?? -1
     if (target < 0 || cursor < 0) throw new Error(T`No encontré esa pregunta en su pantalla. Ábrele la terminal y contesta ahí.`)

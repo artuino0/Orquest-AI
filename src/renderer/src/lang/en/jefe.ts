@@ -196,6 +196,20 @@ const en: Record<string, string> = {
   'Cuando un empleado pida permiso para correr un comando o editar un archivo, el jefe dice que sí por ti. Lo prohibido en su manual no lo autoriza, y los merges siguen siendo tuyos.': "When an employee asks permission to run a command or edit a file, the boss says yes for you. It won't approve what their manual forbids, and merges are still yours.",
   'Lo prohibido en su manual no lo autoriza; los merges siguen siendo tuyos.': "It won't approve what their manual forbids; merges are still yours.",
   'Autoriza los permisos de su equipo': "Approves its team's permissions",
+  "El jefe no puede trabajar.": "The boss can't work.",
+  "Su terminal dice: «{0}». Revisa que su modelo exista y que su cuenta tenga credencial y saldo; puedes cambiarle el modelo o el proveedor en Plantilla.": "Their terminal says: “{0}”. Check that their model exists and that their account has credentials and balance; you can change their model or provider in Team.",
+  "{0} descartada. No pude quitar sus cambios de la rama: se le pidió que lo haga antes de seguir.": "{0} discarded. I couldn't remove its changes from the branch: they were asked to do it before going on.",
+  "{0} descartada.": "{0} discarded.",
+  "No la quieres: no se integra y sus cambios salen de la rama de {0}": "You don't want it: it isn't merged and its changes leave {0}'s branch",
+  "¿Descartar {0}?": "Discard {0}?",
+  "No se integra y lo que trajo sale de la rama de {0}. Si escribes abajo por qué, se lo dice a {1} y al jefe.": "It isn't merged and what it brought leaves {0}'s branch. If you write why below, {1} and the boss are told.",
+  "Sí, descartarla": "Yes, discard it",
+  "Descartar": "Discard",
+  "Notas si la regresas o la descartas (las recibe {0} y el jefe)…": "Notes if you send it back or discard it ({0} and the boss get them)…",
+  "Detenido. Tu mensaje volvió a la caja para que lo corrijas.": "Stopped. Your message is back in the box so you can fix it.",
+  "Detenido.": "Stopped.",
+  "Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.": "Stops them (Esc in their terminal), in case you asked for something by mistake. If you just sent it, your message comes back here so you can fix it.",
+  "Detener": "Stop",
 }
 
 export default en

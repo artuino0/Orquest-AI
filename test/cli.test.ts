@@ -141,6 +141,10 @@ describe('comando orquest: herramientas para CLIs sin MCP', () => {
     expect(help.out).toContain('Eres jefe (jefe).')
     expect(help.out).toContain('--depende_de <lista> (opcional)')
     expect(help.out).not.toContain('leer_tarea')
+    // La ayuda de una sola herramienta, como la piden los agentes.
+    const one = await orquest(BOSS_ID, ['asignar_tarea', '--help'])
+    expect(one.out).toContain('asignar_tarea:')
+    expect(one.out).not.toContain('proponer_plantilla:')
 
     // La plantilla es una lista de objetos: entra por la entrada estándar.
     const plan = JSON.stringify({ puestos: [{ puesto: 'backend', proveedor: 'kimi', motivo: 'sin historial' }] })

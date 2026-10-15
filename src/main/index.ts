@@ -104,6 +104,7 @@ manager.on('data', (id, data) => send('employee:data', id, data))
 manager.on('state', (id, state) => send('employee:state', id, state))
 manager.on('hired', (e) => send('employee:hired', e))
 manager.on('activity', (id, activity) => send('employee:activity', id, activity))
+manager.on('failure', (id, problem) => send('employee:problem', id, problem))
 
 function studio(): Studio {
   if (!current) throw new Error(T`No hay proyecto abierto.`)
@@ -225,10 +226,12 @@ handle('tools:list', () => listTools(current?.snapshot().repo))
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))
+handle('boss:stop', () => studio().stop())
 handle('boss:answer', (id: string, text: string) => void studio().answerQuestion(id, text))
 handle('template:approve', (slots: SlotEdit[]) => void studio().approveTemplate(slots))
 handle('task:merge', async (id: string) => void (await studio().merge(id)))
 handle('task:return', (id: string, notes: string) => studio().userReturn(id, notes))
+handle('task:discard', (id: string, reason?: string) => studio().discard(id, reason))
 handle('task:diff', (id: string) => studio().diff(id))
 
 handle('library:get', () => {

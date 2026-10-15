@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { AlertTriangle, ChevronDown, ChevronRight, Crown, GitMerge, Inbox, Undo2 } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, ChevronRight, Crown, GitMerge, Inbox, Trash2, Undo2 } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { qaOf } from './taskLabels'
 import PanelFrame from './PanelFrame.vue'
@@ -52,6 +52,20 @@ async function sendBack(id: string, why?: string) {
   busy.value = null
 }
 
+/** Cuál pide confirmar el descarte: quita sus cambios de la rama de quien la hizo. */
+const discarding = ref<string | null>(null)
+async function discard(id: string) {
+  busy.value = id
+  const undone = await studio.discardTask(id, notes.value[id]?.trim() || undefined)
+  if (undone) {
+    notes.value[id] = ''
+    delete conflicts.value[id]
+    studio.notice(undone === 'failed' ? T`${id} descartada. No pude quitar sus cambios de la rama: se le pidió que lo haga antes de seguir.` : T`${id} descartada.`)
+  }
+  discarding.value = null
+  busy.value = null
+}
+
 const askBoss = (id: string) => studio.sayToBoss(T`No se pudo integrar ${id}: ${conflicts.value[id]}. Resuélvelo.`)
 
 const member = (id: string) => studio.board?.staff.find((m) => m.id === id)
@@ -99,9 +113,20 @@ const subtitle = computed(() => {
             <h2><span class="id">{{ t.id }}</span> {{ t.title }} <span class="chip" :style="{ color: qaOf(t).color ? `var(--st-${qaOf(t).color})` : 'var(--text-secondary)' }">{{ qaOf(t).text }}</span></h2>
             <p class="dim"><i class="sq" :style="{ background: `var(--pv-${member(t.assignee)?.provider ?? 'grok'})` }" />{{ studio.nameOf(t.assignee) }} · {{ member(t.assignee)?.role }} · {{ cli(t.assignee) }}<template v-if="t.repo"> · {{ T`repositorio ${t.repo}` }}</template><template v-if="t.returns"> · {{ T`regresó ${t.returns}×` }}</template></p>
           </div>
+          <button class="btn danger" :disabled="busy === t.id" :title="T`No la quieres: no se integra y sus cambios salen de la rama de ${studio.nameOf(t.assignee)}`" @click="discarding = t.id"><Trash2 /> {{ T`Descartar` }}</button>
           <button class="btn" :disabled="busy === t.id || !notes[t.id]?.trim()" :title="T`Escribe abajo qué falta`" @click="sendBack(t.id)"><Undo2 /> {{ T`Regresar` }}</button>
           <button class="btn primary" :disabled="busy === t.id" @click="merge(t.id)"><GitMerge /> {{ conflicts[t.id] ? T`Reintentar` : T`Integrar` }}</button>
         </header>
+
+        <div v-if="discarding === t.id" class="problem">
+          <Trash2 />
+          <div>
+            <b>{{ T`¿Descartar ${t.id}?` }}</b>
+            <p>{{ T`No se integra y lo que trajo sale de la rama de ${studio.nameOf(t.assignee)}. Si escribes abajo por qué, se lo dice a ${studio.nameOf(t.assignee)} y al jefe.` }}</p>
+            <button class="btn danger" :disabled="busy === t.id" @click="discard(t.id)"><Trash2 /> {{ T`Sí, descartarla` }}</button>
+            <button class="btn" @click="discarding = null">{{ T`Cancelar` }}</button>
+          </div>
+        </div>
 
         <div v-if="conflicts[t.id]" class="problem">
           <AlertTriangle />
@@ -133,7 +158,7 @@ const subtitle = computed(() => {
           </div>
         </template>
 
-        <input v-model="notes[t.id]" class="notes" :placeholder="T`Notas si la regresas (las recibe ${studio.nameOf(t.assignee)} por medio del jefe)…`" />
+        <input v-model="notes[t.id]" class="notes" :placeholder="T`Notas si la regresas o la descartas (las recibe ${studio.nameOf(t.assignee)} y el jefe)…`" />
         <p v-if="studio.error" class="bad">{{ studio.error }}</p>
       </article>
 

@@ -159,11 +159,10 @@ describe('burnout', () => {
     expect(typed.get(id)).toContain('escribir_traspaso')
 
     expect(await s.call({ kind: 'employee', id }, 'escribir_traspaso', { traspaso: 'Hice GET /tareas. Falta POST. Ojo: ids son uuid.' })).toContain('Ahora descansas')
-    await tick(300)
-
-    expect(launches.get(id)).toBe(2)
+    // Relanzar toma su tiempo (git, la bitácora): se espera a que pase, sin reloj fijo.
+    await expect.poll(() => launches.get(id), { timeout: 5000 }).toBe(2)
     expect(new Set(cwds.get(id))).toEqual(new Set([join(repo, '.orquest', 'oficinas', id)]))
-    expect(typed.get(id)).toContain('Volviste de descansar')
+    await expect.poll(() => typed.get(id), { timeout: 5000 }).toContain('Volviste de descansar')
     expect(typed.get(id)).toContain(join(repo, '.orquest', 'bitacoras', `${id}.md`))
     expect(s.board.staff.find((m) => m.id === id)!.online).toBe(true)
     expect(s.snapshot().hints[id]).toBeUndefined()
@@ -189,8 +188,8 @@ describe('burnout', () => {
     await tick()
     expect(s.snapshot().hints[id]).toEqual({ state: 'gaming' })
     await s.call({ kind: 'employee', id }, 'escribir_traspaso', { traspaso: 'ok' })
-    await tick(300)
-    expect(launches.get(id)).toBe(2)
+    // Relanzar toma su tiempo (git, la bitácora): se espera a que pase, sin reloj fijo.
+    await expect.poll(() => launches.get(id), { timeout: 5000 }).toBe(2)
     // Sesión nueva: vuelve a reportar su piso y no se va a jugar otra vez.
     await reportContext(s, id, 21)
     await tick()
@@ -209,8 +208,8 @@ describe('burnout', () => {
     await tick()
     expect(s.snapshot().hints[id]).toEqual({ state: 'gaming' })
     await s.call({ kind: 'employee', id }, 'escribir_traspaso', { traspaso: 'listo' })
-    await tick(300)
-    expect(launches.get(id)).toBe(2)
+    // Relanzar toma su tiempo (git, la bitácora): se espera a que pase, sin reloj fijo.
+    await expect.poll(() => launches.get(id), { timeout: 5000 }).toBe(2)
   })
 
   it('si no escribe el traspaso a tiempo, se reinicia igual', async () => {

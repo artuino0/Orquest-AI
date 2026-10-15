@@ -101,6 +101,8 @@ export interface OrquestApi {
   /** Ya se vio: que la apague. */
   stopReview(id: string): Promise<void>
   sayToBoss(text: string): Promise<void>
+  /** Detiene al jefe (Esc). Si lo detuviste recién enviado, devuelve tu mensaje para corregirlo. */
+  stopBoss(): Promise<{ restored?: string }>
   /** Contesta una pregunta pendiente del jefe (P1, P2…). */
   answerQuestion(id: string, text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
@@ -108,6 +110,8 @@ export interface OrquestApi {
   retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }): Promise<void>
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>
+  /** Descarta una entrega: no se integra y sale de la rama de quien la hizo. */
+  discardTask(id: string, reason?: string): Promise<'reset' | 'reverted' | 'failed' | 'none'>
   taskDiff(id: string): Promise<string>
   // Biblioteca del estudio: expedientes y manuales (compartidos entre proyectos).
   library(): Promise<LibraryView>
@@ -177,6 +181,8 @@ export interface OrquestApi {
   onState(cb: (id: string, state: EmployeeState) => void): () => void
   /** Qué está haciendo quien trabaja (leído de su pantalla); null cuando para. */
   onActivity(cb: (id: string, activity: Activity | null) => void): () => void
+  /** Su CLI avisa que no puede trabajar (modelo, saldo, límite); null cuando ya pudo. */
+  onProblem(cb: (id: string, problem: string | null) => void): () => void
   /** Planes, notas y demás documentos de texto del proyecto abierto, lo más reciente primero. */
   documents(): Promise<ProjectDocument[]>
   documentText(path: string): Promise<string>

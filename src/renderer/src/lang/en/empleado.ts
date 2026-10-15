@@ -130,6 +130,8 @@ const en: Record<string, string> = {
   'Le pide apagar lo que levantó': 'Asks them to shut down what they started',
   'Ya la vi, apágala': "I've seen it, shut it down",
   'Cancelar': 'Cancel',
+  "{0} no puede trabajar.": "{0} can't work.",
+  "Su terminal dice: «{0}». Revisa que su modelo exista y que su cuenta tenga credencial y saldo; puedes cambiarle el modelo en Plantilla.": "Their terminal says: “{0}”. Check that their model exists and that their account has credentials and balance; you can change their model in Team.",
 }
 
 export default en

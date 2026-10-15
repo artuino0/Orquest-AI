@@ -342,3 +342,33 @@ describe('reiniciar una terminal atorada', () => {
     expect(typed).toContain('Cómo vamos')
   })
 })
+
+describe('detener al jefe', () => {
+  it('le da Esc; si tu mensaje volvió a su caja, la vacía y te lo devuelve; lo que seguía en cola ya no va', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: repo(), manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, stopSettleMs: 30 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const t = terminals[0]
+    t.feed(CLAUDE_PROMPT)
+    await expect.poll(() => t.typed.join('').includes('[Orquest]'), { timeout: 5000 }).toBe(true)
+    studio.sayToBoss('borra la carpeta de pruebas')
+    await expect.poll(() => t.typed.join('').includes('borra la carpeta'), { timeout: 5000 }).toBe(true)
+    // Lo detienes al instante: Claude Code regresa el mensaje a su caja.
+    t.typed.length = 0
+    t.feed(`${CLEAR}──────────────────────\r\n❯ [Orquest] El usuario dice: borra la carpeta de pruebas (contéstale con decir_al_usuario; no ve tu terminal)\r\n──────────────────────\r\n`)
+    const r = await studio.stop()
+    // Esc y luego Ctrl+U hasta vaciarla (esta terminal de mentira no la vacía: se insiste con tope).
+    expect(t.typed[0]).toBe('\x1b')
+    expect(t.typed.slice(1).length).toBeGreaterThan(0)
+    expect(t.typed.slice(1).every((k) => k === '\x15')).toBe(true)
+    expect(t.typed.length).toBeLessThanOrEqual(13)
+    expect(r.restored).toBe('borra la carpeta de pruebas')
+    // Ya trabajando o terminado (su caja vacía): solo el Esc.
+    t.typed.length = 0
+    t.feed(CLAUDE_PROMPT)
+    expect(await studio.stop()).toEqual({ restored: undefined })
+    expect(t.typed).toEqual(['\x1b'])
+  })
+})

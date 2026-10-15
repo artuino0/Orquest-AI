@@ -307,7 +307,13 @@ function close() {
 }
 
 // Escribirle sin entrar a la terminal: el texto y Enter van directo a su CLI.
-const message = ref('')
+// Lo que le llevas escrito a cada quien se conserva al cambiar de persona o de pantalla.
+const message = computed({
+  get: () => studio.draft(e.value.id).value,
+  set: (text: string) => {
+    studio.draft(e.value.id).value = text
+  },
+})
 function say() {
   if (!message.value.trim()) return
   // Lo envía el estudio: escribe, espera a que la CLI lo reciba y da Enter (otra vez si no entró).
@@ -349,6 +355,12 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
         <button class="btn danger" @click="studio.fire(e.id)"><UserMinus /> {{ T`Despedir` }}</button>
       </div>
     </header>
+
+    <!-- Su CLI dice que no puede trabajar (modelo que no tiene, sin saldo): espera como si nada, pero no avanza. -->
+    <div v-if="e.problem" class="failed">
+      <AlertTriangle />
+      <span><b>{{ T`${studio.nameOf(e.id)} no puede trabajar.` }}</b> {{ T`Su terminal dice: «${e.problem}». Revisa que su modelo exista y que su cuenta tenga credencial y saldo; puedes cambiarle el modelo en Plantilla.` }}</span>
+    </div>
 
     <!-- Su versión levantada para revisión: mientras se levanta, y luego sus direcciones. -->
     <div v-if="review" class="review" :class="review.status">
@@ -482,6 +494,8 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 
 <style scoped>
 .drawer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.failed { display: flex; align-items: flex-start; gap: 8px; padding: 8px 14px; font-size: 12px; line-height: 1.5; background: var(--tint-danger); border-bottom: 3px solid var(--st-block); overflow-wrap: anywhere; }
+.failed > svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
 .review { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 14px; font-size: 12px; background: var(--surface); border-bottom: 3px solid var(--border); }
 .review > svg { width: 16px; height: 16px; color: var(--st-work); flex: none; }
 .review.ready > svg { color: var(--st-idle); }

@@ -26,7 +26,8 @@ const send = (msg: object) => frame.value?.contentWindow?.postMessage({ orquest:
 function sendState() {
   if (!ready) return
   const state = officeState({
-    employees: studio.employees,
+    // Quien no puede trabajar (su CLI lo dijo) sale con el aviso de que te necesita.
+    employees: studio.employees.map((e) => (e.problem ? { ...e, state: studio.calmStateOf(e) } : e)),
     names: Object.fromEntries(studio.employees.map((e) => [e.id, studio.nameOf(e.id)])),
     tasks: studio.board?.tasks ?? [],
     hints: studio.board?.hints ?? {},
@@ -65,7 +66,7 @@ onBeforeUnmount(() => window.removeEventListener('message', onMessage))
 
 watch(() => studio.board?.tasks, sendEvents, { deep: true })
 watch(
-  () => [studio.employees.map((e) => `${e.id}:${e.state}:${studio.nameOf(e.id)}`).join(), JSON.stringify(studio.board?.hints), JSON.stringify(studio.board?.tasks.map((t) => [t.id, t.status, t.assignee])), studio.bossCharacter],
+  () => [studio.employees.map((e) => `${e.id}:${e.state}:${e.problem ?? ''}:${studio.nameOf(e.id)}`).join(), JSON.stringify(studio.board?.hints), JSON.stringify(studio.board?.tasks.map((t) => [t.id, t.status, t.assignee])), studio.bossCharacter],
   sendState,
 )
 </script>

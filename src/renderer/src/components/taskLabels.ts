@@ -10,6 +10,7 @@ export const TASK_STATUS: Record<Task['status'], string> = {
   approved: T`espera tu aprobación`,
   merged: T`integrada`,
   done: T`terminada`,
+  discarded: T`descartada`,
 }
 
 /** Ficha de color (`--st-<color>`) del estado de una tarea. */
@@ -22,6 +23,7 @@ export const TASK_COLOR: Record<Task['status'], string> = {
   approved: 'block',
   merged: 'idle',
   done: 'idle',
+  discarded: 'dep',
 }
 
 export const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)

@@ -315,6 +315,38 @@ describe('fase 2: un proyecto chico de punta a punta', () => {
     expect(s.board.task('T1').status).toBe('approved')
   })
 
+  it('descartar una entrega: no se integra, sale de su rama sin tocar la anterior y se avisa', async () => {
+    const { repo, manager, studio: s } = await setup()
+    await s.hireBoss({ provider: 'claude', goal: 'x' })
+    s.board.propose([{ role: 'backend', provider: 'claude' }], () => true)
+    s.approveTemplate([{ id: s.board.slots[0].id, role: 'backend', provider: 'claude' }])
+    await s.call({ kind: 'boss' }, 'levantar_empleado', { puesto: 'backend' })
+    const id = s.board.staff[0].id
+    const office = manager.get(id)!.office.path
+    const deliver = async (title: string, file: string) => {
+      await s.call({ kind: 'boss' }, 'asignar_tarea', { empleado: id, titulo: title })
+      await s.call({ kind: 'employee', id }, 'leer_tarea', {})
+      await writeFile(join(office, file), `${title}\n`)
+      await s.call({ kind: 'employee', id }, 'entregar', { reporte: title })
+    }
+    // T1 aprobada y esperando integrarse; T2 encima, que el usuario no quiere.
+    await deliver('API', 'api.ts')
+    await s.call({ kind: 'boss' }, 'revisar_entrega', { tarea: 'T1', decision: 'aprobar' })
+    await deliver('Lo que no quiere', 'malo.ts')
+    await s.call({ kind: 'boss' }, 'revisar_entrega', { tarea: 'T2', decision: 'aprobar' })
+    await s.call({ kind: 'boss' }, 'asignar_tarea', { empleado: id, titulo: 'Usa la API', depende_de: ['T2'] })
+
+    expect(await s.discard('T2', 'no era lo que pedí')).toBe('reset')
+    expect(s.board.task('T2').status).toBe('discarded')
+    expect(existsSync(join(office, 'malo.ts'))).toBe(false)
+    expect(existsSync(join(office, 'api.ts'))).toBe(true)
+    expect(s.board.task('T3').deps).toEqual([])
+    // T1 se sigue integrando con lo suyo y sin lo descartado.
+    await s.merge('T1')
+    expect(existsSync(join(repo, 'api.ts'))).toBe(true)
+    expect(existsSync(join(repo, 'malo.ts'))).toBe(false)
+  })
+
   it('el tablero se guarda en SQLite y se retoma al reabrir', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'orquest-db-'))
     const path = join(dir, 'studio.db')

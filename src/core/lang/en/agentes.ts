@@ -240,6 +240,22 @@ const en: Record<string, string> = {
   'El usuario terminó de revisar tu versión. Apaga lo que levantaste para eso{0} y sigue con lo tuyo.': 'The user finished reviewing your version. Shut down what you started for it{0} and carry on with your work.',
   'Si el usuario quiere ver funcionando lo de un empleado antes de integrarlo, pídeselo con ejecutar_revision: él lo levanta y el usuario recibe las direcciones.': "If the user wants to see an employee's work running before merging it, ask for it with ejecutar_revision: they start it and the user gets the addresses.",
   'Si te piden levantar tu versión para revisión, hazlo desde tu oficina con lo que necesite (backend, base de datos), en segundo plano, y avisa con revision_lista.': 'If you are asked to start your version for review, do it from your office with whatever it needs (backend, database), in the background, and report with revision_lista.',
+  "{0} no puede trabajar: su terminal dice «{1}». Suele ser su modelo (no existe, no tiene credencial o no tiene saldo). Díselo al usuario con decir_al_usuario y propón otro modelo o proveedor; no le asignes más trabajo mientras siga así.": "{0} can't work: their terminal says “{1}”. It is usually their model (it doesn't exist, has no credentials or no balance). Tell the user with decir_al_usuario and suggest another model or provider; don't assign them more work while this lasts.",
+  "el usuario la descartó: {0}": "the user discarded it: {0}",
+  "el usuario la descartó": "the user discarded it",
+  "ya no espera a {0}: se descartó": "no longer waits for {0}: it was discarded",
+  "el usuario descartó {0} ({1}): {2}": "the user discarded {0} ({1}): {2}",
+  "el usuario descartó {0} ({1})": "the user discarded {0} ({1})",
+  "El usuario descartó {0} ({1}): {2}.": "The user discarded {0} ({1}): {2}.",
+  "El usuario descartó {0} ({1}).": "The user discarded {0} ({1}).",
+  "Quita de tu rama lo que trajo (commit {0}) antes de seguir: no debe ir en tu próxima entrega.": "Remove what it brought from your branch (commit {0}) before going on: it must not go into your next delivery.",
+  "Lo que trajo ya se quitó de tu rama.": "What it brought was already removed from your branch.",
+  "No la vuelvas a entregar.": "Don't deliver it again.",
+  "El usuario descartó {0} de {1}: {2}.": "The user discarded {0} from {1}: {2}.",
+  "El usuario descartó {0} de {1}.": "The user discarded {0} from {1}.",
+  "Dependían de ella: {0}; ya no la esperan. Revisa si siguen teniendo sentido y ajústalas.": "These depended on it: {0}; they no longer wait for it. Check whether they still make sense and adjust them.",
+  "su oficina ya no existía; se rearmó con su rama": "their office no longer existed; it was rebuilt from their branch",
+  "el usuario lo detuvo": "the user stopped them",
 }
 
 export default en

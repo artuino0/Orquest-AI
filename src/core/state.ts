@@ -213,6 +213,17 @@ export class ScreenReader {
     return describeActivity(this.recent())
   }
 
+  /**
+   * El renglón con que la CLI avisa que no puede trabajar (ver ScreenPatterns.failure), si se ve.
+   * Se busca en toda la pantalla: hay CLIs que lo sacan arriba, como notificación.
+   */
+  failure(): string | undefined {
+    const patterns = this.patterns.failure
+    if (!patterns?.length) return undefined
+    const line = this.screen().split('\n').find((l) => patterns.some((r) => r.test(l)))
+    return line?.replace(/^[\s┃│|]+|[\s┃│|]+$/g, '').replace(/\s{2,}/g, ' ')
+  }
+
   /** % de contexto usado que muestra la CLI, si lo muestra. */
   context(): number | undefined {
     return this.patterns.context?.(this.recent())

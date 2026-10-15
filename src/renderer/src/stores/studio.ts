@@ -152,7 +152,20 @@ export const useStudio = defineStore('studio', () => {
     { immediate: true },
   )
   /** El estado de alguien sin los parpadeos entre paso y paso. */
-  const calmStateOf = (e: Employee): EmployeeState => calm.value[e.id] ?? e.state
+  /**
+   * Lo que el usuario lleva escrito en el chat de cada quien, por proyecto. Vive aquí y no en el
+   * panel: al irse a otra pantalla y volver, el panel se arma de nuevo y lo escrito se perdía.
+   */
+  const drafts = ref<Record<string, string>>({})
+  const draft = (id: string) =>
+    computed({
+      get: () => drafts.value[`${repo.value}|${id}`] ?? '',
+      set: (text: string) => (drafts.value = { ...drafts.value, [`${repo.value}|${id}`]: text }),
+    })
+
+  /** Quien no puede trabajar (su CLI lo dijo) espera como si nada: se ve como que te necesita. */
+  const failed = (e: Employee) => !!e.problem && e.state !== 'working' && e.state !== 'exited'
+  const calmStateOf = (e: Employee): EmployeeState => (failed(e) ? 'blocked' : calm.value[e.id] ?? e.state)
 
   const usable = computed(() => clis.value.filter((c) => c.installed && c.session !== false))
   const canHire = computed(() => usable.value.length > 0 && !!repo.value)
@@ -168,7 +181,10 @@ export const useStudio = defineStore('studio', () => {
   const tasksOf = (id: string): Task[] => board.value?.tasks.filter((t) => t.assignee === id) ?? []
   const counts = computed(() => {
     const c: Partial<Record<EmployeeState, number>> = {}
-    for (const e of employees.value) c[e.state] = (c[e.state] ?? 0) + 1
+    for (const e of employees.value) {
+      const s = failed(e) ? 'blocked' : e.state
+      c[s] = (c[s] ?? 0) + 1
+    }
     return c
   })
 
@@ -279,6 +295,12 @@ export const useStudio = defineStore('studio', () => {
   const retune = (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => attempt(() => window.orquest.retune(id, change))
   const mergeTask = (id: string) => attempt(() => window.orquest.mergeTask(id))
   const returnTask = (id: string, notes: string) => attempt(() => window.orquest.returnTask(id, notes))
+  /** Cómo quedó su rama ('failed': no se pudo quitar lo que trajo); null si no se pudo descartar. */
+  async function discardTask(id: string, reason?: string) {
+    let undone: Awaited<ReturnType<typeof window.orquest.discardTask>> | null = null
+    await attempt(async () => (undone = await window.orquest.discardTask(id, reason)))
+    return undone
+  }
   const sayToBoss = (text: string) => attempt(() => window.orquest.sayToBoss(text))
   const answerQuestion = (id: string, text: string) => attempt(() => window.orquest.answerQuestion(id, text))
 
@@ -386,6 +408,13 @@ export const useStudio = defineStore('studio', () => {
   /** Reinicia su terminal cuando quedó atorada. */
   const restart = (id: string) => attempt(() => window.orquest.restart(id))
 
+  // Su CLI dice que no puede trabajar (modelo que no tiene, sin saldo): se queda a la vista en su panel.
+  window.orquest.onProblem((id, problem) => {
+    const e = employees.value.find((x) => x.id === id)
+    if (!e) return
+    e.problem = problem ?? undefined
+    if (problem) log(id, `⚠ ${problem}`)
+  })
   window.orquest.onState((id, state) => {
     const e = employees.value.find((x) => x.id === id)
     if (!e) return
@@ -399,11 +428,11 @@ export const useStudio = defineStore('studio', () => {
   })
 
   return {
-    blocks, answerBlock, restart,
+    blocks, answerBlock, restart, draft,
     version,
     screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
-    detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, retune, setTeamApproval, requestReview, stopReview, mergeTask, returnTask, sayToBoss, answerQuestion, notice,
+    detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, retune, setTeamApproval, requestReview, stopReview, mergeTask, returnTask, discardTask, sayToBoss, answerQuestion, notice,
   }
 })

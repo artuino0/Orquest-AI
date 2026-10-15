@@ -66,9 +66,9 @@ async function request(init) {
   }
 }
 
-function help(me) {
+function help(me, only) {
   const lines = [L(`Eres ${me.quien} (${me.id}).`, `You are ${me.quien} (${me.id}).`), L('Uso: orquest <herramienta> [--campo valor …]', 'Usage: orquest <tool> [--field value …]'), '']
-  for (const t of me.herramientas) {
+  for (const t of me.herramientas.filter((x) => !only || x.nombre === only)) {
     lines.push(`  ${t.nombre}: ${t.descripcion}`)
     for (const f of t.campos) lines.push(`      --${f.nombre} <${f.tipo}>${f.requerido ? '' : L(' (opcional)', ' (optional)')}${f.descripcion ? `  ${f.descripcion}` : ''}`)
   }
@@ -76,11 +76,45 @@ function help(me) {
   return lines.join('\n')
 }
 
+/**
+ * Gancho de Antigravity antes de cada herramienta (`.agents/hooks.json` de su oficina): niega los
+ * comandos que el manual del puesto prohíbe (ORQUEST_DENY, prefijos). agy no recibe permisos por
+ * argumento y, con su ajuste «always-proceed», corre todo sin preguntar; esto lo frena igual.
+ * Un comando encadenado (`cd x && git push`) se revisa por partes.
+ */
+async function agyHook() {
+  let call = {}
+  try {
+    call = JSON.parse((await stdin()) || '{}')
+  } catch {}
+  let deny = []
+  try {
+    deny = JSON.parse(process.env.ORQUEST_DENY || '[]')
+  } catch {}
+  const line = call.toolCall?.name === 'run_command' ? String(call.toolCall.args?.CommandLine ?? '') : ''
+  const parts = line.split(/&&|\|\||;|\||\n/).map((p) => p.trim().replace(/\s+/g, ' '))
+  const hit = deny.find((d) => parts.some((p) => p === d || p.startsWith(`${d} `)))
+  process.stdout.write(
+    JSON.stringify(
+      hit
+        ? { decision: 'deny', reason: L(`Prohibido por el manual de tu puesto en Orquest: «${hit}». Si de verdad hace falta, pídeselo al jefe.`, `Forbidden by your role manual in Orquest: "${hit}". If it's really needed, ask the boss.`) }
+        : { decision: 'allow' },
+    ),
+  )
+}
+
 const [tool, ...rest] = process.argv.slice(2)
+if (tool === 'gancho-agy') {
+  await agyHook()
+  process.exit(0)
+}
 if (!url) fail(2, L('Esta terminal no la lanzó Orquest (falta ORQUEST_URL).', "Orquest didn't launch this terminal (ORQUEST_URL is missing)."))
 
 if (!tool || ['ayuda', 'help', '--help', '-h'].includes(tool)) {
   console.log(help(await request()))
+} else if (rest.some((a) => ['--help', '-h', '--ayuda'].includes(a))) {
+  // `orquest <herramienta> --help`: los campos de esa herramienta (los agentes lo intentan solos).
+  console.log(help(await request(), tool.replace(/-/g, '_')))
 } else if (tool === 'quien') {
   const me = await request()
   console.log(`${me.quien} ${me.id}`)

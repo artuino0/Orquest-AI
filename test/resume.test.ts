@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EmployeeManager, type Pty, type Spawner } from '../src/core/employees.js'
 import { StudioStore } from '../src/core/store.js'
@@ -219,5 +220,47 @@ describe('corte al cerrar y pregunta al abrir', () => {
     expect(s.bossOnline).toBe(false)
     await s.hireBoss({ provider: 'claude', goal: 'Tienda' })
     expect(s.bossOnline).toBe(true)
+  })
+})
+
+describe('si alguien borró la carpeta .orquest', () => {
+  it('al reabrir, su oficina se rearma con su rama y vuelve a su escritorio', async () => {
+    const repo = await makeRepo()
+    const store = new StudioStore(join(await mkdtemp(join(tmpdir(), 'orquest-db-')), 'estudio.db'))
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    // Recuerda en qué carpeta nació cada terminal y si existía: sin ella, la terminal de verdad no nace.
+    const cwds: string[] = []
+    const spawn: Spawner = (_file, _args, o) => {
+      cwds.push(existsSync(o.cwd) ? o.cwd : `FALTA ${o.cwd}`)
+      let onExit: (e: { exitCode: number }) => void = () => {}
+      return { pid: 1, onData: () => {}, onExit: (cb) => (onExit = cb), write: () => {}, resize: () => {}, kill: () => onExit({ exitCode: 0 }) }
+    }
+    const opened = async () => {
+      const s = await new Studio({ repo, manager: new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 }), store, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, handoffTimeoutMs: 50 }).init()
+      studios.push(s)
+      return s
+    }
+    const a = await opened()
+    await a.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    a.board.propose([{ role: 'backend', provider: 'claude' }], () => true)
+    a.approveTemplate([{ id: a.board.slots[0].id, role: 'backend', provider: 'claude' }])
+    await a.call({ kind: 'boss' }, 'levantar_empleado', { puesto: 'backend' })
+    const office = cwds.at(-1)!
+    // Lo que ya tenía en commits vive en su rama.
+    await writeFile(join(office, 'api.ts'), 'export const api = 1\n')
+    execFileSync('git', ['add', '.'], { cwd: office })
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'API'], { cwd: office })
+    a.shutdown()
+
+    await rm(join(repo, '.orquest'), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    const before = cwds.length
+    const b = await opened()
+    const notices: string[] = []
+    b.on('notice', (n) => notices.push(n))
+    await b.resume()
+    expect(cwds.slice(before).map((c) => resolve(c))).toContain(resolve(office))
+    expect(existsSync(join(office, 'api.ts'))).toBe(true)
+    expect(b.snapshot().staff[0].online).toBe(true)
+    expect(notices.some((n) => n.includes('ya no existía'))).toBe(true)
   })
 })

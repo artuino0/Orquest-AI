@@ -238,6 +238,7 @@ const en: Record<string, string> = {
   'Deja su traspaso y vuelve a entrar con lo nuevo': 'Leaves a handoff and comes back in with the new settings',
   'Aplicar': 'Apply',
   'sin dato': 'no data',
+  "descartada": "discarded",
 }
 
 export default en

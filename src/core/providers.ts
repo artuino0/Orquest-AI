@@ -61,6 +61,20 @@ export function claudePermissions(p: Permissions) {
   }
 }
 
+/**
+ * Permisos del puesto en formato de OpenCode (va en la variable OPENCODE_PERMISSION).
+ * De fábrica OpenCode corre comandos y edita sin preguntar; aquí pregunta todo lo que el
+ * manual no permite. Gana la última regla que coincide: primero «todo pregunta», luego lo
+ * permitido y al final lo prohibido. El comando `orquest` (sus herramientas) siempre pasa.
+ */
+export function opencodePermissions(p: Permissions) {
+  const rules = (cmds: string[], value: 'allow' | 'deny') => Object.fromEntries(cmds.flatMap((c) => [[c, value], [`${c} *`, value]]))
+  return {
+    edit: p.edit ? 'allow' : 'ask',
+    bash: { '*': 'ask', ...rules(['orquest', ...p.allow, ...(p.install ? INSTALL_COMMANDS : [])], 'allow'), ...rules(p.deny, 'deny') },
+  }
+}
+
 export interface LaunchOptions {
   model?: string
   effort?: Effort
@@ -82,7 +96,28 @@ export interface ScreenPatterns {
   idle: RegExp[]
   /** % de contexto usado, si la CLI lo muestra en pantalla. */
   context?: (screen: string) => number | undefined
+  /**
+   * La CLI avisa que no puede trabajar: el modelo no existe o no tiene con qué usarlo
+   * (sin credencial, sin saldo, límite alcanzado). Después vuelve a esperar como si nada,
+   * así que sin esto se veía «en espera» para siempre.
+   */
+  failure?: RegExp[]
 }
+
+/**
+ * Avisos de no poder trabajar que dan varias CLIs o los servidores de sus modelos.
+ * Son frases del aviso, no palabras sueltas: lo que escribe el agente también sale en pantalla.
+ */
+export const FAILURES = [
+  /credit balance is too low/i,
+  /invalid api key/i,
+  /exceeded your current quota|insufficient[_ ](quota|balance|credits?|funds)/i,
+  /payment required/i,
+  // Alibaba (Qwen) con la cuenta sin pagar, visto en OpenCode.
+  /access denied, please make sure your account is in good standing/i,
+  // Codex lo escribe con apóstrofo curvo: «You’ve hit your usage limit».
+  /usage limit reached|you['’]?ve hit your (usage )?limit/i,
+]
 
 /** Toma el primer patrón que coincida y lo pasa a % usado. */
 function contextFrom(rules: [RegExp, (n: number) => number][]) {
@@ -170,6 +205,19 @@ export interface ProviderAdapter {
    * la URL. undefined = no sabemos conectarla; el jefe le habla por terminal.
    */
   mcpArgs?(o: ConnectOptions): string[]
+  /** Variables de entorno con que se le aplican los permisos del puesto, si los recibe así. */
+  connectEnv?(o: ConnectOptions): Record<string, string>
+  /**
+   * Archivos que la CLI lee de su carpeta de trabajo para aplicar los permisos del puesto (ruta
+   * relativa → contenido). Se escriben antes de lanzarla, fuera de git; si ya hay uno del proyecto, no se toca.
+   */
+  workspaceFiles?(o: ConnectOptions): Record<string, string>
+  /**
+   * Los mensajes se le mandan como pegado (bracketed paste). OpenCode absorbe lo tecleado
+   * despacio: el manual del puesto (miles de caracteres) tardaba más de un minuto en entrar
+   * y el Enter se perdía; pegado entra de una vez.
+   */
+  paste?: boolean
   /** Partes de los permisos del puesto que esta CLI no sabe aplicar. */
   permissionGaps?(permissions: Permissions): string[]
   /** true si los argumentos se comprobaron contra la CLI real. */
@@ -215,7 +263,7 @@ function generic(
       ...(o.effort ? [T`${name} no recibe esfuerzo por argumento; se ignora`] : []),
       ...(o.systemPrompt ? [T`${name} no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
     ],
-    screen: { working: [SPINNER, ESC_TO_INTERRUPT], blocked: PERMISSION, idle: [/^\s*>\s*$/m] },
+    screen: { working: [SPINNER, ESC_TO_INTERRUPT], blocked: PERMISSION, idle: [/^\s*>\s*$/m], failure: FAILURES },
     verified: false,
     ...extra,
   }
@@ -333,13 +381,15 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       // La pista "? for shortcuts" desaparece cuando hay barra de estado; la
       // caja de entrada entre dos líneas siempre está.
       // El prompt es «❯»; con símbolos de reserva (una terminal que no anuncia Unicode), «>».
-      idle: [/\? for shortcuts/i, /─{10,}\n\s*[❯>][^\n]*\n─{10,}/],
+      // La línea puede terminar con otro carácter (en 2.1.300 sale uno que la terminal no dibuja).
+      idle: [/\? for shortcuts/i, /─{10,}[^\n]*\n\s*[❯>][^\n]*\n[^\n]*─{10,}/],
       // Respaldo si la barra de estado no reporta.
       context: contextFrom([
         [/(\d+)% context used/i, (n) => n],
         [/Context low \((\d+)% remaining\)/i, (n) => 100 - n],
         [/(\d+)% until auto-compact/i, (n) => 100 - n],
       ]),
+      failure: FAILURES,
     },
     verified: true,
   },
@@ -391,6 +441,9 @@ ${stderr}`
       // sin esto Codex pregunta "Allow the orquest MCP server to run tool …?" en cada llamada.
       '-c',
       'mcp_servers.orquest.default_tools_approval_mode="approve"',
+      // Su barra de abajo ya no trae el contexto (visto en 0.162): se le pide. Queda «Context 12% used · 5h 40% left · weekly 84% left».
+      '-c',
+      'tui.status_line=["model-with-reasoning","context-used","five-hour-limit","weekly-limit"]',
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
       // Instalar dependencias necesita red; en el aislamiento de Codex viene cerrada y por eso pedía permiso.
       // Sigue aislado: solo escribe en su oficina.
@@ -405,7 +458,11 @@ ${stderr}`
       blocked: [...PERMISSION, /allow command\?/i, /update available/i, /skip until next version/i, /do you trust/i, /trust (this|the contents of this) (folder|directory)/i],
       // Caja de entrada vacía: su texto de ayuda y la pista de atajos (visto en 0.160).
       idle: [/send ⏎|⏎ send/i, /Ask Codex to do anything/i, /\? for shortcuts/i],
-      context: contextFrom([[/(\d+)% context left/i, (n) => 100 - n]]),
+      context: contextFrom([
+        [/Context (\d+)% used/i, (n) => n],
+        [/(\d+)% context left/i, (n) => 100 - n],
+      ]),
+      failure: FAILURES,
     },
     verified: false,
   },
@@ -418,6 +475,24 @@ ${stderr}`
     sessionKeyring: { service: 'gemini', user: 'antigravity' },
     models: { command: { args: ['models'], read: modelIds } },
     sessions: CONTINUE,
+    // Sus permisos solo viven en el ajuste global del usuario (con «always-proceed» corre todo sin
+    // preguntar). Lo que sí lee por proyecto son ganchos: uno antes de cada comando le niega lo prohibido
+    // del manual (`orquest gancho-agy`). Visto con agy 1.3.6: corre el gancho con cmd en Windows, y si el
+    // gancho falla, bloquea el comando.
+    connectEnv: ({ permissions }): Record<string, string> => (permissions?.deny.length ? { ORQUEST_DENY: JSON.stringify(permissions.deny) } : {}),
+    workspaceFiles: ({ permissions }): Record<string, string> =>
+      permissions?.deny.length
+        ? { '.agents/hooks.json': `${JSON.stringify({ orquest: { PreToolUse: [{ matcher: 'run_command', hooks: [{ type: 'command', command: 'orquest gancho-agy', timeout: 10 }] }] } }, null, 2)}\n` }
+        : {},
+    permissionGaps: (p) => (p.allow.length || !p.edit ? [T`Antigravity solo aplica lo prohibido del manual; lo demás depende de su propio ajuste de permisos.`] : []),
+    // Visto con agy 1.3.6: trabaja con «esc to cancel» y «⣯ Generating...» (tres puntos, no «…»);
+    // en una carpeta nueva pregunta si confías en ella («↑/↓ Navigate · enter Confirm»).
+    screen: {
+      working: [/esc to cancel/i, /[⠁-⣿]\s+\w[\w ]*\.\.\./, SPINNER, ESC_TO_INTERRUPT],
+      blocked: [...PERMISSION, /do you trust the contents of this project/i, /navigate · enter confirm/i],
+      idle: [/^\s*>\s*$/m, /\? for shortcuts/i],
+      failure: FAILURES,
+    },
   }),
   opencode: generic('opencode', 'OpenCode', ['opencode'], { command: 'npm install -g opencode-ai', url: 'https://opencode.ai' }, ['.local/share/opencode/auth.json'], {
     sessionCheck: {
@@ -429,8 +504,24 @@ ${stderr}`
       },
     },
     login: 'opencode auth login',
+    // `opencode models` da "proveedor/modelo", solo de los proveedores con credencial y los gratis de OpenCode.
     models: { command: { args: ['models'], read: modelIds } },
     sessions: CONTINUE,
+    paste: true,
+    connectEnv: ({ permissions }): Record<string, string> => (permissions ? { OPENCODE_PERMISSION: JSON.stringify(opencodePermissions(permissions)) } : {}),
+    // Visto con OpenCode 1.19 (en el panel de abajo y en su pregunta de permiso).
+    screen: {
+      // Su indicador dice «esc interrupt», sin «to», junto a una barra que se mueve.
+      working: [/esc interrupt/i, SPINNER],
+      blocked: [...PERMISSION, /permission required/i],
+      // Caja vacía: su ayuda «Ask anything…» y, ya conversando, la barra de abajo con «ctrl+p commands».
+      idle: [/ctrl\+p commands/i, /Ask anything…/],
+      // «59.3K (30%)»: tokens y % del contexto usado.
+      context: contextFrom([[/\d+(?:\.\d+)?K \((\d+)%\)/, (n) => n]]),
+      // Un modelo que no tiene (no existe o sin credencial) lo avisa un momento y sigue con su modelo por
+      // defecto, que puede ser otro de paga y fallar también.
+      failure: [/Model \S+ is not valid/i, /Invalid model format/i, ...FAILURES],
+    },
   }),
   // El binario corto de Command Code es `cmd`, que en Windows es el intérprete del sistema: no se busca por ese nombre.
   commandcode: generic('commandcode', 'Command Code', ['commandcode', 'command-code', 'cmd-code'], { url: 'https://commandcode.ai' }, ['.commandcode/auth.json'], {

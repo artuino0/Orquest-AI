@@ -232,6 +232,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
         publish()
       }, 2500 * speed)
     },
+    // De mentira: lo detienes justo después de mandarle algo, y tu mensaje vuelve.
+    stopBoss: async () => ({ restored: [...messages].reverse().find((m) => m.from === 'usuario')?.text }),
     approveTemplate: async () => {
       proposed = []
       publish()
@@ -264,6 +266,13 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       t.status = 'ready'
       t.history.push({ at: Date.now(), text: notes || 'Regresa al escritorio' })
       publish()
+    },
+    discardTask: async (id, reason) => {
+      const t = find(id)
+      t.status = 'discarded'
+      t.history.push({ at: Date.now(), text: reason ? `el usuario la descartó: ${reason}` : 'el usuario la descartó' })
+      publish()
+      return 'reset'
     },
     fire: async (id) => {
       const i = employees.findIndex((e) => e.id === id)

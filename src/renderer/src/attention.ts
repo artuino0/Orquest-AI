@@ -2,7 +2,8 @@
  * Avisos de «te toca»: un sonido corto y, si la ventana no está al frente, el
  * parpadeo en la barra de tareas. Suenan cuando aparece algo que espera al
  * usuario: una entrega lista para integrar, una pregunta del jefe, la versión
- * de alguien levantada para revisión, o alguien detenido que te necesita.
+ * de alguien levantada para revisión, alguien detenido que te necesita, o alguien cuya
+ * CLI dice que no puede trabajar (su modelo no existe o no tiene saldo).
  *
  * El sonido se arma aquí mismo (dos notas), sin archivos de audio.
  */
@@ -55,11 +56,12 @@ export function watchAttention() {
     inbox: studio.inbox.length,
     questions: studio.board?.questions?.filter((q) => q.status === 'open').length ?? 0,
     reviews: studio.board?.reviews?.filter((r) => r.status === 'ready').length ?? 0,
+    problems: studio.employees.filter((e) => e.problem).length,
   })
   watch(counts, (now, before) => {
     // Al abrir un proyecto no se avisa de lo que ya estaba.
     if (!before || studio.repo !== project) return
-    if (now.inbox > before.inbox || now.questions > before.questions || now.reviews > before.reviews) notify()
+    if (now.inbox > before.inbox || now.questions > before.questions || now.reviews > before.reviews || now.problems > before.problems) notify()
   })
   let project = studio.repo
   watch(() => studio.repo, (r) => (project = r))

@@ -221,6 +221,13 @@ const en: Record<string, string> = {
   '{0} levantó su versión para que la veas: {1}': '{0} started their version for you to see: {1}',
   '{0} no está en la oficina: tráelo de vuelta para levantar su versión.': "{0} isn't in the office: bring them back to start their version.",
   'le pidieron levantar su versión para revisión': 'was asked to start their version for review',
+  "{0} no puede trabajar. Su terminal dice: «{1}». Revisa su modelo y su cuenta (que exista, tenga credencial y saldo).": "{0} can't work. Their terminal says: “{1}”. Check their model and account (that it exists and has credentials and balance).",
+  "no puede trabajar: {0}": "can't work: {0}",
+  "{0} ya no tiene oficina. Pídele al jefe que lo levante de nuevo.": "{0} no longer has an office. Ask the boss to bring them up again.",
+  "La oficina de {0} ({1}) ya no existe y no se pudo rearmar: {2}": "{0}'s office ({1}) no longer exists and couldn't be rebuilt: {2}",
+  "La oficina de {0} ya no existía (¿se borró la carpeta .orquest?). Se rearmó con su rama; lo que no había entregado se perdió.": "{0}'s office no longer existed (was the .orquest folder deleted?). It was rebuilt from their branch; what they hadn't delivered was lost.",
+  "Su carpeta ya trae {0} del proyecto: no se le pudo poner el de Orquest, y lo prohibido del manual no se le aplica.": "Their folder already has the project's {0}: Orquest's couldn't be placed, so the manual's forbidden list doesn't apply to them.",
+  "Antigravity solo aplica lo prohibido del manual; lo demás depende de su propio ajuste de permisos.": "Antigravity only applies the manual's forbidden list; everything else depends on its own permission setting.",
 }
 
 export default en

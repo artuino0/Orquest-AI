@@ -49,3 +49,13 @@ describe('herramientas de Orquest sin pedir permiso', () => {
     expect(args.join(' ')).not.toMatch(/bypass|danger|never/i)
   })
 })
+
+describe('contexto de Codex', () => {
+  it('se le pide en su barra y se lee de ahí (0.162 ya no lo trae)', () => {
+    const args = PROVIDERS.codex.mcpArgs!({ url: 'http://127.0.0.1:1/mcp/t' })
+    expect(args).toContain('tui.status_line=["model-with-reasoning","context-used","five-hour-limit","weekly-limit"]')
+    const context = PROVIDERS.codex.screen.context!
+    expect(context('  GPT-6-Astra medium · Context 37% used · 5h 0% left · weekly 84% left')).toBe(37)
+    expect(context('  62% context left')).toBe(38)
+  })
+})

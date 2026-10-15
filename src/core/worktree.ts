@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { access, appendFile, mkdir, readFile, rm } from 'node:fs/promises'
+import { access, appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -48,6 +48,53 @@ export async function createOffice(repo: string, employeeId: string, base = 'HEA
   const sha = await git(root, 'rev-parse', base)
   await git(root, 'worktree', 'add', '-b', branch, path, sha)
   return { path, branch, base: sha }
+}
+
+/**
+ * Vuelve a armar una oficina que ya no está (alguien borró `.orquest` o la carpeta): git la sigue
+ * apuntando y su rama sigue ahí, con lo que el empleado tenía en commits. Se olvida la carpeta
+ * vieja y se saca otra vez la rama en el mismo lugar. Si la oficina está, no la toca.
+ * Devuelve true si la tuvo que rearmar.
+ */
+export async function restoreOffice(repo: string, office: Office): Promise<boolean> {
+  if (await access(join(office.path, '.git')).then(() => true, () => false)) return false
+  const root = await repoRoot(repo)
+  await excludeOrquest(root)
+  await mkdir(dirname(office.path), { recursive: true })
+  await git(root, 'worktree', 'prune')
+  const known = await git(root, 'rev-parse', '--verify', '--quiet', `refs/heads/${office.branch}`).then(() => true, () => false)
+  if (known) await git(root, 'worktree', 'add', office.path, office.branch)
+  else await git(root, 'worktree', 'add', '-b', office.branch, office.path, office.base ?? 'HEAD')
+  return true
+}
+
+/**
+ * Escribe en `dir` los archivos que una CLI lee de su carpeta de trabajo (ganchos de permisos) y los
+ * deja fuera de git, para que no se cuelen en una entrega. Si el proyecto ya trae uno con ese nombre,
+ * no se toca y se devuelve en la lista.
+ */
+export async function placeWorkspaceFiles(dir: string, files: Record<string, string>): Promise<string[]> {
+  const kept: string[] = []
+  for (const [rel, content] of Object.entries(files)) {
+    const path = join(dir, rel)
+    const mine = await readFile(path, 'utf8').then((t) => t === content, () => undefined)
+    if (mine === false) {
+      kept.push(rel)
+      continue
+    }
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, content)
+    await exclude(dir, `/${rel.replace(/\\/g, '/')}`).catch(() => {})
+  }
+  return kept
+}
+
+/** Añade un patrón al exclude del repositorio de `dir` (compartido por sus worktrees). */
+async function exclude(dir: string, pattern: string) {
+  const file = join(await git(dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'), 'info', 'exclude')
+  await mkdir(dirname(file), { recursive: true })
+  const current = await readFile(file, 'utf8').catch(() => '')
+  if (!current.split(/\r?\n/).includes(pattern)) await appendFile(file, `${current && !current.endsWith('\n') ? '\n' : ''}${pattern}\n`)
 }
 
 async function excludeOrquest(root: string) {
@@ -204,6 +251,38 @@ export async function nothingToMerge(repo: string, commit: string): Promise<bool
 /** Commit actual de la rama principal del repo. */
 export async function headOf(repo: string): Promise<string> {
   return git(await repoRoot(repo), 'rev-parse', 'HEAD')
+}
+
+/**
+ * Quita de la rama de la oficina lo de una entrega descartada: lo que hay de `since` a `commit`
+ * (`since` es donde terminaba lo anterior: su entrega previa o la principal). Si la oficina sigue
+ * en ese commit y sin cambios, la rama se regresa a `since`; si ya siguió trabajando, se deshace con
+ * `git revert`. Si ni así se puede (cambios que chocan, merges en medio), no toca nada.
+ */
+export async function undoDelivery(office: Office, commit: string, since: string): Promise<'reset' | 'reverted' | 'failed'> {
+  const head = await git(office.path, 'rev-parse', 'HEAD').catch(() => '')
+  const dirty = await git(office.path, 'status', '--porcelain').catch(() => 'x')
+  if (head === commit && !dirty) {
+    await git(office.path, 'reset', '-q', '--hard', since)
+    return 'reset'
+  }
+  try {
+    await run('git', ['-c', 'user.name=Orquest', '-c', 'user.email=orquest@localhost', 'revert', '--no-edit', `${since}..${commit}`], { cwd: office.path })
+    return 'reverted'
+  } catch {
+    await git(office.path, 'revert', '--abort').catch(() => {})
+    return 'failed'
+  }
+}
+
+/** true si `ancestor` está en la historia de `commit`. */
+export async function isAncestor(dir: string, ancestor: string, commit: string): Promise<boolean> {
+  return run('git', ['merge-base', '--is-ancestor', ancestor, commit], { cwd: dir }).then(() => true, () => false)
+}
+
+/** Commit en que la rama de esa oficina se separó de la principal. */
+export async function forkPoint(office: Office, commit: string, main?: string): Promise<string | undefined> {
+  return sinceMain(office, commit, main)
 }
 
 export type MergeResult = { ok: true; commit: string } | { ok: false; conflicts: string[]; reason: string }

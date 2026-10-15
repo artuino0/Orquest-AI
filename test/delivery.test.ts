@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Board } from '../src/core/board.js'
-import { commitDelivery, createOffice, deliveryDiff, headOf, nothingToMerge } from '../src/core/worktree.js'
+import { commitDelivery, createOffice, deliveryDiff, headOf, nothingToMerge, undoDelivery } from '../src/core/worktree.js'
 
 const dirs: string[] = []
 // En Windows git puede tardar en soltar la carpeta: se reintenta en vez de tumbar la prueba.
@@ -67,5 +67,53 @@ describe('aprobar una entrega sin cambios', () => {
     expect(b.task(sigue.id).status).toBe('ready')
     // Solo vale para lo que el jefe ya aprobó.
     expect(() => b.closeEmpty(sigue.id)).toThrow(/no está aprobada/)
+  })
+})
+
+describe('descartar una entrega', () => {
+  it('se cierra sin integrar y quien la esperaba deja de esperarla', () => {
+    const b = new Board()
+    b.staff.push({ id: 'hugo', name: 'Hugo', role: 'backend', provider: 'claude', online: true }, { id: 'ana', name: 'Ana', role: 'frontend', provider: 'claude', online: true })
+    const api = b.assign({ assignee: 'hugo', title: 'API', description: '' })
+    const pantalla = b.assign({ assignee: 'ana', title: 'Pantalla', description: '', deps: [api.id] })
+    // Antes de entregarla no hay nada que descartar.
+    expect(() => b.discard(api.id)).toThrow(/no está esperando tu revisión/)
+    b.start('hugo')
+    b.deliver('hugo', { report: 'Lista', screenshots: [] })
+    b.review(api.id, 'approve')
+    const { released, freed } = b.discard(api.id, 'no era lo que pedí')
+    expect(b.task(api.id).status).toBe('discarded')
+    expect(b.task(api.id).history.at(-1)?.text).toContain('no era lo que pedí')
+    expect(freed.map((t) => t.id)).toEqual([pantalla.id])
+    expect(released.map((t) => t.id)).toEqual([pantalla.id])
+    expect(b.task(pantalla.id).deps).toEqual([])
+    expect(b.inbox()).toEqual([])
+  })
+
+  it('sus cambios salen de la rama: se regresa a la entrega anterior, o se revierten si ya siguió trabajando', async () => {
+    const { repo, git } = makeRepo()
+    const office = await createOffice(repo, 'hugo-backend')
+    const main = await headOf(repo)
+    writeFileSync(join(office.path, 'api.ts'), 'export const api = 1\n')
+    const t1 = await commitDelivery(office, 'T1: API', main)
+    writeFileSync(join(office.path, 'malo.ts'), 'no\n')
+    const t2 = await commitDelivery(office, 'T2: lo que no quiere', main)
+
+    // Oficina sin cambios y en esa entrega: la rama vuelve a T1, que sigue esperando integrarse.
+    expect(await undoDelivery(office, t2.commit, t1.commit)).toBe('reset')
+    expect(git(office.path, 'rev-parse', 'HEAD')).toBe(t1.commit)
+    expect(existsSync(join(office.path, 'malo.ts'))).toBe(false)
+    expect(existsSync(join(office.path, 'api.ts'))).toBe(true)
+
+    // Ya siguió trabajando (otro commit encima): se revierte solo lo de esa entrega.
+    writeFileSync(join(office.path, 'malo.ts'), 'no\n')
+    const t3 = await commitDelivery(office, 'T3: otra vez', main)
+    writeFileSync(join(office.path, 'sigue.ts'), 'sí\n')
+    git(office.path, 'add', '.')
+    git(office.path, 'commit', '-qm', 'trabajo nuevo')
+    expect(await undoDelivery(office, t3.commit, t1.commit)).toBe('reverted')
+    expect(existsSync(join(office.path, 'malo.ts'))).toBe(false)
+    expect(existsSync(join(office.path, 'sigue.ts'))).toBe(true)
+    expect(existsSync(join(office.path, 'api.ts'))).toBe(true)
   })
 })
