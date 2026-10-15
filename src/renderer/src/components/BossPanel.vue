@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlertTriangle, ChevronDown, Crown, Inbox, Pencil, RotateCcw, Send, Square, Target, Terminal, Users, X } from 'lucide-vue-next'
+import { AlertTriangle, ChevronDown, Crown, Hand, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
@@ -104,9 +104,20 @@ async function hire() {
   if (ok) studio.overlay = null
 }
 
+/** Cuándo le mandaste algo por última vez: unos segundos después todavía tiene sentido detenerlo. */
+const sentAt = ref(0)
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => (clock = setInterval(() => (now.value = Date.now()), 1000)))
+onBeforeUnmount(() => clearInterval(clock))
+const canStop = computed(() => !!boss.value && (studio.calmStateOf(boss.value) === 'working' || now.value - sentAt.value < 8000))
+
 async function send() {
   if (!message.value.trim()) return
-  if (await studio.sayToBoss(message.value.trim())) message.value = ''
+  if (await studio.sayToBoss(message.value.trim())) {
+    message.value = ''
+    sentAt.value = now.value = Date.now()
+  }
 }
 
 /** Lo detiene; si recién le mandaste algo, tu mensaje vuelve a la caja para corregirlo. */
@@ -391,9 +402,12 @@ const pending = computed(() => {
         <QuestionsCard />
         <button v-if="unread" type="button" class="news" @click="toBottom"><ChevronDown /> {{ unread === 1 ? T`${unread} mensaje nuevo` : T`${unread} mensajes nuevos` }}</button>
         <form class="say" @submit.prevent="send">
-          <input v-model="message" :placeholder="sayPlaceholder" />
+          <!-- Detener va dentro de la caja, a la derecha: se ve mientras trabaja o recién le mandaste algo. -->
+          <span class="field">
+            <input v-model="message" :placeholder="sayPlaceholder" :class="{ stoppable: canStop }" />
+            <button v-if="canStop" type="button" class="stop" :disabled="stopping" :aria-label="T`Detener`" :title="T`Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.`" @click="stop"><Hand /></button>
+          </span>
           <button type="submit" class="btn primary"><Send /> {{ T`Enviar` }}</button>
-          <button type="button" class="btn" :disabled="stopping" :title="T`Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.`" @click="stop"><Square /> {{ T`Detener` }}</button>
         </form>
         <p v-if="studio.error" class="err">{{ studio.error }}</p>
       </div>
@@ -501,7 +515,12 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .dots { display: inline-block; width: 18px; height: 4px; margin-left: -4px; background: radial-gradient(circle, var(--st-work) 0 1.5px, transparent 2px) 0 0 / 6px 4px repeat-x; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 -34% 0 0); } }
 .say { display: flex; gap: 8px; }
+.say .field { flex: 1; position: relative; display: flex; }
 .say input { flex: 1; }
+.say input.stoppable { padding-right: 40px; }
+.say .stop { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 28px; height: 28px; padding: 0; background: var(--surface-2); border: 2px solid var(--border); color: var(--st-block); cursor: pointer; }
+.say .stop:hover { background: var(--st-block); color: var(--on-danger); }
+.say .stop svg { width: 16px; height: 16px; }
 
 aside { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .card { background: var(--bg); border: 2px solid var(--border); padding: 12px; }
