@@ -107,7 +107,7 @@ export interface OrquestApi {
   answerQuestion(id: string, text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
   /** Cambia modelo y esfuerzo de alguien (al jefe, también el proveedor): deja su traspaso y vuelve a entrar con lo nuevo. */
-  retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }): Promise<void>
+  retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }): Promise<void>
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>
   /** Descarta una entrega: no se integra y sale de la rama de quien la hizo. */

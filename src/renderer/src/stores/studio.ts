@@ -295,7 +295,7 @@ export const useStudio = defineStore('studio', () => {
   const requestReview = (id: string) => attempt(() => window.orquest.requestReview(id))
   const stopReview = (id: string) => attempt(() => window.orquest.stopReview(id))
   const setTeamApproval = (on: boolean) => attempt(() => window.orquest.setTeamApproval(on))
-  const retune = (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => attempt(() => window.orquest.retune(id, change))
+  const retune = (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }) => attempt(() => window.orquest.retune(id, change))
   const mergeTask = (id: string) => attempt(() => window.orquest.mergeTask(id))
   const returnTask = (id: string, notes: string) => attempt(() => window.orquest.returnTask(id, notes))
   /** Cómo quedó su rama ('failed': no se pudo quitar lo que trajo); null si no se pudo descartar. */

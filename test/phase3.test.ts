@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -26,8 +26,10 @@ async function makeRepo(): Promise<string> {
 }
 
 const launched = new Map<string, string[]>()
+const envs = new Map<string, Record<string, string>>()
 const spawn: Spawner = (_f, args, o) => {
   launched.set(o.env.ORQUEST_EMPLOYEE_ID, args)
+  envs.set(o.env.ORQUEST_EMPLOYEE_ID, o.env)
   let exit: (e: { exitCode: number }) => void = () => {}
   const pty: Pty = {
     pid: 1,
@@ -53,7 +55,7 @@ afterEach(async () => {
   await mcp?.close()
 })
 
-async function open(repo: string, library: Library, extra: { handoffTimeoutMs?: number } = {}) {
+async function open(repo: string, library: Library, extra: { handoffTimeoutMs?: number; home?: string } = {}) {
   const manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
   let s!: Studio
   mcp = await startMcpServer((t) => {
@@ -237,6 +239,34 @@ describe('fase 3: expedientes y manuales', () => {
     const args = launched.get(id)!
     expect(args[args.indexOf('--model') + 1]).toBe('sonnet')
     expect(args[args.indexOf('--effort') + 1]).toBe('low')
+  })
+
+  it('la cuenta también se cambia desde Plantilla: sigue en su puesto y vuelve a entrar con ella', async () => {
+    const repo = await makeRepo()
+    // Una segunda cuenta de Claude Code con sesión (solo se mira que exista su archivo).
+    const home = await mkdtemp(join(tmpdir(), 'orquest-home-'))
+    await mkdir(join(home, '.claude-2'), { recursive: true })
+    await writeFile(join(home, '.claude-2', '.credentials.json'), '{}')
+    const { s, call } = await open(repo, new Library(), { handoffTimeoutMs: 50, home })
+    await call('proponer_plantilla', { puestos: [{ puesto: 'backend', proveedor: 'claude', motivo: 'x' }] })
+    s.approveTemplate([{ id: s.board.slots[0].id, role: 'backend', provider: 'claude' }])
+    await call('levantar_empleado', { puesto: s.board.slots[0].id })
+    const id = s.board.staff[0].id
+    expect(envs.get(id)!.CLAUDE_CONFIG_DIR).toBeUndefined()
+    const before = launched.get(id)!
+    // Una que no existe no se acepta, y no se toca nada.
+    await expect(s.retune(id, { account: '.claude-9' })).rejects.toThrow(/no está en esta máquina/)
+    expect(s.board.staff[0].account).toBeUndefined()
+    await s.retune(id, { account: '.claude-2' })
+    expect(s.board.staff[0].account).toBe('.claude-2')
+    expect(s.board.slots[0].account).toBe('.claude-2')
+    await expect.poll(() => launched.get(id) !== before, { timeout: 5000 }).toBe(true)
+    expect(envs.get(id)!.CLAUDE_CONFIG_DIR).toBe(join(home, '.claude-2'))
+    // De vuelta a la principal: la variable ya no va.
+    const again = launched.get(id)!
+    await s.retune(id, { account: '' })
+    await expect.poll(() => launched.get(id) !== again, { timeout: 5000 }).toBe(true)
+    expect(envs.get(id)!.CLAUDE_CONFIG_DIR).toBeUndefined()
   })
 
   it('al jefe se le puede cambiar hasta el proveedor: deja su traspaso y entra el relevo', async () => {

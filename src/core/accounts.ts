@@ -89,6 +89,9 @@ export function listAccounts(home = homedir(), now = Date.now()): Account[] {
 }
 
 /** Con qué entorno se lanza la CLI para que use esa cuenta. La principal no necesita nada. */
+/** La variable con que una CLI elige su cuenta (CODEX_HOME, CLAUDE_CONFIG_DIR), si sabe usar otra. */
+export const accountVar = (provider: ProviderId): string | undefined => HOMES[provider]?.env
+
 export function accountEnv(provider: ProviderId, dir: string | undefined, home = homedir()): Record<string, string> {
   const h = HOMES[provider]
   if (!dir || dir === h?.base) return {}

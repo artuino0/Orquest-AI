@@ -339,12 +339,12 @@ export class Board {
 
   /** Despedido: no vuelve aunque se reabra la app. */
   /** El usuario le cambió modelo y esfuerzo a alguien: queda en su puesto y en su registro (el proveedor no cambia). */
-  retune(employeeId: string, model: string | undefined, effort: Effort | undefined) {
+  retune(employeeId: string, model: string | undefined, effort: Effort | undefined, account?: string) {
     const m = this.staff.find((s) => s.id === employeeId)
     const slot = this.slots.find((s) => s.employeeId === employeeId)
     if (!m || !slot) throw new RuleError(T`No existe el empleado ${employeeId}.`)
-    Object.assign(m, { model, effort })
-    Object.assign(slot, { model, effort })
+    Object.assign(m, { model, effort, account })
+    Object.assign(slot, { model, effort, account })
   }
 
   /** Se pide la versión de alguien para revisión; reemplaza la que hubiera. */

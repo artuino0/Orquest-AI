@@ -263,7 +263,7 @@ handle('employee:fire', (id: string) => {
 handle('employee:review', (id: string) => studio().requestReview(id))
 handle('employee:review-stop', (id: string) => studio().stopReview(id))
 handle('boss:team-approval', (on: boolean) => studio().setTeamApproval(on))
-handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }) => studio().retune(id, change))
+handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }) => studio().retune(id, change))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
 handle('employee:say', (id: string, text: string) => studio().say(id, text))
 handle('employee:back', (id: string) => studio().bringBack(id))

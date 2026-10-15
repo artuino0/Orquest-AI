@@ -32,6 +32,7 @@ const busy = ref(false)
 const accounts = ref<Account[]>([])
 void window.orquest.accounts().then((a) => (accounts.value = a), () => {})
 const accountsOf = (provider: string) => accounts.value.filter((a) => a.provider === provider)
+const accountLabel = (a: Account) => (a.usage?.windows[0] ? T`cuenta ${a.label.toLowerCase()} · ${Math.round(a.usage.windows[0].used)}% usado` : T`cuenta ${a.label.toLowerCase()}`)
 
 watch(
   () => studio.proposal.map((s) => s.id).join(),
@@ -126,21 +127,22 @@ const bossRow = computed(() => {
   if (!b) return null
   const e = studio.employees.find((x) => x.id === 'jefe')
   const context = studio.board?.context.jefe ?? e?.context
-  return { id: 'jefe', name: studio.nameOf('jefe'), provider: b.provider, model: b.model, effort: b.effort, look: LOOK[e ? lookOf(e, studio.board?.hints) : 'exited'], out: !e, known: context !== undefined, context: Math.round(context ?? 0) }
+  return { id: 'jefe', name: studio.nameOf('jefe'), provider: b.provider, model: b.model, effort: b.effort, account: b.account, look: LOOK[e ? lookOf(e, studio.board?.hints) : 'exited'], out: !e, known: context !== undefined, context: Math.round(context ?? 0) }
 })
 
 // Cambiar modelo y esfuerzo de quien ya trabaja: se elige en la fila y se aplica con su botón,
 // porque aplicar le pide su traspaso y lo hace entrar de nuevo.
-interface Tune { provider: ProviderId; model: string; effort?: Effort; custom?: boolean }
-type Tunable = { id: string; provider: ProviderId; model?: string; effort?: Effort }
+// La cuenta también: la elige el usuario, igual que al contratar ('' es la principal).
+interface Tune { provider: ProviderId; model: string; effort?: Effort; account: string; custom?: boolean }
+type Tunable = { id: string; provider: ProviderId; model?: string; effort?: Effort; account?: string }
 const tunes = ref<Record<string, Tune>>({})
-const tuneOf = (m: Tunable): Tune => tunes.value[m.id] ?? { provider: m.provider, model: m.model ?? '', effort: m.effort }
+const tuneOf = (m: Tunable): Tune => tunes.value[m.id] ?? { provider: m.provider, model: m.model ?? '', effort: m.effort, account: m.account ?? '' }
 function edit(m: Tunable, patch: Partial<Tune>) {
   tunes.value = { ...tunes.value, [m.id]: { ...tuneOf(m), ...patch } }
 }
 const tuned = (m: Tunable) => {
   const t = tunes.value[m.id]
-  return !!t && (t.provider !== m.provider || t.model !== (m.model ?? '') || (t.effort ?? '') !== (m.effort ?? ''))
+  return !!t && (t.provider !== m.provider || t.model !== (m.model ?? '') || (t.effort ?? '') !== (m.effort ?? '') || t.account !== (m.account ?? ''))
 }
 function forget(m: Tunable) {
   const next = { ...tunes.value }
@@ -153,14 +155,14 @@ function tuneModel(m: Tunable, value: string) {
 }
 function tuneProvider(m: Tunable, provider: ProviderId) {
   const t = tuneOf(m)
-  edit(m, { provider, model: modelsOf(provider).includes(t.model) ? t.model : '', effort: t.effort && cliOf(provider)?.efforts?.includes(t.effort) ? t.effort : undefined, custom: false })
+  edit(m, { provider, model: modelsOf(provider).includes(t.model) ? t.model : '', effort: t.effort && cliOf(provider)?.efforts?.includes(t.effort) ? t.effort : undefined, account: provider === m.provider ? (m.account ?? '') : '', custom: false })
 }
 const applying = ref('')
 async function applyTune(m: Tunable) {
   const t = tunes.value[m.id]
   if (!t) return
   applying.value = m.id
-  const ok = await studio.retune(m.id, { provider: m.id === 'jefe' ? t.provider : undefined, model: t.model || undefined, effort: t.effort })
+  const ok = await studio.retune(m.id, { provider: m.id === 'jefe' ? t.provider : undefined, model: t.model || undefined, effort: t.effort, account: t.account })
   applying.value = ''
   if (ok) forget(m)
 }
@@ -194,7 +196,7 @@ const subtitle = computed(() => {
                 </select>
               </span>
               <select v-if="accountsOf(r.provider).length > 1" v-model="r.account" class="plain account" :title="T`Con qué cuenta trabaja`">
-                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ a.usage?.windows[0] ? T`cuenta ${a.label.toLowerCase()} · ${Math.round(a.usage.windows[0].used)}% usado` : T`cuenta ${a.label.toLowerCase()}` }}</option>
+                <option v-for="a in accountsOf(r.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ accountLabel(a) }}</option>
               </select>
             </td>
             <td>
@@ -286,6 +288,9 @@ const subtitle = computed(() => {
                 <option :value="OTHER">{{ T`Escribir otro…` }}</option>
               </select>
               <input v-else class="plain" :value="tuneOf(bossRow).model" :placeholder="T`por defecto`" @input="edit(bossRow, { model: ($event.target as HTMLInputElement).value })" />
+              <select v-if="accountsOf(tuneOf(bossRow).provider).length > 1" class="plain account" :value="tuneOf(bossRow).account" :title="T`Con qué cuenta trabaja`" @change="edit(bossRow, { account: ($event.target as HTMLSelectElement).value })">
+                <option v-for="a in accountsOf(tuneOf(bossRow).provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ accountLabel(a) }}</option>
+              </select>
             </td>
             <td @click.stop>
               <select class="plain" :value="tuneOf(bossRow).effort ?? ''" :disabled="!cliOf(tuneOf(bossRow).provider)?.efforts?.length" @change="edit(bossRow, { effort: (($event.target as HTMLSelectElement).value || undefined) as Effort | undefined })">
@@ -320,6 +325,9 @@ const subtitle = computed(() => {
                 <option :value="OTHER">{{ T`Escribir otro…` }}</option>
               </select>
               <input v-else class="plain" :value="tuneOf(m).model" :placeholder="T`por defecto`" @input="edit(m, { model: ($event.target as HTMLInputElement).value })" />
+              <select v-if="accountsOf(m.provider).length > 1" class="plain account" :value="tuneOf(m).account" :title="T`Con qué cuenta trabaja`" @change="edit(m, { account: ($event.target as HTMLSelectElement).value })">
+                <option v-for="a in accountsOf(m.provider)" :key="a.dir" :value="a.main ? '' : a.dir">{{ accountLabel(a) }}</option>
+              </select>
             </td>
             <td v-if="m.gone">{{ m.effort ? EFFORT_LABEL[m.effort].toLowerCase() : '—' }}</td>
             <td v-else @click.stop>

@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
 import { access, mkdir, rmdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { accountEnv, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
+import { accountEnv, accountVar, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
 import { archiveCaptures, listCaptures, type Capture } from './captures.js'
 import { listDir, readText, writeText, type FileEntry, type FileText } from './files.js'
@@ -804,39 +804,52 @@ export class Studio extends EventEmitter<StudioEvents> {
    * Si está en la oficina, se hace como un descanso: deja su traspaso, se cierra
    * y entra de nuevo con lo nuevo, leyendo su bitácora. No espera a que termine.
    */
-  async retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort }): Promise<void> {
+  async retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }): Promise<void> {
     const model = change.model?.trim() || undefined
     const effort = change.effort || undefined
-    if (id === BOSS_ID) return this.retuneBoss(change.provider, model, effort)
+    if (id === BOSS_ID) return this.retuneBoss(change.provider, model, effort, change.account)
     const m = this.board.staff.find((x) => x.id === id && !x.gone)
     const slot = this.board.slots.find((x) => x.employeeId === id)
     if (!m || !slot) throw new RuleError(T`No existe el empleado ${id}.`)
     if (change.provider && change.provider !== slot.provider) throw new RuleError(T`El proveedor de ${m.name} no se cambia: para otro proveedor, contrata a alguien más.`)
-    if (model === slot.model && effort === slot.effort) return
+    // La cuenta la elige el usuario, igual que al contratar ('' es la principal). Nadie la rota solo.
+    const account = change.account === undefined ? slot.account : change.account || undefined
+    if (model === slot.model && effort === slot.effort && account === slot.account) return
     const check = this.rule({ ...slot, model })
     if (!check.ok) throw new RuleError(check.reason)
-    this.board.retune(id, model, effort)
+    // Que exista y tenga sesión, antes de tocar nada.
+    const env = accountEnv(slot.provider, account, this.opts.home)
+    const accountChanged = account !== slot.account
+    const onlyAccount = accountChanged && model === slot.model && effort === slot.effort
+    this.board.retune(id, model, effort, account)
     const l = this.launches.get(id)
     if (l) {
       l.req.model = model
       l.req.effort = effort
       l.owner = { ...l.owner, model }
+      const key = accountVar(slot.provider)
+      const { [key ?? '']: _old, ...rest } = l.req.env ?? {}
+      l.req.env = { ...(key ? rest : l.req.env), ...env }
     }
-    this.fact(id, T`el usuario le cambió el modelo a ${model ?? T`el de su CLI`} y el esfuerzo a ${effort ?? T`el de su CLI`}`)
+    if (!onlyAccount) this.fact(id, T`el usuario le cambió el modelo a ${model ?? T`el de su CLI`} y el esfuerzo a ${effort ?? T`el de su CLI`}`)
+    if (accountChanged) this.fact(id, T`el usuario le cambió la cuenta a ${account ?? T`la principal`}`)
     this.changed()
     // Sin terminal abierta, el cambio vale para cuando vuelva.
-    if (l && this.opts.manager.isLive(id)) void this.rest(id, T`cambio de modelo`).catch((err) => this.emit('notice', T`No se pudo cambiar el modelo de ${m.name}: ${(err as Error).message}`))
+    const why = onlyAccount ? T`cambio de cuenta` : T`cambio de modelo`
+    if (l && this.opts.manager.isLive(id)) void this.rest(id, why).catch((err) => this.emit('notice', T`No se pudo cambiar el modelo de ${m.name}: ${(err as Error).message}`))
   }
 
   /** Al jefe se le releva: deja su traspaso y entra otro con lo nuevo, que lo lee al llegar. */
-  private async retuneBoss(provider: ProviderId | undefined, model: string | undefined, effort: Effort | undefined): Promise<void> {
+  private async retuneBoss(provider: ProviderId | undefined, model: string | undefined, effort: Effort | undefined, account?: string): Promise<void> {
     const boss = this.board.boss
     if (!boss) throw new RuleError(T`No hay jefe contratado.`)
     const to = provider ?? boss.provider
-    if (to === boss.provider && model === boss.model && effort === boss.effort) return
+    // La cuenta es de un proveedor: con otro, la suya por defecto; con el mismo, la elegida ('' es la principal).
+    const nextAccount = to !== boss.provider ? undefined : account === undefined ? boss.account : account || undefined
+    if (to === boss.provider && model === boss.model && effort === boss.effort && nextAccount === boss.account) return
     if (!this.channel(to)) throw new RuleError(T`${getProvider(to).name} aún no sabe conectarse a las herramientas de Orquest; elige otro jefe.`)
-    // La cuenta es de un proveedor: con otro, la suya por defecto.
-    const next: BossRecord = { ...boss, provider: to, model, effort, account: to === boss.provider ? boss.account : undefined, sessionId: undefined }
+    accountEnv(to, nextAccount, this.opts.home)
+    const next: BossRecord = { ...boss, provider: to, model, effort, account: nextAccount, sessionId: undefined }
     if (!this.opts.manager.isLive(BOSS_ID)) {
       this.board.boss = next
       this.fact(BOSS_ID, T`el usuario cambió al jefe a ${to}${model ? ` ${model}` : ''}; entra así al volver`)

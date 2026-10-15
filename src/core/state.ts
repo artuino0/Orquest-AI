@@ -220,8 +220,14 @@ export class ScreenReader {
   failure(): string | undefined {
     const patterns = this.patterns.failure
     if (!patterns?.length) return undefined
-    const line = this.screen().split('\n').find((l) => patterns.some((r) => r.test(l)))
-    return line?.replace(/^[\s┃│|]+|[\s┃│|]+$/g, '').replace(/\s{2,}/g, ' ')
+    for (const l of this.screen().split('\n')) {
+      // El aviso de la CLI abre el renglón («■ You’ve hit…», «┃ Access denied…», «⎿ Credit balance…»).
+      // Si la frase va a media línea es una cita: el jefe hablando del error de otro, un mensaje de
+      // Orquest, un comando. Eso no es que esta CLI no pueda trabajar.
+      const head = l.replace(/^[\s┃│|■⎿●•✗✘×!>›❯*-]+/, '').replace(/^(api )?error:?\s*/i, '')
+      if (patterns.some((r) => r.exec(head)?.index === 0)) return head.replace(/[\s┃│|]+$/g, '').replace(/\s{2,}/g, ' ')
+    }
+    return undefined
   }
 
   /** % de contexto usado que muestra la CLI, si lo muestra. */

@@ -256,6 +256,10 @@ const en: Record<string, string> = {
   "Dependían de ella: {0}; ya no la esperan. Revisa si siguen teniendo sentido y ajústalas.": "These depended on it: {0}; they no longer wait for it. Check whether they still make sense and adjust them.",
   "su oficina ya no existía; se rearmó con su rama": "their office no longer existed; it was rebuilt from their branch",
   "el usuario lo detuvo": "the user stopped them",
+  "El modelo, el esfuerzo y la cuenta de alguien ya contratado los cambia el usuario en Plantilla (sigue en su puesto, con su bitácora); no propongas un puesto nuevo solo para eso. Tú no cambias de cuenta a nadie: si alguien topa con su límite, díselo al usuario y que él decida.": "The model, effort and account of someone already hired are changed by the user in Team (they keep their seat and their journal); don't propose a new seat just for that. You don't switch anyone's account: if someone hits their limit, tell the user and let them decide.",
+  "el usuario le cambió la cuenta a {0}": "the user changed their account to {0}",
+  "la principal": "the main one",
+  "cambio de cuenta": "account change",
 }
 
 export default en

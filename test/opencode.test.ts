@@ -171,3 +171,29 @@ describe('permisos del puesto en OpenCode', () => {
     await expect.poll(() => terminals[0].typed.join('').includes('is not valid'), { timeout: 5000 }).toBe(true)
   })
 })
+
+describe('avisos de no poder trabajar: solo los suyos', () => {
+  it('el de su CLI cuenta; una cita del error de otro (en un mensaje o en lo que escribe) no', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const seen: (string | null)[] = []
+    manager.on('failure', (id, p) => seen.push(`${id}: ${p}`))
+    const dir = repo()
+    const office = { path: dir, branch: 'main' }
+    await manager.hire({ id: 'jefe', provider: 'claude', role: 'jefe', repo: dir, office })
+    await manager.hire({ id: 'beto', provider: 'codex', role: 'frontend', repo: dir, office })
+    const [jefe, beto] = terminals
+    // Lo que pasó: al jefe le llegó la respuesta del usuario citando el error de Beto, y lo comentó.
+    const quoted = '[Orquest] El usuario contestó P11 (Beto (frontend) choca con "You\'ve hit your usage limit. Upgrade to Pro" usando Codex gpt-6-sol)'
+    manager.write('jefe', quoted)
+    jefe.feed(`${CLEAR}──────────────────────\r\n❯ ${quoted}\r\n──────────────────────\r\n● Beto no puede trabajar: su terminal dice "You've hit your usage limit".\r\n`)
+    // Un renglón partido que abre justo con la frase, pero es lo que Orquest le escribió.
+    jefe.feed('You\'ve hit your usage limit. Upgrade to Pro" usando Codex gpt-6-sol)\r\n')
+    // Beto sí lo tiene: es el aviso de su CLI.
+    beto.feed(`${CLEAR}■ You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro) or try again at 12:37 PM.\r\n› Ask Codex to do anything\r\n`)
+    await wait(500)
+    expect(manager.get('jefe')?.problem).toBeUndefined()
+    expect(manager.get('beto')?.problem).toMatch(/^You’ve hit your usage limit/)
+    expect(seen).toEqual([expect.stringMatching(/^beto: You’ve hit/)])
+  })
+})

@@ -127,6 +127,8 @@ interface Live {
   promptSince?: number
   activityTimer?: ReturnType<typeof setTimeout>
   failureTimer?: ReturnType<typeof setTimeout>
+  /** Lo último que se le escribió (ver write). */
+  typed: string
   activityKey?: string
   quietTimer?: ReturnType<typeof setTimeout>
 }
@@ -220,7 +222,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       sessionId,
       resumed,
     }
-    const entry: Live = { employee, pty, reader: undefined as unknown as ScreenReader, buffer: '', lastDataAt: Date.now() }
+    const entry: Live = { employee, pty, reader: undefined as unknown as ScreenReader, buffer: '', typed: '', lastDataAt: Date.now() }
     entry.reader = new ScreenReader(adapter.screen, {
       cols: this.opts.cols ?? 120,
       rows: this.opts.rows ?? 32,
@@ -290,7 +292,10 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     entry.failureTimer = setTimeout(() => {
       entry.failureTimer = undefined
       if (this.live.get(entry.employee.id) !== entry) return
-      const seen = entry.reader.failure()
+      const flat = (s: string) => s.replace(/\s+/g, '')
+      const found = entry.reader.failure()
+      // Un error que Orquest le citó (p. ej. al jefe, el de otro empleado) no es suyo.
+      const seen = found && !flat(entry.typed).includes(flat(found)) ? found : undefined
       const e = entry.employee
       if (seen && seen !== e.problem) {
         e.problem = seen
@@ -441,7 +446,10 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
   }
 
   write(id: string, data: string) {
-    this.mustGet(id).pty.write(data)
+    const e = this.mustGet(id)
+    // Lo que se le escribió, para no confundir con un aviso suyo un error que Orquest le citó.
+    e.typed = (e.typed + data).slice(-20_000)
+    e.pty.write(data)
   }
 
   resize(id: string, cols: number, rows: number) {
