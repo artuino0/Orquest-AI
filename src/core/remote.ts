@@ -109,7 +109,7 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
     const snapshot = s.snapshot()
     const employees = manager
       .list()
-      .filter((e) => inProject(root, e.office.path))
+      .filter((e) => inProject(snapshot.repo, e.office.path))
       .map((e) => ({ id: e.id, provider: e.provider, model: e.model, effort: e.effort, role: e.role, state: e.state, problem: e.problem, context: e.context }))
     return { root, name: basename(root), snapshot, employees }
   }

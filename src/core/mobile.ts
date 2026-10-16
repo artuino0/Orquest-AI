@@ -128,7 +128,7 @@ export class Mobile {
     const s = this.deps.studios().get(root)
     if (!s) return undefined
     const snap = s.snapshot()
-    const employees = this.deps.manager.list().filter((e) => inProject(root, e.office.path))
+    const employees = this.deps.manager.list().filter((e) => inProject(snap.repo, e.office.path))
     return projectView(root, basename(root), snap, employees)
   }
 
