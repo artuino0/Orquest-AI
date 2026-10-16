@@ -159,6 +159,11 @@ export class Mobile {
     return projectView(root, basename(root), snap, employees)
   }
 
+  /** Alguien cambió de actividad (lee otro archivo, corre otro comando): el celular lo ve, sin avisos. */
+  activity() {
+    this.remote?.changes.bump()
+  }
+
   /** Algo cambió en un proyecto: el celular se entera y, si espera al usuario, le llega un aviso. */
   changed(root: string) {
     if (!this.remote) return

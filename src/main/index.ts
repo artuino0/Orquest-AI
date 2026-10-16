@@ -109,7 +109,11 @@ const send = (channel: string, ...args: unknown[]) => {
 manager.on('data', (id, data) => send('employee:data', id, data))
 manager.on('state', (id, state) => send('employee:state', id, state))
 manager.on('hired', (e) => send('employee:hired', e))
-manager.on('activity', (id, activity) => send('employee:activity', id, activity))
+manager.on('activity', (id, activity) => {
+  send('employee:activity', id, activity)
+  // El celular también ve en qué anda cada quien (el globo «ahora» del chat del jefe).
+  mobile?.activity()
+})
 manager.on('failure', (id, problem) => send('employee:problem', id, problem))
 
 function studio(): Studio {

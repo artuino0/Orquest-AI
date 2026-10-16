@@ -98,6 +98,15 @@ describe('servidor para el celular', () => {
     expect(studio!.snapshot().messages).toContainEqual(expect.objectContaining({ from: 'usuario', to: 'jefe', text: 'Empieza por el carrito' }))
     await expect.poll(() => jefe.typed.join(''), { timeout: 5000 }).toContain('Empieza por el carrito')
 
+    // Trabajando: el celular ve en qué anda (el globo «ahora» del chat del jefe).
+    jefe.feed(`${CLEAR}● Bash(npm test)
+✶ Baking… (1m 5s · esc to interrupt)
+`)
+    await expect.poll(() => manager!.get('jefe')?.state, { timeout: 3000 }).toBe('working')
+    const busy = await call('GET', `/api/proyecto?raiz=${encodeURIComponent(root)}&version=0`, undefined, token)
+    expect(busy.body.employees[0].activity).toMatchObject({ label: 'Ejecutando', detail: 'npm test' })
+    jefe.feed(PROMPT)
+
     // La oficina de píxel: sus archivos sin token, su foto con él (personajes como en el escritorio).
     const { base } = await (async () => ({ base: `http://127.0.0.1:${remote!.port}` }))()
     expect(await (await fetch(`${base}/oficina.html?fuente=movil`)).text()).toContain('oficina')

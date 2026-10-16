@@ -327,6 +327,12 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     return this.live.get(id)?.buffer ?? ''
   }
 
+  /** Qué está haciendo quien trabaja (leído de su pantalla); nada si no trabaja. Para el celular. */
+  activityOf(id: string): Activity | undefined {
+    const e = this.live.get(id)
+    return e && e.employee.state === 'working' ? e.reader.activity() : undefined
+  }
+
   /** Lo que se ve en su terminal, como texto: para el celular, que no dibuja la terminal. */
   screenText(id: string): string {
     return this.live.get(id)?.reader.screen() ?? ''
