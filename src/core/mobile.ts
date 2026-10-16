@@ -33,15 +33,30 @@ export interface MobileStatus {
   detail: boolean
 }
 
-/** Las direcciones IPv4 de esta compu en la red (sin la interna). */
+/**
+ * Adaptadores de máquinas virtuales y contenedores: tienen dirección pero el celular no llega por
+ * ahí. Por su nombre o por el fabricante de su tarjeta (los primeros 3 bytes de la MAC): VirtualBox
+ * nombra el suyo «Ethernet 2», así que el nombre no basta.
+ */
+const VIRTUAL_NAME = /vethernet|virtualbox|vmware|hyper-v|wsl|docker|vboxnet|virbr|^veth|^br-|loopback|npcap/i
+const VIRTUAL_MAC = ['0a:00:27', '08:00:27', '00:15:5d', '00:50:56', '00:0c:29', '00:05:69', '00:1c:14', '02:42:']
+
+/** Las direcciones IPv4 de esta compu por las que un celular puede llegar: la red de la casa y Tailscale. */
 export function localAddresses(nets: ReturnType<typeof networkInterfaces> = networkInterfaces()): Address[] {
   const out: Address[] = []
-  for (const list of Object.values(nets)) {
+  for (const [name, list] of Object.entries(nets)) {
     for (const n of list ?? []) {
       if (n.internal || n.family !== 'IPv4') continue
       const [a, b] = n.address.split('.').map(Number)
+      // 169.254: la dirección que se pone sola una tarjeta sin red (Tailscale apagado, cable suelto). No lleva a nada.
+      if (a === 169 && b === 254) continue
       // Tailscale da direcciones de 100.64.0.0/10.
-      out.push({ ip: n.address, via: a === 100 && b >= 64 && b <= 127 ? 'tailscale' : 'lan' })
+      if (a === 100 && b >= 64 && b <= 127) {
+        out.push({ ip: n.address, via: 'tailscale' })
+        continue
+      }
+      if (VIRTUAL_NAME.test(name) || VIRTUAL_MAC.some((m) => n.mac?.toLowerCase().startsWith(m))) continue
+      out.push({ ip: n.address, via: 'lan' })
     }
   }
   // Tailscale primero: funciona en casa y fuera.

@@ -33,6 +33,18 @@ afterEach(async () => {
 })
 
 describe('direcciones para el celular', () => {
+  it('sin las que no llevan a nada: Tailscale apagado (169.254), VirtualBox, Hyper-V, WSL', () => {
+    // Las de una compu real con Tailscale apagado, VirtualBox y WSL: solo una sirve.
+    const nets = {
+      Tailscale: [{ address: '169.254.83.107', family: 'IPv4', internal: false, mac: '00:00:00:00:00:00' }],
+      Ethernet: [{ address: '192.168.1.23', family: 'IPv4', internal: false, mac: '10:ff:e0:e1:f6:75' }],
+      'Ethernet 2': [{ address: '192.168.56.1', family: 'IPv4', internal: false, mac: '0a:00:27:00:00:14' }],
+      'vEthernet (Default Switch)': [{ address: '172.17.160.1', family: 'IPv4', internal: false, mac: '00:15:5d:07:6f:fa' }],
+      'vEthernet (WSL (Hyper-V firewall))': [{ address: '192.168.208.1', family: 'IPv4', internal: false, mac: '00:15:5d:41:69:9e' }],
+    } as unknown as Parameters<typeof localAddresses>[0]
+    expect(localAddresses(nets)).toEqual([{ ip: '192.168.1.23', via: 'lan' }])
+  })
+
   it('la red de la casa y Tailscale (primero), sin la interna ni IPv6', () => {
     const nets = {
       lo: [{ address: '127.0.0.1', family: 'IPv4', internal: true }],
