@@ -249,6 +249,7 @@ const en: Record<string, string> = {
   "No existe.": "Doesn't exist.",
   "Este celular no está emparejado con la compu. Vuelve a emparejarlo.": "This phone isn't paired with the computer. Pair it again.",
   "Algo falló en la compu.": "Something failed on the computer.",
+  "Los puertos del {0} al {1} ya los usan otros programas en esta compu.": "Ports {0} to {1} are already used by other programs on this computer.",
 }
 
 export default en

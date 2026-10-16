@@ -52,13 +52,13 @@ const SUMMARIES: Record<string, ProjectSummary> = {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 let mobileMock: MobileStatus = {
   enabled: true,
-  port: 6768,
+  port: 7717,
   addresses: [
     { ip: '100.101.12.7', via: 'tailscale' },
     { ip: '192.168.1.40', via: 'lan' },
   ],
   devices: [{ id: 'd1', name: 'iPhone de Arturo', pairedAt: Date.now() - 2 * 86400_000, lastSeen: Date.now() - 600_000, push: true }],
-  pairing: { code: 'K7MQ2P', expiresAt: Date.now() + 4 * 60_000, qr: JSON.stringify({ orquest: 1, compu: 'ARTURO-PC', hosts: ['100.101.12.7', '192.168.1.40'], port: 6768, code: 'K7MQ2P' }) },
+  pairing: { code: 'K7MQ2P', expiresAt: Date.now() + 4 * 60_000, qr: JSON.stringify({ orquest: 1, compu: 'ARTURO-PC', hosts: ['100.101.12.7', '192.168.1.40'], port: 7717, code: 'K7MQ2P' }) },
   detail: false,
 }
 const nothing = () => () => {}

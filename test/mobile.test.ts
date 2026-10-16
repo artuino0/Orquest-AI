@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Devices } from '../src/core/devices.js'
 import { EmployeeManager, type Pty, type Spawner } from '../src/core/employees.js'
 import { localAddresses, Mobile } from '../src/core/mobile.js'
+import { REMOTE_PORT } from '../src/core/remote.js'
+import { createServer } from 'node:http'
 import { Studio } from '../src/core/studio.js'
 
 function repo() {
@@ -48,7 +50,7 @@ describe('direcciones para el celular', () => {
 })
 
 describe('acceso desde el celular', () => {
-  async function setup(port = 0) {
+  async function setup(port: number | undefined = 0) {
     const manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
     const root = repo()
     const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
@@ -86,6 +88,22 @@ describe('acceso desde el celular', () => {
 
     await mobile.stop()
     expect((await mobile.status()).enabled).toBe(false)
+  })
+
+  it('con el puerto de siempre ocupado (Orca usa el 6768; otro programa el 7717) toma el siguiente y el QR lo lleva', async () => {
+    const blocker = createServer()
+    await new Promise<void>((done, fail) => blocker.once('error', fail).listen(REMOTE_PORT, '127.0.0.1', () => done()))
+    try {
+      const { mobile } = await setup(undefined)
+      await mobile.start()
+      mobile.newCode()
+      const st = await mobile.status()
+      expect(st.enabled).toBe(true)
+      expect(st.port).toBeGreaterThan(REMOTE_PORT)
+      expect(JSON.parse(st.pairing!.qr).port).toBe(st.port)
+    } finally {
+      blocker.close()
+    }
   })
 
   it('si el puerto está ocupado, lo dice', async () => {

@@ -1,6 +1,6 @@
 /**
  * El servidor para la app del celular. Solo corre si el usuario activa el
- * acceso remoto, y escucha en la red (por defecto en el puerto 6768): en la red
+ * acceso remoto, y escucha en la red (por defecto en el puerto 7717; si está ocupado, el siguiente libre): en la red
  * de la casa o por Tailscale, que además cifra el camino. Todo pide el token
  * del celular (ver devices.ts), salvo emparejar, que pide el código del momento.
  *
@@ -18,7 +18,10 @@ import type { EmployeeManager } from './employees.js'
 import { T } from './i18n.js'
 import type { Studio } from './studio.js'
 
-export const REMOTE_PORT = 6768
+// No el 6768: ese lo usa Orca para su app móvil.
+export const REMOTE_PORT = 7717
+/** Cuántos puertos siguientes se prueban si el de siempre está ocupado. */
+export const REMOTE_PORT_TRIES = 10
 /** Cuánto espera una foto pedida «desde la versión N» antes de contestar sin cambios. */
 const LONG_POLL_MS = 25_000
 const MAX_BODY = 64 * 1024

@@ -11,7 +11,7 @@ import type { DeviceView, Devices } from './devices.js'
 import { T } from './i18n.js'
 import type { EmployeeManager } from './employees.js'
 import { alertsBetween, projectView, sendExpo, type Alert, type ProjectView } from './notifier.js'
-import { inProject, REMOTE_PORT, startRemoteServer, type RemoteHandle } from './remote.js'
+import { inProject, REMOTE_PORT, REMOTE_PORT_TRIES, startRemoteServer, type RemoteHandle } from './remote.js'
 import type { Studio } from './studio.js'
 
 export interface Address {
@@ -77,14 +77,23 @@ export class Mobile {
   async start(): Promise<void> {
     if (this.remote) return
     this.error = undefined
-    try {
-      this.remote = await startRemoteServer(this.deps, this.deps.port ?? REMOTE_PORT, this.deps.hostname)
-      // Lo que ya estaba al prender no se avisa.
-      for (const root of this.deps.studios().keys()) this.views.set(root, this.view(root)!)
-    } catch (err) {
-      const port = this.deps.port ?? REMOTE_PORT
-      this.error = (err as NodeJS.ErrnoException).code === 'EADDRINUSE' ? T`El puerto ${port} ya lo usa otro programa en esta compu.` : (err as Error).message
+    // Con el puerto de siempre, si está ocupado (otro programa, otra Orquest abierta) se prueban los
+    // siguientes: el QR lleva el que quedó, así que el celular no tiene que saberlo.
+    const first = this.deps.port ?? REMOTE_PORT
+    const tries = this.deps.port === undefined ? REMOTE_PORT_TRIES : 1
+    for (let i = 0; i < tries; i++) {
+      try {
+        this.remote = await startRemoteServer(this.deps, first + i, this.deps.hostname)
+        // Lo que ya estaba al prender no se avisa.
+        for (const root of this.deps.studios().keys()) this.views.set(root, this.view(root)!)
+        return
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') continue
+        this.error = (err as Error).message
+        return
+      }
     }
+    this.error = tries === 1 ? T`El puerto ${first} ya lo usa otro programa en esta compu.` : T`Los puertos del ${first} al ${first + tries - 1} ya los usan otros programas en esta compu.`
   }
 
   async stop(): Promise<void> {
