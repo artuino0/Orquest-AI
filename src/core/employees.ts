@@ -327,6 +327,11 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     return this.live.get(id)?.buffer ?? ''
   }
 
+  /** Lo que se ve en su terminal, como texto: para el celular, que no dibuja la terminal. */
+  screenText(id: string): string {
+    return this.live.get(id)?.reader.screen() ?? ''
+  }
+
   /** % de contexto usado: de la pantalla o de lo que reporta la CLI. */
   setContext(id: string, pct: number) {
     const e = this.live.get(id)

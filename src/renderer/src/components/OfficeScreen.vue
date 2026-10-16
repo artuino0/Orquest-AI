@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { AlertTriangle, Bell, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, Loader2, PencilRuler, RotateCcw, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, Loader2, PencilRuler, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
 import { useOffice } from '../stores/office'
 import { useStudio } from '../stores/studio'
@@ -18,6 +18,7 @@ import MapEditor from './MapEditor.vue'
 import PixelOffice from './PixelOffice.vue'
 import PlansPanel from './PlansPanel.vue'
 import AccountsPanel from './AccountsPanel.vue'
+import MobilePanel from './MobilePanel.vue'
 import LangToggle from './LangToggle.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import CHAR1 from '../../../../assets/herdr-oficina/sprites/char1.png'
@@ -184,7 +185,7 @@ function onKey(ev: KeyboardEvent) {
 window.addEventListener('keydown', onKey)
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
-const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts') => {
+const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | 'mobile') => {
   editing.value = false
   studio.overlay = studio.overlay === o ? null : o
 }
@@ -213,6 +214,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
           <Inbox /> {{ T`Entregas` }}<b v-if="studio.inbox.length" class="badge">{{ studio.inbox.length }}</b>
         </button>
         <button class="btn icon" :class="{ on: studio.overlay === 'accounts' }" :title="T`Cuentas: cada sesión de tus CLIs y lo que lleva usado de su límite`" @click="toggle('accounts')"><Gauge /></button>
+        <button class="btn icon" :class="{ on: studio.overlay === 'mobile' }" :title="T`Celular: contesta a tu equipo desde el celular`" @click="toggle('mobile')"><Smartphone /></button>
         <button v-if="CREATIVE" class="btn icon" :class="{ on: editing }" :title="T`Dibujar la oficina (modo creativo)`" @click="toggleEdit"><PencilRuler /></button>
         <LangToggle />
         <ThemeToggle />
@@ -271,6 +273,7 @@ const toggle = (o: 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | '
       <LibraryPanel v-if="studio.overlay === 'library'" />
       <PlansPanel v-if="studio.overlay === 'plans'" />
       <AccountsPanel v-if="studio.overlay === 'accounts'" />
+      <MobilePanel v-if="studio.overlay === 'mobile'" />
     </div>
 
     <EmployeeDrawer v-if="studio.selectedEmployee" :key="studio.selectedEmployee.id" />

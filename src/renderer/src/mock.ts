@@ -6,6 +6,7 @@
  */
 import { pickLang } from '../../core/i18n'
 import type { CliStatus, OrquestApi, ProjectSummary } from '../../shared/ipc'
+import type { MobileStatus } from '../../core/mobile'
 
 const cli = (id: CliStatus['id'], name: string, version: string | null, session: boolean | null, login: string, install: CliStatus['install']): CliStatus => ({
   id,
@@ -49,6 +50,17 @@ const SUMMARIES: Record<string, ProjectSummary> = {
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+let mobileMock: MobileStatus = {
+  enabled: true,
+  port: 6768,
+  addresses: [
+    { ip: '100.101.12.7', via: 'tailscale' },
+    { ip: '192.168.1.40', via: 'lan' },
+  ],
+  devices: [{ id: 'd1', name: 'iPhone de Arturo', pairedAt: Date.now() - 2 * 86400_000, lastSeen: Date.now() - 600_000, push: true }],
+  pairing: { code: 'K7MQ2P', expiresAt: Date.now() + 4 * 60_000, qr: JSON.stringify({ orquest: 1, compu: 'ARTURO-PC', hosts: ['100.101.12.7', '192.168.1.40'], port: 6768, code: 'K7MQ2P' }) },
+  detail: false,
+}
 const nothing = () => () => {}
 
 import { mockStudio } from './mockstudio'
@@ -94,6 +106,12 @@ export function installMock(caso: string) {
     },
     // Los modelos también son los de verdad, si el servidor de vista previa los da.
     cliModels: async () => (caso in CLIS ? {} : fetch('/__orquest/modelos').then((r) => (r.ok ? r.json() : {}), () => ({}))),
+    // De mentira: el acceso desde el celular, prendido, con un código y un celular emparejado.
+    mobileStatus: async () => mobileMock,
+    mobileEnable: async (on) => (mobileMock = { ...mobileMock, enabled: on }),
+    mobileCode: async () => mobileMock,
+    mobileRevoke: async (id) => (mobileMock = { ...mobileMock, devices: mobileMock.devices.filter((d) => d.id !== id) }),
+    mobileDetail: async (on) => (mobileMock = { ...mobileMock, detail: on }),
     accounts: async () => [
       { provider: 'claude', dir: '.claude', main: true, label: 'Principal', usage: { at: Date.now() - 40_000, windows: [{ label: '5 horas', minutes: 300, used: 62, resetsAt: Date.now() + 95 * 60_000 }, { label: 'Semana', minutes: 10080, used: 31, resetsAt: Date.now() + 4 * 86_400_000 }] } },
       { provider: 'codex', dir: '.codex', main: true, label: 'Principal', usage: { at: Date.now() - 6 * 60_000, windows: [{ label: '5 horas', minutes: 300, used: 93, resetsAt: Date.now() + 22 * 60_000 }, { label: 'Semana', minutes: 10080, used: 74, resetsAt: Date.now() + 2 * 86_400_000 }] } },

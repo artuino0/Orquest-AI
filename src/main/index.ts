@@ -25,6 +25,9 @@ import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js
 import { checkUpdate } from '../core/update.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
+import { Devices } from '../core/devices.js'
+import { Mobile } from '../core/mobile.js'
+import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 
@@ -204,6 +207,8 @@ handle('project:open', async (repo: string, group?: boolean) => {
       pending = setTimeout(() => current === target && send('board:changed', target.snapshot()), 60)
     })
     s.on('notice', (text) => current === target && send('notice', text))
+    // El celular se entera de cada cambio (y le llega un aviso si algo espera al usuario).
+    s.on('changed', () => mobile?.changed(root))
     studios.set(root, s)
   }
   current = s
@@ -340,6 +345,32 @@ handle('recents:touch', (entry: RecentProject) => recents.touch(entry))
 handle('recents:remove', (path: string) => recents.remove(path))
 handle('recents:import', (entries: RecentProject[]) => recents.import(entries))
 let settings: Settings = {}
+// Acceso desde el celular (core/mobile): apagado de fábrica, se prende desde el panel Celular.
+let mobile: Mobile | undefined
+const saveRemote = async (patch: Partial<NonNullable<Settings['remote']>>) => {
+  settings = { ...settings, remote: { enabled: false, ...settings.remote, ...patch } }
+  await saveSettings(settingsFile, settings)
+}
+handle('mobile:status', () => mobile!.status())
+handle('mobile:enable', async (on: boolean) => {
+  if (on) await mobile!.start()
+  else await mobile!.stop()
+  await saveRemote({ enabled: mobile!.enabled })
+  return mobile!.status()
+})
+handle('mobile:code', async () => {
+  mobile!.newCode()
+  return mobile!.status()
+})
+handle('mobile:revoke', async (id: string) => {
+  await mobile!.revoke(id)
+  return mobile!.status()
+})
+handle('mobile:detail', async (on: boolean) => {
+  mobile!.detail = on
+  await saveRemote({ detail: on })
+  return mobile!.status()
+})
 handle('language:get', () => ({ lang: getLang(), chosen: !!settings.lang }))
 handle('language:set', async (lang: Lang) => {
   settings = { ...settings, lang }
@@ -366,9 +397,13 @@ app.whenReady().then(async () => {
   // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
   const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
   cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(appDir, 'src/cli/orquest.mjs') })
+  mobile = new Mobile({ devices: new Devices(join(app.getPath('userData'), 'dispositivos.json')), studios: () => studios, manager, computer: hostname(), appVersion: app.getVersion() })
+  mobile.detail = !!settings.remote?.detail
+  if (settings.remote?.enabled) await mobile.start()
   createWindow()
 })
 app.on('window-all-closed', async () => {
+  await mobile?.stop()
   for (const s of studios.values()) s.shutdown()
   manager.shutdown()
   await mcp?.close()

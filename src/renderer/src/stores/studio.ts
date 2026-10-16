@@ -6,7 +6,7 @@ import { LOOKS } from '../world/behavior'
 import { CAST_ORDER, CHARACTER_GENDER, CHARACTERS, DEFAULT_BOSS, fits } from '../characters'
 import { genderOf } from '../../../core/gender'
 
-export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | null
+export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | 'mobile' | null
 export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {

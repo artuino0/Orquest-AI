@@ -1,6 +1,6 @@
 /**
  * Ajustes del usuario que valen para toda la app, en `<userData>/ajustes.json`.
- * Hoy solo el idioma: sin elegir ninguno, la app usa el del sistema.
+ * El idioma (sin elegir ninguno, la app usa el del sistema) y el acceso desde el celular.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -9,13 +9,21 @@ import { LANGS, pickLang, type Lang } from './i18n.js'
 export interface Settings {
   /** El idioma que eligió el usuario; sin él manda el del sistema. */
   lang?: Lang
+  /**
+   * Acceso desde el celular (ver core/remote): apagado de fábrica. `detail` deja que los avisos
+   * lleven el detalle (la pregunta, el título de la entrega); sin él dicen solo quién y qué pasa.
+   */
+  remote?: { enabled: boolean; detail?: boolean }
 }
 
 /** Lo guardado; un archivo que falta o está roto cuenta como sin ajustes. */
 export async function loadSettings(file: string): Promise<Settings> {
   try {
     const raw = JSON.parse(await readFile(file, 'utf8')) as Settings
-    return LANGS.includes(raw.lang as Lang) ? { lang: raw.lang } : {}
+    return {
+      ...(LANGS.includes(raw.lang as Lang) ? { lang: raw.lang } : {}),
+      ...(raw.remote && typeof raw.remote === 'object' ? { remote: { enabled: raw.remote.enabled === true, ...(raw.remote.detail === true ? { detail: true } : {}) } } : {}),
+    }
   } catch {
     return {}
   }

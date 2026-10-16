@@ -17,6 +17,7 @@ import type { StudioSnapshot } from '../core/studio.js'
 import type { FileChange } from '../core/worktree.js'
 import type { FileEntry, FileSides, FileText } from '../core/files.js'
 import type { RecentProject } from '../core/recents.js'
+import type { MobileStatus } from '../core/mobile.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
@@ -64,6 +65,12 @@ export interface OrquestApi {
   cliModels(): Promise<Partial<Record<ProviderId, string[]>>>
   /** Cuentas de cada CLI en esta máquina, con lo que llevan usado de su límite. */
   accounts(): Promise<Account[]>
+  /** Acceso desde el celular: estado, prenderlo o apagarlo, código para emparejar, quitar un dispositivo, detalle en los avisos. */
+  mobileStatus(): Promise<MobileStatus>
+  mobileEnable(on: boolean): Promise<MobileStatus>
+  mobileCode(): Promise<MobileStatus>
+  mobileRevoke(id: string): Promise<MobileStatus>
+  mobileDetail(on: boolean): Promise<MobileStatus>
   pickRepo(): Promise<string | null>
   /** Si la carpeta se puede abrir tal cual o le falta ser repositorio o tener un commit. */
   checkRepo(path: string): Promise<RepoCheck>
