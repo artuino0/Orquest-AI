@@ -67,6 +67,8 @@ export interface OrquestApi {
   accounts(): Promise<Account[]>
   /** Acceso desde el celular: estado, prenderlo o apagarlo, código para emparejar, quitar un dispositivo, detalle en los avisos. */
   mobileStatus(): Promise<MobileStatus>
+  /** Lo que la oficina de píxel acaba de recibir (estado o evento), para que el celular vea la misma. */
+  officeFeed(root: string, msg: Record<string, unknown>): Promise<void>
   mobileEnable(on: boolean): Promise<MobileStatus>
   mobileCode(): Promise<MobileStatus>
   mobileRevoke(id: string): Promise<MobileStatus>

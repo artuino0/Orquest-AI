@@ -6,7 +6,8 @@ import '@fontsource/pixelify-sans/400.css'
 import '@fontsource/pixelify-sans/700.css'
 
 const PARAMS = new URLSearchParams(location.search)
-const enApp = PARAMS.get('fuente') === 'app'
+// ?fuente=movil: la misma, dentro de la app del celular (un WebView), servida por la compu.
+const enApp = PARAMS.get('fuente') === 'app' || PARAMS.get('fuente') === 'movil'
 // ?marco=0: la jornada de mentira sin encabezado ni lista de eventos, para incrustarla en la página web.
 if (!enApp && PARAMS.get('marco') === '0') document.documentElement.classList.add('en-app')
 if (enApp) await import('./puente.js')

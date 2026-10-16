@@ -96,12 +96,16 @@ function ajustarEscala() {
   // No llena la pantalla: usa el 80 % de lo que cabe, en pasos de medio punto
   // (1, 1.5, 2…) para que el píxel siga parejo. ?escala=2 la fija a mano.
   // Dentro de la app la oficina es todo el marco.
-  const cabe = sinLateral ? Math.min(innerWidth / ESCENA.w, innerHeight / ESCENA.h) : Math.min(ancho / ESCENA.w, alto / ESCENA.h);
+  // En el celular llena el alto y se recorre a lo ancho (con zoom, también hacia arriba y abajo).
+  const movil = document.documentElement.classList.contains('movil');
+  const cabe = movil ? innerHeight / ESCENA.h : sinLateral ? Math.min(innerWidth / ESCENA.w, innerHeight / ESCENA.h) : Math.min(ancho / ESCENA.w, alto / ESCENA.h);
   let s;
   if (sinLateral) {
     // Dentro de la app, 1× es la oficina llenando su marco (lo más grande que cabe entera);
     // el zoom del panel multiplica a partir de ahí.
-    s = Math.max(0.5, Math.round(cabe * (window.OFICINA.zoom || 1) * 100) / 100);
+    // En el celular, hacia abajo: redondear hacia arriba la dejaba un píxel más alta que la pantalla.
+    const redondeo = movil ? Math.floor : Math.round;
+    s = Math.max(0.5, redondeo(cabe * (window.OFICINA.zoom || 1) * 100) / 100);
   } else {
     const fija = Number(new URLSearchParams(location.search).get('escala'));
     s = fija > 0 ? fija : Math.max(1, Math.floor(cabe * 0.8 * 2) / 2);

@@ -12,6 +12,7 @@ import { T } from './i18n.js'
 import type { EmployeeManager } from './employees.js'
 import { alertsBetween, projectView, sendExpo, type Alert, type ProjectView } from './notifier.js'
 import { inProject, REMOTE_PORT, REMOTE_PORT_TRIES, startRemoteServer, type RemoteHandle } from './remote.js'
+import type { OfficeShare } from './officeshare.js'
 import type { Studio } from './studio.js'
 
 export interface Address {
@@ -74,6 +75,8 @@ export interface MobileDeps {
   /** Para mandar los avisos (en pruebas, uno de mentira). */
   post?: typeof fetch
   addresses?: () => Address[]
+  office?: OfficeShare
+  files?: (path: string) => Promise<{ body: Uint8Array; type: string } | undefined>
 }
 
 export class Mobile {

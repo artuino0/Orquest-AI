@@ -26,6 +26,7 @@ const api: OrquestApi = {
   cliModels: () => invoke('clis:models'),
   accounts: () => invoke('accounts:list'),
   mobileStatus: () => invoke('mobile:status'),
+  officeFeed: (root, msg) => invoke('office:feed', root, msg),
   mobileEnable: (on) => invoke('mobile:enable', on),
   mobileCode: () => invoke('mobile:code'),
   mobileRevoke: (id) => invoke('mobile:revoke', id),

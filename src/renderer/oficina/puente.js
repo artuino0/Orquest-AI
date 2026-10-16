@@ -43,12 +43,18 @@ function recibirEstado({ people, activities, sprites = {} }) {
 
 // Zoom sobre la vista de entrada: 1 = la oficina llenando su marco.
 let zoom = 1
-const alPanel = (msg) => window.parent.postMessage({ orquest: 'oficina', ...msg }, '*')
+// En el celular (?fuente=movil) la oficina va en un WebView: de ida y vuelta los mensajes pasan por
+// ReactNativeWebView, no por el marco del panel. Ahí llena el alto y se recorre a lo ancho.
+const movil = new URLSearchParams(location.search).get('fuente') === 'movil'
+if (movil) document.documentElement.classList.add('movil')
+const alPanel = (msg) =>
+  movil ? window.ReactNativeWebView?.postMessage(JSON.stringify({ orquest: 'oficina', ...msg })) : window.parent.postMessage({ orquest: 'oficina', ...msg }, '*')
 
 // El primer estado llega antes de que arranque la oficina: así nace con quien ya está.
 const primero = new Promise((listo) => {
   window.addEventListener('message', (e) => {
-    if (e.source !== window.parent || e.data?.orquest !== 'oficina') return
+    // Del celular llegan sin origen (los inyecta la app); del panel, de su marco.
+    if ((!movil && e.source !== window.parent) || e.data?.orquest !== 'oficina') return
     if (e.data.type === 'estado') {
       recibirEstado(e.data)
       listo()

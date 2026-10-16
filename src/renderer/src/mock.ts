@@ -108,6 +108,7 @@ export function installMock(caso: string) {
     cliModels: async () => (caso in CLIS ? {} : fetch('/__orquest/modelos').then((r) => (r.ok ? r.json() : {}), () => ({}))),
     // De mentira: el acceso desde el celular, prendido, con un código y un celular emparejado.
     mobileStatus: async () => mobileMock,
+    officeFeed: async () => {},
     mobileEnable: async (on) => (mobileMock = { ...mobileMock, enabled: on }),
     mobileCode: async () => mobileMock,
     mobileRevoke: async (id) => (mobileMock = { ...mobileMock, devices: mobileMock.devices.filter((d) => d.id !== id) }),

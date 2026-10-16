@@ -27,6 +27,9 @@ import { loadSettings, saveSettings, startLang, type Settings } from '../core/se
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
 import { Mobile } from '../core/mobile.js'
+import { OfficeShare } from '../core/officeshare.js'
+import { readFile } from 'node:fs/promises'
+import { extname, normalize, sep } from 'node:path'
 import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
@@ -347,6 +350,30 @@ handle('recents:import', (entries: RecentProject[]) => recents.import(entries))
 let settings: Settings = {}
 // Acceso desde el celular (core/mobile): apagado de fábrica, se prende desde el panel Celular.
 let mobile: Mobile | undefined
+/** Lo que dibuja la oficina de píxel del escritorio, para que el celular vea la misma. */
+const officeShare = new OfficeShare()
+handle('office:feed', (root: string, msg: Record<string, unknown>) => {
+  if (msg?.type === 'estado') officeShare.setState(root, msg)
+  else if (msg?.type === 'evento') officeShare.addEvent(root, msg.evento)
+  else return
+  mobile?.changed(root)
+})
+const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ico': 'image/x-icon', '.webp': 'image/webp' }
+/** Los archivos de la oficina de píxel para el celular: los de la app empaquetada o, en desarrollo, los que sirve Vite. */
+async function officeFiles(path: string): Promise<{ body: Uint8Array; type: string } | undefined> {
+  const dev = process.env.ELECTRON_RENDERER_URL
+  if (dev) {
+    const res = await fetch(new URL(path, dev)).catch(() => undefined)
+    if (!res?.ok) return undefined
+    return { body: new Uint8Array(await res.arrayBuffer()), type: res.headers.get('content-type') ?? 'application/octet-stream' }
+  }
+  const base = join(__dirname, '../renderer')
+  const file = normalize(join(base, path))
+  // Nada fuera de la carpeta de la interfaz.
+  if (!file.startsWith(base + sep)) return undefined
+  const body = await readFile(file).catch(() => undefined)
+  return body ? { body, type: MIME[extname(file).toLowerCase()] ?? 'application/octet-stream' } : undefined
+}
 const saveRemote = async (patch: Partial<NonNullable<Settings['remote']>>) => {
   settings = { ...settings, remote: { enabled: false, ...settings.remote, ...patch } }
   await saveSettings(settingsFile, settings)
@@ -397,7 +424,7 @@ app.whenReady().then(async () => {
   // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
   const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
   cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(appDir, 'src/cli/orquest.mjs') })
-  mobile = new Mobile({ devices: new Devices(join(app.getPath('userData'), 'dispositivos.json')), studios: () => studios, manager, computer: hostname(), appVersion: app.getVersion() })
+  mobile = new Mobile({ devices: new Devices(join(app.getPath('userData'), 'dispositivos.json')), studios: () => studios, manager, computer: hostname(), appVersion: app.getVersion(), office: officeShare, files: officeFiles })
   mobile.detail = !!settings.remote?.detail
   if (settings.remote?.enabled) await mobile.start()
   createWindow()

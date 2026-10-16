@@ -13,9 +13,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { basename } from 'node:path'
 import { RuleError } from './board.js'
+import { castFor } from './officeshare.js'
+import { officeState, type OfficeInput } from './officefeed.js'
 import type { Devices } from './devices.js'
 import type { EmployeeManager } from './employees.js'
 import { T } from './i18n.js'
+import type { OfficeShare } from './officeshare.js'
 import type { Studio } from './studio.js'
 
 // No el 6768: ese lo usa Orca para su app móvil.
@@ -43,6 +46,14 @@ export interface RemoteDeps {
   /** Nombre de esta compu, para que el celular la reconozca. */
   computer: string
   appVersion: string
+  /** La oficina de píxel que dibuja el escritorio (ver officeshare). */
+  office?: OfficeShare
+  /**
+   * Los archivos de la oficina de píxel (oficina.html y lo que carga), para que el celular la abra
+   * igual que el escritorio. Son públicos: el arte y el código ya están en el repositorio; los datos
+   * del proyecto van aparte, por /api/oficina, con el token.
+   */
+  files?: (path: string) => Promise<{ body: Uint8Array; type: string } | undefined>
 }
 
 /** Versión de lo que ve el celular: sube con cada cambio de cualquier proyecto o terminal. */
@@ -150,6 +161,23 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
       const root = text(url.searchParams.get('raiz'))
       return { version: changes.version, ...view(root, project(root)) }
     },
+    'GET /api/oficina': async (_req, url) => {
+      const root = text(url.searchParams.get('raiz'))
+      const s = project(root)
+      const v = view(root, s)
+      const since = Number(url.searchParams.get('desde')) || 0
+      const names: Record<string, string> = { jefe: v.snapshot.boss?.name || T`Jefe`, ...Object.fromEntries(v.snapshot.staff.map((m) => [m.id, m.name])) }
+      const share = deps.office
+      const input = () => ({
+        // Quien no puede trabajar sale como que te necesita, igual que en el escritorio.
+        employees: v.employees.map((e) => ({ ...e, state: e.problem && e.state !== 'working' && e.state !== 'exited' ? ('blocked' as const) : e.state })),
+        names,
+        tasks: v.snapshot.tasks,
+        hints: v.snapshot.hints,
+      })
+      if (!share) return { estado: officeFallback(input()), eventos: [], ultimo: 0 }
+      return share.get(v.snapshot.repo, since, input)
+    },
     'GET /api/pantalla': async (_req, url) => {
       const root = text(url.searchParams.get('raiz'))
       const id = text(url.searchParams.get('empleado'))
@@ -199,6 +227,13 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
   const server: Server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://celular')
+      // Fuera de /api: los archivos de la oficina de píxel, sin token (ver RemoteDeps.files).
+      if (req.method === 'GET' && !url.pathname.startsWith('/api/') && deps.files) {
+        const file = await deps.files(decodeURIComponent(url.pathname))
+        if (!file) return json(res, 404, { ok: false, motivo: T`No existe.` })
+        res.writeHead(200, { 'content-type': file.type, 'cache-control': 'no-cache' })
+        return res.end(file.body)
+      }
       const route = routes[`${req.method} ${url.pathname}`]
       if (!route) return json(res, 404, { ok: false, motivo: T`No existe.` })
       let device: { id: string } | undefined
@@ -227,4 +262,10 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
         server.close(() => done())
       }),
   }
+}
+
+/** La foto de la oficina sin el escritorio de por medio (en pruebas, o sin OfficeShare). */
+function officeFallback(input: OfficeInput) {
+  const state = officeState(input)
+  return { ...state, sprites: castFor(state.people.map((p) => p.id), input.names) }
 }

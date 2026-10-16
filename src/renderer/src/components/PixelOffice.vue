@@ -21,7 +21,12 @@ const scale = ref(1)
 /** Tareas de la foto anterior, para saber qué cambió; null hasta ver la primera. */
 let before: Task[] | null = null
 
-const send = (msg: object) => frame.value?.contentWindow?.postMessage({ orquest: 'oficina', ...msg }, '*')
+const send = (msg: Record<string, unknown>) => {
+  frame.value?.contentWindow?.postMessage({ orquest: 'oficina', ...msg }, '*')
+  // El celular ve la misma oficina: la compu guarda lo último que se le mandó (ver core/officeshare).
+  const root = studio.board?.repo
+  if (root && (msg.type === 'estado' || msg.type === 'evento')) void window.orquest.officeFeed(root, JSON.parse(JSON.stringify(msg))).catch(() => {})
+}
 
 function sendState() {
   if (!ready) return

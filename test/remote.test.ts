@@ -46,13 +46,14 @@ async function setup() {
   studio = await new Studio({ repo: root, manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, stopSettleMs: 20 }).init()
   const devices = new Devices(join(mkdtempSync(join(tmpdir(), 'orquest-disp-')), 'dispositivos.json'))
   const studios = new Map([[root, studio]])
-  remote = await startRemoteServer({ devices, studios: () => studios, manager, computer: 'ARTURO-PC', appVersion: '0.6.0' }, 0, '127.0.0.1')
+  const files = async (path: string) => (path === '/oficina.html' ? { body: new TextEncoder().encode('<html>oficina</html>'), type: 'text/html' } : undefined)
+  remote = await startRemoteServer({ devices, studios: () => studios, manager, computer: 'ARTURO-PC', appVersion: '0.6.0', files }, 0, '127.0.0.1')
   const base = `http://127.0.0.1:${remote.port}`
   const call = async (method: string, path: string, body?: unknown, token?: string) => {
     const res = await fetch(base + path, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined })
     return { status: res.status, body: (await res.json()) as Record<string, any> }
   }
-  return { root, devices, call, terminals }
+  return { root, devices, call, terminals, base }
 }
 
 describe('servidor para el celular', () => {
@@ -96,6 +97,14 @@ describe('servidor para el celular', () => {
     await call('POST', '/api/accion', { raiz: root, accion: 'decir_al_jefe', texto: 'Empieza por el carrito' }, token)
     expect(studio!.snapshot().messages).toContainEqual(expect.objectContaining({ from: 'usuario', to: 'jefe', text: 'Empieza por el carrito' }))
     await expect.poll(() => jefe.typed.join(''), { timeout: 5000 }).toContain('Empieza por el carrito')
+
+    // La oficina de píxel: sus archivos sin token, su foto con él (personajes como en el escritorio).
+    const { base } = await (async () => ({ base: `http://127.0.0.1:${remote!.port}` }))()
+    expect(await (await fetch(`${base}/oficina.html?fuente=movil`)).text()).toContain('oficina')
+    expect((await fetch(`${base}/no-existe.js`)).status).toBe(404)
+    expect((await call('GET', `/api/oficina?raiz=${encodeURIComponent(root)}`)).status).toBe(401)
+    const office = await call('GET', `/api/oficina?raiz=${encodeURIComponent(root)}`, undefined, token)
+    expect(office.body.estado).toMatchObject({ people: [expect.objectContaining({ id: 'jefe' })], sprites: { jefe: 'CHAR3' } })
 
     // Una regla rota llega tal cual; una acción que no existe, también.
     const bad = await call('POST', '/api/accion', { raiz: root, accion: 'integrar', tarea: 'T9' }, token)
