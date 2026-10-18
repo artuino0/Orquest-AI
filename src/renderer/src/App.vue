@@ -6,6 +6,7 @@ import { watchAttention } from './attention'
 import './theme'
 import HomeScreen from './components/HomeScreen.vue'
 import OfficeScreen from './components/OfficeScreen.vue'
+import RepoSetup from './components/RepoSetup.vue'
 import TitleBar from './components/TitleBar.vue'
 
 const studio = useStudio()
@@ -27,6 +28,8 @@ const closeNow = () => window.orquest.closeNow()
       <OfficeScreen v-else />
     </div>
   </div>
+  <!-- La carpeta elegida no está lista (sin git, sin commits, agrupa repositorios): desde Inicio o desde el dock del lienzo. -->
+  <RepoSetup v-if="studio.repoIssue" />
   <div v-if="closing" class="closing">
     <section class="panel">
       <h1 class="title-pixel">{{ T`Cerrando Orquest` }}</h1>

@@ -250,6 +250,15 @@ export class Studio extends EventEmitter<StudioEvents> {
   /** Agentes de este proyecto, incluso antes de que termine su contratación. */
   private known = new Set<string>([BOSS_ID])
 
+  /**
+   * Las terminales de este proyecto. Cada proyecto tiene su manejador: los ids
+   * se repiten entre proyectos (el jefe siempre es «jefe») y con uno solo para
+   * todos, un proyecto veía al jefe de otro como suyo.
+   */
+  get manager(): EmployeeManager {
+    return this.opts.manager
+  }
+
   private isOurs(id: string) {
     return this.known.has(id) || this.board.staff.some((s) => s.id === id)
   }

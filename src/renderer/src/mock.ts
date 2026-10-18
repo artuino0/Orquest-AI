@@ -125,6 +125,8 @@ export function installMock(caso: string) {
     removeRecent: async (path) => (recentList = recentList.filter((r) => r.path !== path)),
     importRecents: async () => recentList,
     projectSummaries: async (repos) => repos.map((r) => SUMMARIES[r] ?? null),
+    openProjects: async () => [],
+    onProjects: nothing,
     openExternal: async (url) => void window.open(url, '_blank'),
     openProject: todo('proyectos'),
     hireBoss: todo('jefe'),

@@ -101,7 +101,6 @@ onBeforeUnmount(() => {
   clearInterval(clock)
 })
 import LangToggle from './LangToggle.vue'
-import RepoSetup from './RepoSetup.vue'
 import ThemeToggle from './ThemeToggle.vue'
 </script>
 
@@ -222,7 +221,6 @@ import ThemeToggle from './ThemeToggle.vue'
       <button class="btn primary" @click="openLink(update.url)">{{ T`Descargar` }}</button>
       <button class="btn close" :title="T`Ahora no`" @click="skipUpdate"><X /></button>
     </aside>
-    <RepoSetup v-if="studio.repoIssue" />
     <InstallGuide v-if="guide" :clis="[...noSession, ...missing]" @close="guide = false" />
   </div>
 </template>

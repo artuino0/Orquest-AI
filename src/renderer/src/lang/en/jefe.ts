@@ -186,7 +186,7 @@ const en: Record<string, string> = {
   'Decirle «ahora no» y seguir': 'Say "not now" and continue',
   'Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora.': 'Closes their terminal and opens a new one: a new conversation, with their instructions and journal.',
   'Reiniciar su terminal': 'Restart their terminal',
-  'Su terminal está abierta en el panel de la derecha: contéstale ahí.': 'Their terminal is open in the panel on the right: answer there.',
+  'Su terminal está abierta en su propio panel: contéstale ahí.': 'Their terminal is open in its own panel: answer there.',
   'el de la CLI por defecto': "the CLI's default",
   'Escribir otro…': 'Type another…',
   'Volver a la lista': 'Back to the list',

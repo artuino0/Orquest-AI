@@ -9,7 +9,6 @@ import { networkInterfaces } from 'node:os'
 import { basename } from 'node:path'
 import type { DeviceView, Devices } from './devices.js'
 import { T } from './i18n.js'
-import type { EmployeeManager } from './employees.js'
 import { alertsBetween, projectView, sendExpo, type Alert, type ProjectView } from './notifier.js'
 import { inProject, REMOTE_PORT, REMOTE_PORT_TRIES, startRemoteServer, type RemoteHandle } from './remote.js'
 import type { OfficeShare } from './officeshare.js'
@@ -67,7 +66,6 @@ export function localAddresses(nets: ReturnType<typeof networkInterfaces> = netw
 export interface MobileDeps {
   devices: Devices
   studios: () => Map<string, Studio>
-  manager: EmployeeManager
   computer: string
   appVersion: string
   port?: number
@@ -155,7 +153,7 @@ export class Mobile {
     const s = this.deps.studios().get(root)
     if (!s) return undefined
     const snap = s.snapshot()
-    const employees = this.deps.manager.list().filter((e) => inProject(snap.repo, e.office.path))
+    const employees = s.manager.list().filter((e) => inProject(snap.repo, e.office.path))
     return projectView(root, basename(root), snap, employees)
   }
 

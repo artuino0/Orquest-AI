@@ -8,6 +8,7 @@ import type { Check, Dossier, Manual, Role, Stats } from '../core/library.js'
 import type { Employee, BlockKind } from '../core/employees.js'
 import type { Effort, ProviderId } from '../core/providers.js'
 import type { Account } from '../core/accounts.js'
+import type { OpenProject } from '../core/dock.js'
 import type { Activity } from '../core/activity.js'
 import type { Capture } from '../core/captures.js'
 import type { ProjectDocument } from '../core/documents.js'
@@ -84,6 +85,9 @@ export interface OrquestApi {
   checkGroup(path: string): Promise<GroupCheck>
   /** Qué hay guardado de cada repo, para la lista de recientes; null si nunca se abrió aquí. */
   projectSummaries(repos: string[]): Promise<(ProjectSummary | null)[]>
+  /** Los proyectos abiertos en esta compu, para el dock del lienzo; avisa cada vez que cambian. */
+  openProjects(): Promise<OpenProject[]>
+  onProjects(cb: (list: OpenProject[]) => void): () => void
   /** Proyectos abiertos en esta máquina, lo más reciente primero (en la carpeta de la app). */
   recents(): Promise<RecentProject[]>
   touchRecent(entry: RecentProject): Promise<RecentProject[]>

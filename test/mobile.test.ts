@@ -75,7 +75,7 @@ describe('acceso desde el celular', () => {
       return new Response('{"data":[]}')
     }) as typeof fetch
     const map = new Map([[root, s]])
-    const mobile = new Mobile({ devices, studios: () => map, manager, computer: 'ARTURO-PC', appVersion: '0.6.0', port, hostname: '127.0.0.1', post, addresses: () => [{ ip: '100.101.12.7', via: 'tailscale' }] })
+    const mobile = new Mobile({ devices, studios: () => map, computer: 'ARTURO-PC', appVersion: '0.6.0', port, hostname: '127.0.0.1', post, addresses: () => [{ ip: '100.101.12.7', via: 'tailscale' }] })
     mobiles.push(mobile)
     return { root, s, devices, mobile, sent }
   }

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, AppWindow, ChevronRight, Columns2, ExternalLink, File, Folder, FolderOpen, Gamepad2, Lock, Maximize2, Minimize2, MonitorPlay, RotateCcw, UserMinus, X } from 'lucide-vue-next'
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { AlertTriangle, ChevronRight, ExternalLink, File, Folder, FolderOpen, Gamepad2, Lock, MonitorPlay, RotateCcw, UserMinus } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
+import { useCanvas } from '../stores/canvas'
+import { IN_CANVAS } from '../canvas/inject'
 import { EFFORT_LABEL, LOOK, lookOf } from '../status'
 import { charUrl } from '../characters'
 import TerminalView from './TerminalView.vue'
@@ -20,12 +22,20 @@ const TABS: [Tab, string][] = [
   ['tarea', T`Tarea`],
   ['bitacora', T`Bitácora`],
 ]
+/** Un panel del lienzo por persona: `id` dice de quién es. */
+const props = defineProps<{ id: string }>()
 const studio = useStudio()
-const e = computed(() => studio.selectedEmployee!)
+const canvas = useCanvas()
+const e = computed(() => studio.employees.find((x) => x.id === props.id)!)
+const panel = inject(IN_CANVAS, null)
+/** Ancho de sobra: sus archivos quedan siempre a la vista en una columna, como en un editor. */
+const wide = computed(() => (panel?.width.value ?? 0) >= 980)
 const tab = ref<Tab>('terminal')
 /** Su versión levantada para revisión, si la hay. */
 const review = computed(() => studio.board?.reviews?.find((r) => r.employeeId === e.value.id))
 const open = (url: string) => window.orquest.openExternal(url)
+/** Su versión se ve en un panel del lienzo, a su lado. */
+const openVersion = () => canvas.open('version', e.value.id)
 const changes = ref<FileChange[]>([])
 const openFile = ref<string | null>(null)
 const diff = ref('')
@@ -280,7 +290,7 @@ async function showFile(path: string) {
 }
 
 /** Los archivos van en su pestaña o, a pantalla completa, siempre a la vista en una columna. */
-const filesOn = computed(() => studio.drawerFull || tab.value === 'archivos')
+const filesOn = computed(() => wide.value || tab.value === 'archivos')
 function refresh() {
   if (filesOn.value) {
     void loadChanges()
@@ -300,11 +310,8 @@ watch(
   { immediate: true },
 )
 onBeforeUnmount(() => clearInterval(timer))
-function close() {
-  if (keepDraft()) return
-  studio.drawerFull = false
-  studio.select(null)
-}
+// Cerrar el panel con cambios sin guardar: primero guardarlos o descartarlos.
+if (panel) panel.guard.canClose = () => !keepDraft()
 
 // Escribirle sin entrar a la terminal: el texto y Enter van directo a su CLI.
 // Lo que le llevas escrito a cada quien se conserva al cambiar de persona o de pantalla.
@@ -325,7 +332,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 </script>
 
 <template>
-  <aside class="drawer panel" :class="[studio.drawerMode, { full: studio.drawerFull }]">
+  <aside class="drawer">
     <header>
       <img class="avatar" :src="avatar" alt="" />
       <div class="who">
@@ -339,16 +346,6 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
         <p v-if="hot" class="over">{{ T`Pasó el umbral de ${burnoutAt} %. Mándalo a Descanso para limpiar contexto.` }}</p>
       </div>
       <div class="actions">
-        <select v-if="studio.drawerFull && studio.employees.length > 1" class="switch" :disabled="dirty" :value="e.id" :title="T`Ver la oficina de otra persona`" @change="studio.select(($event.target as HTMLSelectElement).value)">
-          <option v-for="p in studio.employees.filter((x) => x.id !== 'jefe' || x.id === e.id)" :key="p.id" :value="p.id">{{ studio.nameOf(p.id) }} · {{ p.role }}</option>
-        </select>
-        <button class="btn" :title="T`Sus archivos y su terminal ocupando toda la ventana`" @click="studio.drawerFull = !studio.drawerFull">
-          <template v-if="studio.drawerFull"><Minimize2 /> {{ T`Reducir` }}</template><template v-else><Maximize2 /> {{ T`Pantalla completa` }}</template>
-        </button>
-        <button v-if="!studio.drawerFull" class="btn" @click="studio.drawerMode = studio.drawerMode === 'float' ? 'split' : 'float'">
-          <template v-if="studio.drawerMode === 'float'"><Columns2 /> {{ T`Dividir` }}</template><template v-else><AppWindow /> {{ T`Flotante` }}</template>
-        </button>
-        <button class="btn" @click="close"><X /> {{ T`Cerrar` }}</button>
         <button class="btn" :disabled="gaming || e.state === 'exited'" :title="T`Escribe su traspaso y se reinicia con el contexto limpio`" @click="studio.rest(e.id)"><Gamepad2 /> {{ T`Descanso` }}</button>
         <button class="btn" :disabled="gaming" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora. Úsalo si se quedó atorada.`" @click="studio.restart(e.id)"><RotateCcw /> {{ T`Reiniciar` }}</button>
         <button v-if="e.id !== 'jefe'" class="btn" :disabled="!!review || e.state === 'exited'" :title="T`Le pide levantar su versión (con lo que necesite: backend, base de datos) para verla funcionando antes de integrarla`" @click="studio.requestReview(e.id)"><MonitorPlay /> {{ T`Ver su versión` }}</button>
@@ -370,7 +367,8 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
       </template>
       <template v-else>
         <span>{{ T`Su versión:` }}</span>
-        <button v-for="u in review.urls" :key="u" class="link" :title="T`Abrir en el navegador`" @click="open(u)"><ExternalLink />{{ u }}</button>
+        <button v-for="u in review.urls" :key="u" class="link" :title="T`Verla en el lienzo, a su lado`" @click="openVersion"><MonitorPlay />{{ u }}</button>
+        <button class="btn icon" :title="T`Abrir en el navegador`" @click="open(review.urls[0])"><ExternalLink /></button>
         <small v-if="review.notes" class="dim">{{ review.notes }}</small>
       </template>
       <span class="grow" />
@@ -381,7 +379,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
       <button v-for="[id, label] in TABS" :key="id" :class="{ on: tab === id }" @click="tab = id">{{ label }}</button>
     </nav>
 
-    <div class="work" :class="{ ide: studio.drawerFull }">
+    <div class="work" :class="{ ide: wide }">
     <div v-if="filesOn" class="side">
       <nav class="seg">
         <button :class="{ on: filesView === 'changes' }" @click="filesView = 'changes'">{{ T`Cambios` }}<template v-if="changes.length"> · {{ changes.length }}</template></button>
@@ -433,7 +431,9 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
           <div v-else class="wait">{{ c.url === '' ? T`No se pudo abrir` : T`Cargando…` }}</div>
           <figcaption :title="c.path">{{ c.path.split('/').pop() }} <small>{{ time(c.at) }}</small></figcaption>
         </figure>
-        <!-- Vista grande: la imagen a su ancho y, si es larga, se recorre hacia abajo -->
+        <!-- Vista grande: la imagen a su ancho y, si es larga, se recorre hacia abajo. Va fuera del lienzo:
+             dentro de un panel (que se mueve con transform) quedaría pegada al plano y recortada. -->
+        <Teleport to="body">
         <div v-if="zoomed" class="zoomed" @click.self="zoomed = null">
           <div class="viewer">
             <header>
@@ -444,6 +444,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
             <div class="scroll"><img :src="zoomed" :class="{ fit }" alt="" /></div>
           </div>
         </div>
+        </Teleport>
       </div>
 
       <div v-if="tab === 'chat'" class="chat">
@@ -493,7 +494,7 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 </template>
 
 <style scoped>
-.drawer { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.drawer { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
 .failed { display: flex; align-items: flex-start; gap: 8px; padding: 8px 14px; font-size: 12px; line-height: 1.5; background: var(--tint-danger); border-bottom: 3px solid var(--st-block); overflow-wrap: anywhere; }
 .failed > svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
 .review { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 14px; font-size: 12px; background: var(--surface); border-bottom: 3px solid var(--border); }
@@ -503,11 +504,8 @@ const time = (t: number) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-d
 .review .link svg { width: 12px; height: 12px; }
 .review .grow { flex: 1; }
 .review .btn { padding: 4px 10px; }
-.drawer.float { position: fixed; right: 16px; top: 96px; bottom: 16px; width: min(640px, 56vw); z-index: 6; }
-.drawer.split { grid-row: 2; grid-column: 2; border-width: 0 0 0 3px; box-shadow: none; }
-/* Pantalla completa: toda la ventana bajo su encabezado (32 px). */
-.drawer.full { position: fixed; inset: 32px 0 0 0; width: auto; z-index: 8; border-width: 0; box-shadow: none; }
-.switch { font: 700 12px var(--font); padding: 6px 8px; background: var(--bg); color: var(--text-primary); border: 2px solid var(--border-light); max-width: 220px; }
+.review .btn.icon { padding: 4px 6px; }
+.review .btn.icon svg { width: 13px; height: 13px; }
 .work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .work.ide { flex-direction: row; }
 .side { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 0; min-height: 0; }

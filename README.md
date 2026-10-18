@@ -73,12 +73,15 @@ Prueba de cierre (`test/studio.test.ts`): un proyecto chico de punta a punta por
 
 ## Interfaz
 
-La oficina es la pantalla principal; todo lo demás se abre encima sin salir de ella.
+Un proyecto abierto es un **lienzo infinito**: la oficina, el jefe, cada empleado, su versión, el editor, el tablero y lo demás son paneles que mueves, agrandas, minimizas y enfocas. El plano crece hacia donde los lleves y cada proyecto recuerda cómo lo dejaste.
 
 - **Inicio** (`HomeScreen.vue`): proyectos recientes y revisión de CLIs; sin una usable no deja abrir proyecto.
-- **Oficina** (`OfficeScreen.vue` + `world/`): mapa pixel art con Recepción, oficina del Jefe, Cafetería y un cuarto por departamento. HUD arriba con el proyecto, contadores (trabajando, te necesitan, en espera) y botones de Tablero, Entregas y Contratar. Rueda para zoom, arrastrar para mover, doble clic para centrar.
-- **Contratar** (`HireDialog.vue`): plantilla por puestos con proveedor, modelo y esfuerzo. Cada contratado entra por Recepción y camina a su escritorio.
-- **Drawer del empleado** (`EmployeeDrawer.vue`): clic en un personaje; flotante o pantalla dividida, con pestañas Terminal, Archivos (con diff), Capturas, Actividad y Tarea. La cámara sigue al elegido.
+- **Lienzo** (`OfficeScreen.vue` + `canvas/`): arrastrar el fondo (o espacio + arrastrar) recorre, Ctrl + rueda acerca y aleja, «Ver todo» encuadra y «Ordenar» acomoda en rejilla. Minimapa abajo a la derecha. Clic derecho en el fondo: abrir un panel ahí y elegir fondo (liso, ciudad de noche, bosque, montañas, espacio o una imagen tuya), atenuarlo y mostrar u ocultar las guías.
+- **Dock de proyectos** (`ProjectDock.vue`): los proyectos abiertos; un clic cambia de proyecto. Número rojo: algo te espera ahí; cuadro azul: están trabajando. Abajo, el uso de tus cuentas, que abre el panel **Uso** (5 horas, cuándo reinicia y la semana).
+- **Oficina** (`PixelOffice.vue`): la oficina de píxel; un clic en alguien abre su panel al lado, sin tapar nada.
+- **Panel del empleado** (`EmployeeDrawer.vue`): Terminal, Chat, Archivos (con diff), Capturas, Actividad, Tarea y Bitácora. Enfocarlo (doble clic en su encabezado) lo lleva, con su versión, a toda la vista.
+- **Su versión** (`VersionPanel.vue`): lo que levantó un empleado para revisión, dentro del lienzo, con botón para abrirlo en tu navegador.
+- **Editor** (Ctrl+B): los archivos del proyecto con lo cambiado según git.
 - **Expedientes**: puestos permitidos, notas e historial por proveedor y modelo; manuales de cada puesto.
 - **Jefe**, **Plantilla**, **Tablero** y **Entregas**: contratar y hablar con el jefe, aprobar su propuesta, tareas por departamento con estado y dependencias, y la bandeja para integrar o regresar con diff y reporte de QA.
 

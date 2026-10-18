@@ -1,9 +1,8 @@
 /**
- * El explorador del proyecto (botón de carpeta en la barra de la oficina): el
- * panel de archivos, las pestañas abiertas y el editor que ocupa el lugar de la
- * oficina. Es la carpeta del proyecto, no la oficina de un agente.
+ * El editor del proyecto (panel Editor del lienzo): las pestañas abiertas de
+ * la carpeta del proyecto, no de la oficina de un agente.
  *
- * Cerrar el editor no cierra los archivos: las pestañas se quedan hasta que se
+ * Cerrar el panel no cierra los archivos: las pestañas se quedan hasta que se
  * cierran una por una o se sale del proyecto.
  */
 import { defineStore } from 'pinia'
@@ -28,46 +27,16 @@ export interface Tab {
   saving: boolean
 }
 
-const WIDTH_KEY = 'orquest.files.width'
-const OPEN_KEY = 'orquest.files.open'
-export const MIN_WIDTH = 220
-const remembered = (key: string): string | null => {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-const remember = (key: string, value: string) => {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Sin almacenamiento, la preferencia dura esta sesión.
-  }
-}
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 export const useIde = defineStore('ide', () => {
-  const panelOpen = ref(remembered(OPEN_KEY) === '1')
-  const width = ref(Math.max(MIN_WIDTH, Number(remembered(WIDTH_KEY)) || 320))
   const tabs = ref<Tab[]>([])
   const active = ref<string | null>(null)
-  /** El editor a la vista, en el lugar de la oficina. */
-  const visible = ref(false)
   let serial = 0
 
   const current = computed(() => tabs.value.find((t) => t.path === active.value) ?? null)
   const isDirty = (t: Tab) => !!t.stamp && t.draft !== t.onDisk
   const dirtyCount = computed(() => tabs.value.filter(isDirty).length)
-
-  function togglePanel() {
-    panelOpen.value = !panelOpen.value
-    remember(OPEN_KEY, panelOpen.value ? '1' : '0')
-  }
-  function setWidth(px: number) {
-    width.value = Math.round(Math.max(MIN_WIDTH, Math.min(px, window.innerWidth / 2)))
-    remember(WIDTH_KEY, String(width.value))
-  }
 
   /** Trae un archivo del disco a su pestaña (nueva o ya abierta). */
   async function load(path: string) {
@@ -91,19 +60,10 @@ export const useIde = defineStore('ide', () => {
     tab.key = ++serial
   }
 
-  /** Clic en un archivo de la lista: lo abre (o lo trae al frente) y muestra el editor. */
+  /** Clic en un archivo de la lista: lo abre (o lo trae al frente). */
   async function open(path: string) {
     if (!tabs.value.some((t) => t.path === path)) await load(path)
     active.value = path
-    visible.value = true
-  }
-  /** «Ver editor»: entra a lo que ya está abierto, sin abrir nada más. */
-  function show() {
-    active.value ??= tabs.value[0]?.path ?? null
-    visible.value = true
-  }
-  function hide() {
-    visible.value = false
   }
   /** Cierra una pestaña. Con cambios sin guardar no: primero guardar o descartar. */
   function close(path: string) {
@@ -117,7 +77,6 @@ export const useIde = defineStore('ide', () => {
     }
     tabs.value.splice(i, 1)
     if (active.value === path) active.value = (tabs.value[i] ?? tabs.value[i - 1])?.path ?? null
-    if (!tabs.value.length) visible.value = false
   }
 
   async function save(tab: Tab, locked: boolean, who: string) {
@@ -153,8 +112,7 @@ export const useIde = defineStore('ide', () => {
   function reset() {
     tabs.value = []
     active.value = null
-    visible.value = false
   }
 
-  return { panelOpen, width, tabs, active, visible, current, dirtyCount, isDirty, togglePanel, setWidth, load, open, show, hide, close, save, format, reset }
+  return { tabs, active, current, dirtyCount, isDirty, load, open, close, save, format, reset }
 })

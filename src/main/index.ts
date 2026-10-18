@@ -26,6 +26,7 @@ import { checkUpdate } from '../core/update.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
+import { dockEntry } from '../core/dock.js'
 import { Mobile } from '../core/mobile.js'
 import { OfficeShare } from '../core/officeshare.js'
 import { readFile } from 'node:fs/promises'
@@ -34,7 +35,12 @@ import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
 
-const manager = new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
+/**
+ * Cada proyecto tiene sus propias terminales: los ids se repiten entre proyectos
+ * (el jefe siempre es «jefe»), y con un solo manejador para todos un proyecto veía
+ * al jefe de otro como suyo y no podía levantar al suyo.
+ */
+const newManager = () => new EmployeeManager((file, args, o) => pty.spawn(file, args, { name: 'xterm-256color', ...o }))
 let store: StudioStore
 let mcp: McpHandle
 /** Carpeta con el comando `orquest`, al frente del PATH de cada agente. */
@@ -106,15 +112,25 @@ async function closeWithCuts() {
 const send = (channel: string, ...args: unknown[]) => {
   if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(channel, ...args)
 }
-manager.on('data', (id, data) => send('employee:data', id, data))
-manager.on('state', (id, state) => send('employee:state', id, state))
-manager.on('hired', (e) => send('employee:hired', e))
-manager.on('activity', (id, activity) => {
-  send('employee:activity', id, activity)
-  // El celular también ve en qué anda cada quien (el globo «ahora» del chat del jefe).
-  mobile?.activity()
-})
-manager.on('failure', (id, problem) => send('employee:problem', id, problem))
+/** Las terminales del proyecto a la vista; las de los demás siguen trabajando y el dock las cuenta. */
+const mgr = () => current?.manager
+/** La pantalla solo recibe lo del proyecto a la vista; el dock y el celular, lo de todos. */
+function wire(s: Studio) {
+  const here = () => current === s
+  const m = s.manager
+  m.on('data', (id, data) => here() && send('employee:data', id, data))
+  m.on('state', (id, state) => {
+    if (here()) send('employee:state', id, state)
+    tellDock()
+  })
+  m.on('hired', (e) => here() && send('employee:hired', e))
+  m.on('activity', (id, activity) => {
+    if (here()) send('employee:activity', id, activity)
+    // El celular también ve en qué anda cada quien (el globo «ahora» del chat del jefe).
+    mobile?.activity()
+  })
+  m.on('failure', (id, problem) => here() && send('employee:problem', id, problem))
+}
 
 function studio(): Studio {
   if (!current) throw new Error(T`No hay proyecto abierto.`)
@@ -171,9 +187,24 @@ handle('repo:group', (path: string) => checkGroup(path))
 handle('repo:prepare', (path: string) => prepareRepo(path))
 handle('repo:create-group', (path: string, names: string[]) => createGroup(path, names))
 handle('repo:pick', async () => {
-  const r = await dialog.showOpenDialog({ properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` })
+  // Hija de la ventana de Orquest: sin dueño, en Windows puede abrirse detrás y parece que no pasó nada.
+  const options: Electron.OpenDialogOptions = { properties: ['openDirectory'], title: T`Elige el repositorio del proyecto` }
+  const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
   return r.canceled ? null : r.filePaths[0]
 })
+
+// El dock del lienzo: los proyectos abiertos, con quién trabaja y qué espera al usuario en cada uno.
+const openProjects = () =>
+  [...studios.entries()].map(([root, s]) => {
+    const snap = s.snapshot()
+    return dockEntry(root, snap, s.manager.list())
+  })
+let dockTimer: ReturnType<typeof setTimeout> | undefined
+function tellDock() {
+  clearTimeout(dockTimer)
+  dockTimer = setTimeout(() => send('projects:changed', openProjects()), 150)
+}
+handle('projects:open', () => openProjects())
 
 handle('project:summaries', (repos: string[]) =>
   repos.map((repo) => {
@@ -198,7 +229,7 @@ handle('project:open', async (repo: string, group?: boolean) => {
     s = await new Studio({
       repo: root,
       group: !!group,
-      manager,
+      manager: newManager(),
       store,
       library,
       detect: detectAll,
@@ -216,7 +247,10 @@ handle('project:open', async (repo: string, group?: boolean) => {
     s.on('notice', (text) => current === target && send('notice', text))
     // El celular se entera de cada cambio (y le llega un aviso si algo espera al usuario).
     s.on('changed', () => mobile?.changed(root))
+    s.on('changed', tellDock)
+    wire(s)
     studios.set(root, s)
+    tellDock()
   }
   current = s
   // Si quedó gente al cerrar, la foto lo dice (resumable) y el usuario decide si se retoma.
@@ -279,17 +313,17 @@ handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: 
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
 handle('employee:say', (id: string, text: string) => studio().say(id, text))
 handle('employee:back', (id: string) => studio().bringBack(id))
-handle('employee:blocked-by', (id: string) => manager.blockedBy(id) ?? null)
-handle('employee:answer-block', (id: string) => manager.answerBlock(id))
+handle('employee:blocked-by', (id: string) => mgr()?.blockedBy(id) ?? null)
+handle('employee:answer-block', (id: string) => mgr()?.answerBlock(id))
 handle('employee:restart', (id: string) => studio().restart(id))
 handle('employee:rest', (id: string) => {
   void studio().rest(id).catch((err) => send('notice', (err as Error).message))
 })
 handle('employee:journal', (id: string) => studio().readJournal(id))
-handle('employee:list', () => manager.list())
-handle('employee:scrollback', (id: string) => manager.scrollback(id))
+handle('employee:list', () => mgr()?.list() ?? [])
+handle('employee:scrollback', (id: string) => mgr()?.scrollback(id) ?? '')
 handle('employee:changes', async (id: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) return []
   // Con varios repositorios su oficina no es uno: los cambios salen de cada copia que tiene dentro.
   const changes = current?.repos.length ? await current.changes(id) : await officeChanges(emp.office)
@@ -298,7 +332,7 @@ handle('employee:changes', async (id: string) => {
   return [...plans, ...changes]
 })
 handle('employee:captures', async (id: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) return []
   // También las que adjuntó al entregar, aunque estén en una carpeta que no se revisa.
   if (current?.repos.length) return current.captures(id)
@@ -306,32 +340,32 @@ handle('employee:captures', async (id: string) => {
   return listCaptures(emp.office.path, attached, current ? await headOf(current.snapshot().repo).catch(() => undefined) : undefined)
 })
 handle('employee:capture', (id: string, path: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return readCapture(emp.office.path, path)
 })
 handle('employee:diff', (id: string, path: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) return ''
   return current?.repos.length ? current.fileDiff(id, path) : officeDiff(emp.office, path)
 })
 handle('employee:tree', (id: string, dir: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   return emp ? listDir(emp.office.path, dir) : []
 })
 handle('employee:file', (id: string, path: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return readText(emp.office.path, path)
 })
 handle('employee:sides', (id: string, path: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return fileSides(emp.office.path, path)
 })
 handle('employee:save-file', (id: string, path: string, text: string, stamp: string) => studio().saveFile(id, path, text, stamp))
 handle('employee:format-file', (id: string, path: string, text: string) => {
-  const emp = manager.get(id)
+  const emp = mgr()?.get(id)
   if (!emp) throw new RuleError(T`Ya no está en la oficina.`)
   return formatText(emp.office.path, path, text)
 })
@@ -340,8 +374,8 @@ handle('project:file', (path: string) => studio().projectFile(path))
 handle('project:changes', () => studio().projectChanges())
 handle('project:save-file', (path: string, text: string, stamp: string) => studio().saveProjectFile(path, text, stamp))
 handle('project:format-file', (path: string, text: string) => studio().formatProjectFile(path, text))
-ipcMain.on('employee:write', (_e, id: string, data: string) => manager.isLive(id) && manager.write(id, data))
-ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => manager.isLive(id) && manager.resize(id, cols, rows))
+ipcMain.on('employee:write', (_e, id: string, data: string) => mgr()?.isLive(id) && mgr()!.write(id, data))
+ipcMain.on('employee:resize', (_e, id: string, cols: number, rows: number) => mgr()?.isLive(id) && mgr()!.resize(id, cols, rows))
 
 // ── Idioma: el que eligió el usuario o, si no ha elegido, el de su sistema.
 addDictionary('en', en)
@@ -428,15 +462,17 @@ app.whenReady().then(async () => {
   // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
   const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
   cliDir = await installCli(join(app.getPath('userData'), 'bin'), { runtime: process.execPath, script: join(appDir, 'src/cli/orquest.mjs') })
-  mobile = new Mobile({ devices: new Devices(join(app.getPath('userData'), 'dispositivos.json')), studios: () => studios, manager, computer: hostname(), appVersion: app.getVersion(), office: officeShare, files: officeFiles })
+  mobile = new Mobile({ devices: new Devices(join(app.getPath('userData'), 'dispositivos.json')), studios: () => studios, computer: hostname(), appVersion: app.getVersion(), office: officeShare, files: officeFiles })
   mobile.detail = !!settings.remote?.detail
   if (settings.remote?.enabled) await mobile.start()
   createWindow()
 })
 app.on('window-all-closed', async () => {
   await mobile?.stop()
-  for (const s of studios.values()) s.shutdown()
-  manager.shutdown()
+  for (const s of studios.values()) {
+    s.shutdown()
+    s.manager.shutdown()
+  }
   await mcp?.close()
   store?.close()
   app.quit()

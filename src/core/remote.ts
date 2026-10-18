@@ -16,7 +16,6 @@ import { RuleError } from './board.js'
 import { castFor } from './officeshare.js'
 import { officeState, type OfficeInput } from './officefeed.js'
 import type { Devices } from './devices.js'
-import type { EmployeeManager } from './employees.js'
 import { T } from './i18n.js'
 import type { OfficeShare } from './officeshare.js'
 import type { Studio } from './studio.js'
@@ -40,9 +39,8 @@ export function inProject(root: string, path: string): boolean {
 
 export interface RemoteDeps {
   devices: Devices
-  /** Los proyectos abiertos, por su carpeta. */
+  /** Los proyectos abiertos, por su carpeta. Cada uno trae sus terminales (`Studio.manager`). */
   studios: () => Map<string, Studio>
-  manager: EmployeeManager
   /** Nombre de esta compu, para que el celular la reconozca. */
   computer: string
   appVersion: string
@@ -112,7 +110,7 @@ const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
 export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, hostname = '0.0.0.0'): Promise<RemoteHandle> {
   const changes = new Changes()
-  const { devices, manager } = deps
+  const { devices } = deps
 
   const project = (root: string) => {
     const s = deps.studios().get(root)
@@ -121,10 +119,10 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
   }
   const view = (root: string, s: Studio) => {
     const snapshot = s.snapshot()
-    const employees = manager
+    const employees = s.manager
       .list()
       .filter((e) => inProject(snapshot.repo, e.office.path))
-      .map((e) => ({ id: e.id, provider: e.provider, model: e.model, effort: e.effort, role: e.role, state: e.state, problem: e.problem, context: e.context, activity: manager.activityOf(e.id) }))
+      .map((e) => ({ id: e.id, provider: e.provider, model: e.model, effort: e.effort, role: e.role, state: e.state, problem: e.problem, context: e.context, activity: s.manager.activityOf(e.id) }))
     return { root, name: basename(root), snapshot, employees }
   }
 
@@ -181,10 +179,11 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
     'GET /api/pantalla': async (_req, url) => {
       const root = text(url.searchParams.get('raiz'))
       const id = text(url.searchParams.get('empleado'))
-      const v = view(root, project(root))
+      const s = project(root)
+      const v = view(root, s)
       if (!v.employees.some((e) => e.id === id)) throw new RuleError(T`${id} no está en la oficina.`)
       // Solo lo de abajo: es lo que importa y no se manda la pantalla entera cada vez.
-      return { text: manager.screenText(id).split('\n').slice(-40).join('\n') }
+      return { text: s.manager.screenText(id).split('\n').slice(-40).join('\n') }
     },
     'POST /api/accion': async (req) => {
       const b = await readBody(req)
@@ -206,8 +205,8 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
         case 'contestar_terminal': {
           // Lo que su CLI pregunta y se sabe contestar desde la app (permiso, confiar en la carpeta, otro modelo).
           if (!view(root, s).employees.some((e) => e.id === id)) throw new RuleError(T`${id} no está en la oficina.`)
-          if (!manager.blockedBy(id)) throw new RuleError(T`${id} no está esperando una respuesta.`)
-          manager.answerBlock(id)
+          if (!s.manager.blockedBy(id)) throw new RuleError(T`${id} no está esperando una respuesta.`)
+          s.manager.answerBlock(id)
           return { ok: true }
         }
         case 'integrar':

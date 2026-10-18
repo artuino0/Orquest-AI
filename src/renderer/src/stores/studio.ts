@@ -7,7 +7,6 @@ import { CAST_ORDER, CHARACTER_GENDER, CHARACTERS, DEFAULT_BOSS, fits } from '..
 import { genderOf } from '../../../core/gender'
 
 export type Overlay = 'hire' | 'board' | 'inbox' | 'boss' | 'library' | 'plans' | 'accounts' | 'mobile' | null
-export type DrawerMode = 'float' | 'split'
 
 export interface ActivityItem {
   at: number
@@ -74,9 +73,6 @@ export const useStudio = defineStore('studio', () => {
   const checkedAt = ref<number | null>(null)
   const selected = ref<string | null>(null)
   const overlay = ref<Overlay>(null)
-  const drawerMode = ref<DrawerMode>('float')
-  /** El panel del empleado a pantalla completa, como un IDE: archivos a un lado, su terminal al otro. */
-  const drawerFull = ref(false)
   const error = ref<string | null>(null)
   const activity = ref<Record<string, ActivityItem[]>>({})
   const board = ref<StudioSnapshot | null>(null)
@@ -236,8 +232,11 @@ export const useStudio = defineStore('studio', () => {
    */
   const resuming = ref(false)
   const resumeAsked = ref(false)
+  /** Los proyectos donde ya se contestó, para no volver a preguntar al regresar a ellos desde el dock. */
+  const askedIn = new Set<string>()
   async function resumeProject(yes: boolean) {
     resumeAsked.value = true
+    if (board.value) askedIn.add(board.value.repo)
     if (!yes) return
     resuming.value = true
     await attempt(() => window.orquest.resumeProject())
@@ -265,17 +264,29 @@ export const useStudio = defineStore('studio', () => {
       error.value = e instanceof Error ? e.message : String(e)
       return
     }
+    // Otro proyecto: lo que se sabía de su gente era del anterior (los ids se repiten entre proyectos).
+    if (repo.value !== path) forgetPeople()
     repo.value = path
     loadBossCharacter(board.value.repo)
     // Se guarda la raíz del repo: es con la que el estudio recuerda el proyecto.
     const root = board.value.repo
     if (path !== root) await window.orquest.removeRecent(path).catch(() => {})
     recents.value = withSummaries(await window.orquest.touchRecent({ path: root, at: Date.now(), ...(group ? { group: true } : {}) }).catch(() => recents.value))
-    resumeAsked.value = false
+    resumeAsked.value = askedIn.has(root)
     await loadEmployees()
     screen.value = 'office'
     // Si quedó gente al cerrar, primero se pregunta si se retoma; si no hay jefe, a contratarlo.
     overlay.value = board.value.bossOnline || board.value.resumable.length ? null : 'boss'
+  }
+
+  /** Al cambiar de proyecto: en qué anda cada quien, por qué está detenido y su estado en calma eran del otro. */
+  function forgetPeople() {
+    doing.value = {}
+    blocks.value = {}
+    activity.value = {}
+    for (const t of calmTimers.values()) clearTimeout(t)
+    calmTimers.clear()
+    calm.value = {}
   }
 
   /** Corre una acción y deja el motivo del rechazo en error. */
@@ -442,7 +453,7 @@ export const useStudio = defineStore('studio', () => {
   return {
     blocks, answerBlock, restart, draft,
     version,
-    screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, drawerMode, drawerFull, error, activity, board, notices, doing,
+    screen, clis, requirements, repoIssue, prepareAndOpen, createGroupAndOpen, detecting, checkedAt, employees, repo, recents, selected, overlay, error, activity, board, notices, doing,
     bossCharacter, setBossCharacter, characterOf,
     usable, canHire, selectedEmployee, counts, proposal, inbox, bossOnline, tasksOf, nameOf, calmStateOf, gamingCount, rest, bringBack, resuming, resumeAsked, resumeProject,
     detect, loadRecents, removeRecent, loadSummaries, openProject, pickProject, goHome, fire, select, openBossDesk, attempt, hireBoss, approveTemplate, retune, setTeamApproval, requestReview, stopReview, mergeTask, returnTask, discardTask, sayToBoss, answerQuestion, notice,

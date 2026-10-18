@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, Crown, Hand, Inbox, Pencil, RotateCcw, Send, Target, Terminal, Users, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
+import { useCanvas } from '../stores/canvas'
+import { IN_CANVAS } from '../canvas/inject'
+import { useBossSay } from '../bossSay'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
 import type { Effort, ProviderId } from '../../../shared/ipc'
@@ -15,6 +18,10 @@ import { T } from '../../../core/i18n'
 
 /** Contratar al jefe y hablar con él. El jefe es tu único interlocutor. */
 const studio = useStudio()
+const canvas = useCanvas()
+/** Angosto en el lienzo: la conversación arriba y lo demás debajo, en vez de dos columnas. */
+const inPanel = inject(IN_CANVAS, null)
+const narrow = computed(() => (inPanel?.width.value ?? Infinity) < 760)
 // Puede ser jefe cualquier CLI lista en esta máquina (las que detecta Inicio): unas usan
 // las herramientas por MCP y las demás con el comando `orquest`. Si alguna no puede, el
 // estudio lo dice al contratar.
@@ -93,8 +100,8 @@ watch(bossName, (name) => {
   const g = genderOf(name)
   if (g && !fits(studio.bossCharacter, g)) studio.setBossCharacter(CHARACTERS.find((n) => CHARACTER_GENDER[n] === g) ?? studio.bossCharacter)
 })
-// Lo escrito se conserva al irse a otra pantalla y volver.
-const message = studio.draft('jefe')
+// Hablarle y detenerlo: lo mismo que la barra rápida de abajo del lienzo (mismo borrador).
+const { message, canStop, stopping, send, stop } = useBossSay()
 const busy = ref(false)
 
 async function hire() {
@@ -102,34 +109,6 @@ async function hire() {
   const ok = await studio.hireBoss({ name: bossName.value.trim() || undefined, provider: provider.value, model: model.value.trim() || undefined, effort: effort.value, account: accounts.value.some((a) => !a.main && a.dir === account.value) ? account.value : undefined, goal: goal.value, approveForTeam: teamApproval.value })
   busy.value = false
   if (ok) studio.overlay = null
-}
-
-/** Cuándo le mandaste algo por última vez: unos segundos después todavía tiene sentido detenerlo. */
-const sentAt = ref(0)
-const now = ref(Date.now())
-let clock: ReturnType<typeof setInterval> | undefined
-onMounted(() => (clock = setInterval(() => (now.value = Date.now()), 1000)))
-onBeforeUnmount(() => clearInterval(clock))
-const canStop = computed(() => !!boss.value && (studio.calmStateOf(boss.value) === 'working' || now.value - sentAt.value < 8000))
-
-async function send() {
-  if (!message.value.trim()) return
-  if (await studio.sayToBoss(message.value.trim())) {
-    message.value = ''
-    sentAt.value = now.value = Date.now()
-  }
-}
-
-/** Lo detiene; si recién le mandaste algo, tu mensaje vuelve a la caja para corregirlo. */
-const stopping = ref(false)
-async function stop() {
-  stopping.value = true
-  let r: { restored?: string } = {}
-  if (await studio.attempt(async () => (r = await window.orquest.stopBoss()))) {
-    if (r.restored && !message.value.trim()) message.value = r.restored
-    studio.notice(r.restored ? T`Detenido. Tu mensaje volvió a la caja para que lo corrijas.` : T`Detenido.`)
-  }
-  stopping.value = false
 }
 
 // ── Conversación ──────────────────────────────────────────────────────────
@@ -354,7 +333,7 @@ const pending = computed(() => {
 
   <!-- Con jefe: la conversación -->
   <PanelFrame v-else :title="T`Jefe`" :subtitle="T`${studio.nameOf('jefe')} · tu único interlocutor`">
-    <div class="talk">
+    <div class="talk" :class="{ narrow }">
       <div class="main">
         <div class="goal">
           <Target />
@@ -379,7 +358,7 @@ const pending = computed(() => {
             <button v-if="blockKind === 'offer'" class="btn primary" @click="studio.answerBlock('jefe')">{{ T`Decirle «ahora no» y seguir` }}</button>
             <button class="btn" :title="T`Cierra su terminal y abre otra: conversación nueva, con sus instrucciones y su bitácora.`" @click="studio.restart('jefe')"><RotateCcw /> {{ T`Reiniciar su terminal` }}</button>
           </div>
-          <p v-if="studio.selected === 'jefe'" class="dim">{{ T`Su terminal está abierta en el panel de la derecha: contéstale ahí.` }}</p>
+          <p v-if="canvas.has('employee:jefe')" class="dim">{{ T`Su terminal está abierta en su propio panel: contéstale ahí.` }}</p>
           <div v-else class="mini"><TerminalView id="jefe" /></div>
         </div>
         <div ref="log" class="log" @scroll.passive="look">
@@ -480,6 +459,10 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .err { margin: 0; font-size: 12px; color: var(--st-block); }
 
 .talk { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 332px; gap: 14px; }
+/* Angosto: todo en una columna que se recorre; la conversación primero, con alto de sobra. */
+.talk.narrow { display: flex; flex-direction: column; overflow-y: auto; }
+.talk.narrow .main { flex: 1 0 480px; }
+.talk.narrow aside { flex: none; }
 .main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .goal { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg); border: 2px solid var(--accent); }
 .goal > svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
@@ -496,10 +479,10 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .stuck svg { width: 16px; height: 16px; color: var(--st-block); flex: none; margin-top: 2px; }
 .stuck b { color: var(--st-block); }
 .mini { height: 230px; display: flex; background: var(--term-bg); border: 2px solid var(--border); overflow: hidden; }
-.log { position: relative; flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
+.log { position: relative; flex: 1; min-height: 120px; overflow-x: hidden; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--bg); border: 2px solid var(--border); }
 .spacer { flex: 1; }
 .empty, .dim { margin: 0; font-size: 11px; color: var(--text-secondary); }
-.msg { align-self: flex-start; max-width: 70%; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--pv-claude); }
+.msg { align-self: flex-start; max-width: 70%; min-width: 0; overflow-wrap: anywhere; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--pv-claude); }
 .msg.mine { align-self: flex-end; border-left: 0; border-right: 3px solid var(--border-light); }
 .msg .who { font-size: 10px; font-weight: 700; color: var(--pv-claude); }
 .msg.mine .who { color: var(--text-secondary); }

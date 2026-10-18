@@ -47,7 +47,7 @@ async function setup() {
   const devices = new Devices(join(mkdtempSync(join(tmpdir(), 'orquest-disp-')), 'dispositivos.json'))
   const studios = new Map([[root, studio]])
   const files = async (path: string) => (path === '/oficina.html' ? { body: new TextEncoder().encode('<html>oficina</html>'), type: 'text/html' } : undefined)
-  remote = await startRemoteServer({ devices, studios: () => studios, manager, computer: 'ARTURO-PC', appVersion: '0.6.0', files }, 0, '127.0.0.1')
+  remote = await startRemoteServer({ devices, studios: () => studios, computer: 'ARTURO-PC', appVersion: '0.6.0', files }, 0, '127.0.0.1')
   const base = `http://127.0.0.1:${remote.port}`
   const call = async (method: string, path: string, body?: unknown, token?: string) => {
     const res = await fetch(base + path, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined })

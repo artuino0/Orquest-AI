@@ -9,6 +9,7 @@
  *   /preview.html?proyecto=1&rapido=1     todo cinco veces más rápido
  */
 import type { DossierView, Employee, EmployeeState, Manual, OrquestApi, ProviderId, Role, Slot, StudioSnapshot, Task } from '../../shared/ipc'
+import { dockEntry } from '../../core/dock'
 
 export const MOCK_REPO = 'E:\\desarrollo\\tienda-en-linea'
 
@@ -111,6 +112,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const STEPS = [['Pensando'], ['Leyendo', 'src/api.ts'], ['Planeando'], ['Escribiendo', 'src/api.ts'], ['Ejecutando', 'npm test']] as const
   const listeners = { board: new Set<(s: StudioSnapshot) => void>(), state: new Set<(id: string, s: EmployeeState) => void>(), hired: new Set<(e: Employee) => void>() }
 
+  /** Versiones levantadas para revisión: se levantan solas a los 2.5 s y muestran la escena de demostración. */
+  let reviews: NonNullable<StudioSnapshot['reviews']> = []
   /** Quiénes van llegando (su terminal arrancando). */
   const arriving = new Set<string>()
   const snapshot = (): StudioSnapshot => {
@@ -120,7 +123,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       if (tasks.some((t) => t.assignee === e.id && ['delivered', 'in_qa', 'approved'].includes(t.status))) hints[e.id] = { state: 'delivering' }
     }
     return {
-      resumable: [], arriving: [...arriving].map((id) => ({ id, back: false })), repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline, boss: { provider: 'claude', name: bossName },
+      reviews, resumable: [], arriving: [...arriving].map((id) => ({ id, back: false })), repo: MOCK_REPO, goal: 'Tienda en línea con catálogo, clientes y pagos', bossOnline, boss: { provider: 'claude', name: bossName },
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
@@ -217,9 +220,22 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     set.add(cb)
     return () => void set.delete(cb)
   }
+  /** El dock: este proyecto y otros dos abiertos de mentira, para ver sus avisos. */
+  const openProjects = () => {
+    const snap = snapshot()
+    return [
+      { root: 'E:\desarrollo\flow-erp', name: 'flow-erp', working: 1, needs: 2 },
+      { root: 'E:\desarrollo\herdr', name: 'herdr', working: 2, needs: 0 },
+      dockEntry(MOCK_REPO, snap, employees),
+    ]
+  }
+  const dockListeners = new Set<(list: ReturnType<typeof openProjects>) => void>()
+  listeners.board.add(() => dockListeners.forEach((cb) => cb(openProjects())))
   return {
     pickRepo: async () => MOCK_REPO,
     openProject: async () => snapshot(),
+    openProjects: async () => openProjects(),
+    onProjects: on(dockListeners),
     list: async () => employees.map((e) => ({ ...e })),
     hireBoss: async (req) => {
       bossName = req.name
@@ -241,6 +257,18 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       }, 2500 * speed)
     },
     // De mentira: lo detienes justo después de mandarle algo, y tu mensaje vuelve.
+    requestReview: async (id) => {
+      reviews = [...reviews.filter((r) => r.employeeId !== id), { employeeId: id, status: 'requested', by: 'usuario', urls: [], at: Date.now() }]
+      publish()
+      setTimeout(() => {
+        reviews = reviews.map((r) => (r.employeeId === id ? { ...r, status: 'ready', urls: [`${location.origin}/demo.html`], stop: 'Ctrl+C en su terminal' } : r))
+        publish()
+      }, 2500)
+    },
+    stopReview: async (id) => {
+      reviews = reviews.filter((r) => r.employeeId !== id)
+      publish()
+    },
     stopBoss: async () => ({ restored: [...messages].reverse().find((m) => m.from === 'usuario')?.text }),
     approveTemplate: async () => {
       proposed = []

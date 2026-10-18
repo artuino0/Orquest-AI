@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * El editor del proyecto: ocupa el lugar de la oficina, con una pestaña por
- * archivo abierto. «Volver a la oficina» lo oculta sin cerrar nada; cada
- * archivo se cierra con su ✕.
+ * El editor del proyecto, a la derecha del panel Editor del lienzo, con una
+ * pestaña por archivo abierto. Cada archivo se cierra con su ✕; cerrar el
+ * panel no cierra los archivos.
  *
  * Cada pestaña conserva su propio editor mientras está abierta, así no pierde
  * lo escrito, el deshacer ni el lugar donde iba al cambiar de pestaña.
@@ -62,7 +62,6 @@ watch(
           <X class="x" :title="T`Cerrar`" @click.stop="ide.close(t.path)" />
         </button>
       </nav>
-      <button class="btn back" @click="ide.hide()"><X />{{ T`Volver a la oficina` }}</button>
     </header>
 
     <p v-if="!tab" class="empty">{{ T`Elige un archivo en la lista para abrirlo.` }}</p>
@@ -89,7 +88,7 @@ watch(
 </template>
 
 <style scoped>
-.editor { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; min-width: 0; background: var(--term-bg); }
+.editor { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; background: var(--term-bg); }
 header { display: flex; align-items: flex-end; gap: 8px; padding: 6px 8px 0; background: var(--surface); border-bottom: 3px solid var(--border); }
 .tabs { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .tab { flex: none; display: inline-flex; align-items: center; gap: 7px; max-width: 240px; padding: 7px 8px 7px 10px; font: 12px var(--font); color: var(--text-secondary); background: var(--surface-2); border: 2px solid var(--border); border-bottom: 0; cursor: pointer; }
@@ -100,7 +99,6 @@ header { display: flex; align-items: flex-end; gap: 8px; padding: 6px 8px 0; bac
 .tab .x { padding: 2px; box-sizing: content-box; }
 .tab .x:hover { background: var(--st-block); color: var(--on-danger); }
 .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
-.back { flex: none; margin-bottom: 6px; padding: 5px 10px; }
 .bar { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 10px; border-bottom: 2px solid var(--surface); }
 .bar .btn { padding: 4px 10px; }
 .path { flex: 1; min-width: 0; margin: 0; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
