@@ -105,7 +105,9 @@ describe('servidor para el celular', () => {
     await expect.poll(() => manager!.get('jefe')?.state, { timeout: 3000 }).toBe('working')
     const busy = await call('GET', `/api/proyecto?raiz=${encodeURIComponent(root)}&version=0`, undefined, token)
     expect(busy.body.employees[0].activity).toMatchObject({ label: 'Ejecutando', detail: 'npm test' })
+    expect(manager!.activities()).toMatchObject({ jefe: { label: 'Ejecutando', detail: 'npm test' } })
     jefe.feed(PROMPT)
+    await expect.poll(() => manager!.activities(), { timeout: 3000 }).toEqual({})
 
     // La oficina de píxel: sus archivos sin token, su foto con él (personajes como en el escritorio).
     const { base } = await (async () => ({ base: `http://127.0.0.1:${remote!.port}` }))()

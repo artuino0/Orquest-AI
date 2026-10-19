@@ -321,6 +321,7 @@ handle('employee:rest', (id: string) => {
 })
 handle('employee:journal', (id: string) => studio().readJournal(id))
 handle('employee:list', () => mgr()?.list() ?? [])
+handle('employees:activities', () => mgr()?.activities() ?? {})
 handle('employee:scrollback', (id: string) => mgr()?.scrollback(id) ?? '')
 handle('employee:changes', async (id: string) => {
   const emp = mgr()?.get(id)

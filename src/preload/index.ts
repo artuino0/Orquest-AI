@@ -83,6 +83,7 @@ const api: OrquestApi = {
   restart: (id) => invoke('employee:restart', id),
   journal: (id) => invoke('employee:journal', id),
   list: () => invoke('employee:list'),
+  activities: () => invoke('employees:activities'),
   scrollback: (id) => invoke('employee:scrollback', id),
   changes: (id) => invoke('employee:changes', id),
   captures: (id) => invoke('employee:captures', id),

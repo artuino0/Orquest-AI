@@ -237,6 +237,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     openProjects: async () => openProjects(),
     onProjects: on(dockListeners),
     list: async () => employees.map((e) => ({ ...e })),
+    activities: async () => ({}),
     hireBoss: async (req) => {
       bossName = req.name
       if (!bossOnline) start()

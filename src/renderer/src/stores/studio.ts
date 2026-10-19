@@ -223,6 +223,9 @@ export const useStudio = defineStore('studio', () => {
     const same = (p: string) => p.split('\\').join('/').toLowerCase()
     employees.value = (await window.orquest.list()).filter((e) => same(e.office.path).startsWith(same(root)))
     for (const e of employees.value) if (e.state === 'blocked') readBlock(e.id)
+    // Lo que llegó por `onActivity` mientras tanto gana sobre esta foto.
+    const acts = await window.orquest.activities().catch(() => ({}))
+    doing.value = { ...acts, ...doing.value }
   }
 
   /**

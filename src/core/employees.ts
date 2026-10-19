@@ -333,6 +333,16 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
     return e && e.employee.state === 'working' ? e.reader.activity() : undefined
   }
 
+  /** En qué anda cada quien que esté trabajando: para quien llega a ver el proyecto a medio trabajo. */
+  activities(): Record<string, Activity> {
+    const out: Record<string, Activity> = {}
+    for (const id of this.live.keys()) {
+      const a = this.activityOf(id)
+      if (a) out[id] = a
+    }
+    return out
+  }
+
   /** Lo que se ve en su terminal, como texto: para el celular, que no dibuja la terminal. */
   screenText(id: string): string {
     return this.live.get(id)?.reader.screen() ?? ''

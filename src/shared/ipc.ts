@@ -162,6 +162,7 @@ export interface OrquestApi {
   restart(id: string): Promise<void>
   journal(id: string): Promise<string>
   list(): Promise<Employee[]>
+  activities(): Promise<Record<string, Activity>>
   scrollback(id: string): Promise<string>
   changes(id: string): Promise<FileChange[]>
   /** Imágenes que dejó en su oficina al probar, lo más reciente primero. */
