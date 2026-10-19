@@ -196,6 +196,10 @@ export const useCanvas = defineStore('canvas', () => {
     active.value = id
     if (p.z !== top()) p.z = top() + 1
   }
+  /** Clic en el fondo: ningún panel queda enfocado y la rueda vuelve a ser del lienzo. */
+  function blur() {
+    active.value = null
+  }
   function show(id: string) {
     const p = get(id)
     if (p && !focus.value) setCamera(reveal(camera.value, shapeOf(p), view.value))
@@ -333,6 +337,6 @@ export const useCanvas = defineStore('canvas', () => {
 
   return {
     root, panels, camera, view, backdrop, image, active, focus, focused, glide, busy,
-    get, has, load, resize, setCamera, panBy, zoomTo, fitAll, centerOn, front, show, open, close, toggle, move, setSize, settle, toggleMin, arrangeAll, focusOn, unfocus, prune, setBackdrop, useImage, resetBackdrop,
+    get, has, load, resize, setCamera, panBy, zoomTo, fitAll, centerOn, front, blur, show, open, close, toggle, move, setSize, settle, toggleMin, arrangeAll, focusOn, unfocus, prune, setBackdrop, useImage, resetBackdrop,
   }
 })

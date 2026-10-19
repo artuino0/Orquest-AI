@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrange, arrangeWidth, widenBoss, bounds, fitCamera, focusRects, freeSpot, GAP, initials, inView, overlaps, reveal, SIZES, startingPanels, toWorld, visibleRect, zoomAt, type Panel } from '../src/renderer/src/canvas/layout'
+import { arrange, arrangeWidth, widenBoss, bounds, fitCamera, focusRects, freeSpot, GAP, initials, inView, overlaps, reveal, SIZES, startingPanels, toWorld, visibleRect, wheelOwner, zoomAt, type Panel } from '../src/renderer/src/canvas/layout'
 
 const panel = (id: string, x: number, y: number, w = 400, h = 300, kind: Panel['kind'] = 'employee'): Panel => ({ id, kind, x, y, w, h, z: 1 })
 
@@ -98,5 +98,17 @@ describe('lienzo', () => {
     expect(initials('orquest-web')).toBe('OW')
     expect(initials('herdr')).toBe('HE')
     expect(initials('flow_erp')).toBe('FE')
+  })
+
+  it('la rueda es del panel solo si está enfocado y no venías recorriendo el lienzo', () => {
+    // Sin panel debajo o con otro panel encima del cursor: es del lienzo.
+    expect(wheelOwner(null, 'office', 0, 1000)).toBe('canvas')
+    expect(wheelOwner('boss', 'office', 0, 1000)).toBe('canvas')
+    // El panel enfocado bajo el cursor sí se queda con la rueda.
+    expect(wheelOwner('office', 'office', 0, 1000)).toBe('panel')
+    // Pero si el lienzo se movía hace 50 ms, sigue moviéndose aunque pase un panel debajo.
+    expect(wheelOwner('office', 'office', 1000, 1050)).toBe('canvas')
+    // Soltada un instante (500 ms), el panel vuelve a quedarse con ella.
+    expect(wheelOwner('office', 'office', 1000, 1500)).toBe('panel')
   })
 })

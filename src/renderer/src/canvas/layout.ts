@@ -72,6 +72,19 @@ export const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)
 /** Lo que ocupa un panel a la vista: minimizado, solo su encabezado. */
 export const shapeOf = (p: Panel): Rect => ({ x: p.x, y: p.y, w: p.w, h: p.min ? HEADER_H : p.h })
 
+/** Tras soltar la rueda este tiempo, el gesto terminó: el siguiente vuelve a decidir de quién es. */
+export const WHEEL_IDLE_MS = 150
+/**
+ * ¿De quién es esta vuelta de la rueda? Del panel solo si el cursor está sobre su contenido, ese panel es
+ * el enfocado y no venías recorriendo el lienzo con la rueda (si el lienzo se movía, sigue moviéndose aunque
+ * te pase un panel debajo, hasta que la sueltes un instante).
+ */
+export function wheelOwner(over: string | null, active: string | null, lastCanvasAt: number, now: number): 'canvas' | 'panel' {
+  if (!over || over !== active) return 'canvas'
+  if (now - lastCanvasAt < WHEEL_IDLE_MS) return 'canvas'
+  return 'panel'
+}
+
 export function overlaps(a: Rect, b: Rect, gap = 0): boolean {
   return a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap
 }

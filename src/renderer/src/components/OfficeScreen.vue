@@ -12,7 +12,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertTriangle, Bell, ChevronDown, ChevronUp, Crown, FileText, FolderOpen, FolderTree, Gauge, Inbox, Kanban, LayoutGrid, Loader2, Maximize, Minimize2, Minus, Plus, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
-import { toWorld, type Panel, type PanelKind, type Point } from '../canvas/layout'
+import { toWorld, wheelOwner, type Panel, type PanelKind, type Point } from '../canvas/layout'
 import { useCanvas } from '../stores/canvas'
 import { useIde } from '../stores/ide'
 import { useStudio } from '../stores/studio'
@@ -188,11 +188,16 @@ function headOf(p: Panel): { title: string; subtitle?: string; color?: string } 
 const viewEl = ref<HTMLDivElement>()
 const panning = ref(false)
 const space = ref(false)
+/** Cuándo se movió el lienzo por última vez con la rueda: mientras no sueltes, la rueda sigue siendo del lienzo. */
+let lastCanvasAt = 0
 const menu = ref<{ at: Point; world: Point } | null>(null)
 const local = (ev: { clientX: number; clientY: number }): Point => {
   const r = viewEl.value!.getBoundingClientRect()
   return { x: ev.clientX - r.left, y: ev.clientY - r.top }
 }
+/** El id del panel cuyo contenido está bajo el cursor, o null (fondo, encabezado, controles). */
+const panelOver = (t: EventTarget | null): string | null =>
+  (t as HTMLElement | null)?.closest?.('.cpanel .content')?.closest('.cpanel')?.getAttribute('data-panel') ?? null
 /** ¿Es el fondo (no un panel ni los controles)? */
 const onBackground = (t: EventTarget | null) => !(t as HTMLElement | null)?.closest?.('.cpanel, .hud, .minimap, .menu, .veil, .focusbar')
 
@@ -202,7 +207,12 @@ function pan(ev: PointerEvent) {
   let last = { x: ev.clientX, y: ev.clientY }
   panning.value = true
   canvas.busy = true
-  el.setPointerCapture(ev.pointerId)
+  // Un evento hecho a mano (la oficina pasa su botón de en medio) no tiene puntero real que capturar.
+  try {
+    el.setPointerCapture(ev.pointerId)
+  } catch {
+    // Sin captura: los pointermove/pointerup reales llegan al lienzo igual (busy quita el puntero a los iframes).
+  }
   const move = (e: PointerEvent) => {
     canvas.panBy(e.clientX - last.x, e.clientY - last.y)
     last = { x: e.clientX, y: e.clientY }
@@ -225,20 +235,32 @@ function down(ev: PointerEvent) {
     ev.stopPropagation()
     return pan(ev)
   }
-  if (ev.button === 0 && onBackground(ev.target)) pan(ev)
+  if (ev.button === 0 && onBackground(ev.target)) {
+    // Clic en el fondo: ningún panel queda enfocado, así la rueda vuelve a recorrer el lienzo.
+    canvas.blur()
+    pan(ev)
+  }
 }
 function wheel(ev: WheelEvent) {
   if (canvas.focus) return
+  const owner = wheelOwner(panelOver(ev.target), canvas.active, lastCanvasAt, Date.now())
   if (ev.ctrlKey || ev.metaKey) {
+    if (owner === 'panel') return
     ev.preventDefault()
+    // En captura: sin esto la terminal o el editor también se quedan con la rueda y la reciben dos veces.
+    ev.stopPropagation()
     canvas.zoomTo(canvas.camera.zoom * Math.exp(-ev.deltaY * 0.0015), local(ev))
     return
   }
-  // Dentro de un panel, la rueda es de su contenido.
-  if ((ev.target as HTMLElement).closest('.cpanel .content, .hud, .menu')) return
+  // En los controles del HUD y el menú, la rueda es de ellos.
+  if ((ev.target as HTMLElement).closest('.hud, .menu')) return
+  // Dentro del contenido de un panel enfocado, la rueda es de su contenido.
+  if (owner === 'panel') return
   ev.preventDefault()
+  ev.stopPropagation()
   if (ev.shiftKey && !ev.deltaX) canvas.panBy(-ev.deltaY, 0)
   else canvas.panBy(-ev.deltaX, -ev.deltaY)
+  lastCanvasAt = Date.now()
 }
 function context(ev: MouseEvent) {
   if (!onBackground(ev.target) || canvas.focus) return
@@ -274,15 +296,16 @@ let observer: ResizeObserver | undefined
 onMounted(() => {
   observer = new ResizeObserver(([entry]) => canvas.resize({ w: entry.contentRect.width, h: entry.contentRect.height }))
   observer.observe(viewEl.value!)
-  // La rueda necesita poder cancelarse (no pasiva) para que Ctrl + rueda no haga zoom a toda la ventana.
-  viewEl.value!.addEventListener('wheel', wheel, { passive: false })
+  // En captura: cuando el lienzo se queda con la rueda, la corta antes de que llegue al contenido (xterm, Monaco);
+  // no pasiva, para que Ctrl + rueda no haga zoom a toda la ventana.
+  viewEl.value!.addEventListener('wheel', wheel, { passive: false, capture: true })
   window.addEventListener('keydown', keydown)
   window.addEventListener('keyup', keyup)
   window.addEventListener('blur', blur)
 })
 onBeforeUnmount(() => {
   observer?.disconnect()
-  viewEl.value?.removeEventListener('wheel', wheel)
+  viewEl.value?.removeEventListener('wheel', wheel, { capture: true })
   window.removeEventListener('keydown', keydown)
   window.removeEventListener('keyup', keyup)
   window.removeEventListener('blur', blur)

@@ -50,6 +50,40 @@ if (movil) document.documentElement.classList.add('movil')
 const alPanel = (msg) =>
   movil ? window.ReactNativeWebView?.postMessage(JSON.stringify({ orquest: 'oficina', ...msg })) : window.parent.postMessage({ orquest: 'oficina', ...msg }, '*')
 
+// El panel avisa si la oficina está enfocada. Sin foco, la rueda y el botón de en medio son del lienzo:
+// se los devolvemos al panel para que recorra o arrastre como si el cursor estuviera sobre el fondo.
+let enfocada = false
+// Con el botón de en medio ya bajado dentro del iframe, el navegador le sigue mandando los movimientos hasta soltarlo.
+let arrastrando = false
+window.addEventListener('wheel', (e) => {
+  if (movil || enfocada) return
+  e.preventDefault()
+  alPanel({ type: 'rueda', deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, x: e.clientX, y: e.clientY })
+}, { passive: false })
+window.addEventListener('pointerdown', (e) => {
+  if (movil) return
+  if (e.button === 1) {
+    if (enfocada) return
+    e.preventDefault()
+    arrastrando = true
+    alPanel({ type: 'arrastre', x: e.clientX, y: e.clientY })
+    return
+  }
+  // Cualquier otro botón es un clic de la oficina: solo se avisa al panel para que la traiga al frente.
+  alPanel({ type: 'toque' })
+}, { passive: false })
+window.addEventListener('pointermove', (e) => {
+  if (!arrastrando) return
+  alPanel({ type: 'arrastre-mueve', x: e.clientX, y: e.clientY })
+}, { passive: false })
+const soltar = (e) => {
+  if (!arrastrando) return
+  arrastrando = false
+  alPanel({ type: 'arrastre-fin', x: e.clientX, y: e.clientY })
+}
+window.addEventListener('pointerup', soltar, { passive: false })
+window.addEventListener('pointercancel', soltar, { passive: false })
+
 // El primer estado llega antes de que arranque la oficina: así nace con quien ya está.
 const primero = new Promise((listo) => {
   window.addEventListener('message', (e) => {
@@ -67,6 +101,8 @@ const primero = new Promise((listo) => {
     } else if (e.data.type === 'evento') {
       const { at, agent, type, text, emoji, verdict } = e.data.evento
       avisar({ type: 'evento', evento: { ts: new Date(at).toISOString(), agent, type, text, emoji, verdict } })
+    } else if (e.data.type === 'enfocada') {
+      enfocada = !!e.data.valor
     }
   })
 })

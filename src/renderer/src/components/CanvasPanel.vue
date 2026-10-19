@@ -78,6 +78,7 @@ const subtitle = computed(() => head.subtitle ?? props.subtitle)
     class="cpanel"
     :class="{ active: canvas.active === panel.id, min: panel.min && !rect, focused, hidden }"
     :style="box"
+    :data-panel="panel.id"
     @pointerdown.capture="canvas.front(panel.id)"
   >
     <header @pointerdown="moveStart" @dblclick="($event.target as HTMLElement).closest('button') || canvas.focusOn(panel.id)">
