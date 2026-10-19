@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronDown, Crown, Hand, Inbox, Pencil, RotateCcw, Send
 import { useStudio } from '../stores/studio'
 import { useCanvas } from '../stores/canvas'
 import { IN_CANVAS } from '../canvas/inject'
-import { useBossSay } from '../bossSay'
+import { sendOnEnter, useBossSay, useGrowing } from '../bossSay'
 import type { Account } from '../../../core/accounts'
 import type { Activity } from '../../../core/activity'
 import type { Effort, ProviderId } from '../../../shared/ipc'
@@ -102,6 +102,8 @@ watch(bossName, (name) => {
 })
 // Hablarle y detenerlo: lo mismo que la barra rápida de abajo del lienzo (mismo borrador).
 const { message, canStop, stopping, send, stop } = useBossSay()
+const box = ref<HTMLTextAreaElement>()
+useGrowing(box, message)
 const busy = ref(false)
 
 async function hire() {
@@ -383,7 +385,7 @@ const pending = computed(() => {
         <form class="say" @submit.prevent="send">
           <!-- Detener va dentro de la caja, a la derecha: se ve mientras trabaja o recién le mandaste algo. -->
           <span class="field">
-            <input v-model="message" :placeholder="sayPlaceholder" :class="{ stoppable: canStop }" />
+            <textarea ref="box" v-model="message" rows="1" :placeholder="sayPlaceholder" :class="{ stoppable: canStop }" :title="T`Enter envía · Shift+Enter, otro renglón`" @keydown="sendOnEnter($event, send)" />
             <button v-if="canStop" type="button" class="stop" :disabled="stopping" :aria-label="T`Detener`" :title="T`Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.`" @click="stop"><Hand /></button>
           </span>
           <button type="submit" class="btn primary"><Send /> {{ T`Enviar` }}</button>
@@ -497,11 +499,11 @@ textarea:focus, input:focus { border-color: var(--accent); }
 .msg.doing .secs { font-size: 10px; color: var(--text-secondary); }
 .dots { display: inline-block; width: 18px; height: 4px; margin-left: -4px; background: radial-gradient(circle, var(--st-work) 0 1.5px, transparent 2px) 0 0 / 6px 4px repeat-x; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 -34% 0 0); } }
-.say { display: flex; gap: 8px; }
-.say .field { flex: 1; position: relative; display: flex; }
-.say input { flex: 1; }
-.say input.stoppable { padding-right: 40px; }
-.say .stop { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 28px; height: 28px; padding: 0; background: var(--surface-2); border: 2px solid var(--border); color: var(--st-block); cursor: pointer; }
+.say { display: flex; align-items: flex-end; gap: 8px; }
+.say .field { flex: 1; position: relative; display: flex; flex-direction: row; }
+.say textarea { flex: 1; max-height: min(260px, 40vh); overflow-y: auto; }
+.say textarea.stoppable { padding-right: 40px; }
+.say .stop { position: absolute; right: 6px; bottom: 7px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; background: var(--surface-2); border: 2px solid var(--border); color: var(--st-block); cursor: pointer; }
 .say .stop:hover { background: var(--st-block); color: var(--on-danger); }
 .say .stop svg { width: 16px; height: 16px; }
 

@@ -210,6 +210,7 @@ const en: Record<string, string> = {
   "Detenido.": "Stopped.",
   "Lo detiene (Esc en su terminal), por si le pediste algo por error. Si recién lo enviaste, tu mensaje vuelve aquí para corregirlo.": "Stops them (Esc in their terminal), in case you asked for something by mistake. If you just sent it, your message comes back here so you can fix it.",
   "Detener": "Stop",
+  "Enter envía · Shift+Enter, otro renglón": "Enter sends · Shift+Enter, new line",
 }
 
 export default en

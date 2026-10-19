@@ -4,7 +4,7 @@
  * en uno sigue en el otro) y la mano de detener sale en ambos mientras trabaja
  * o unos segundos después de mandarle algo.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import { T } from '../../core/i18n'
 import { useStudio } from './stores/studio'
 
@@ -46,4 +46,27 @@ export function useBossSay() {
   }
 
   return { message, canStop, stopping, send, stop }
+}
+
+/**
+ * La caja crece con lo que escribes (hasta su `max-height`, luego se recorre) y vuelve a un
+ * renglón al enviar. También al llegarle texto de fuera: el borrador de la otra caja o el
+ * mensaje que regresa al detenerlo.
+ */
+export function useGrowing(box: Ref<HTMLTextAreaElement | undefined>, text: Ref<string>) {
+  function fit() {
+    const el = box.value
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`
+  }
+  watch(text, () => nextTick(fit))
+  onMounted(fit)
+}
+
+/** Enter envía; Shift+Enter es un renglón más. Mientras se compone un acento o un carácter (IME), Enter es de ese. */
+export function sendOnEnter(e: KeyboardEvent, go: () => void) {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return
+  e.preventDefault()
+  go()
 }
