@@ -18,9 +18,13 @@ export const EN = {
   Descargar: 'Download',
 
   // Portada
-  'Tus agentes de código, trabajando en una oficina que puedes ver.': 'Your coding agents, working in an office you can watch.',
-  'Claude Code, Codex y otras CLIs de IA se integran como empleados de un estudio en pixel art. Tú te comunicas solo con el jefe: él forma el equipo, asigna las tareas, revisa las entregas y solicita tu aprobación antes de integrar a tu rama.':
-    'Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss: it builds the team, assigns the tasks, reviews the deliveries and asks for your approval before merging into your branch.',
+  'Gratis y de código abierto': 'Free and open source',
+  'Tus agentes de código,': 'Your coding agents,',
+  'en una oficina que puedes ver.': 'in an office you can watch.',
+  'Claude Code, Codex y otras CLIs de IA trabajan como empleados, cada uno en su copia del repositorio. Tú le hablas solo al jefe: él arma el equipo, reparte las tareas y revisa las entregas, y nada llega a tu rama sin tu aprobación.':
+    'Claude Code, Codex and other AI CLIs work as employees, each in its own copy of the repository. You only talk to the boss: it builds the team, hands out the tasks and reviews the deliveries, and nothing reaches your branch without your approval.',
+  'Probar la interfaz': 'Try the interface',
+  'Una réplica con un proyecto de ejemplo que avanza solo: muévete por ella sin instalar nada.': 'A replica with a sample project that moves on its own: explore it without installing anything.',
   'Ver el código': 'View the code',
   'La oficina de píxel de Orquest AI: el jefe en su escritorio y los empleados en sus puestos': 'The Orquest AI pixel office: the boss at its desk and the employees at theirs',
   'Abrir la oficina': 'Open the office',

@@ -69,26 +69,25 @@
 </header>
 
 <main>
+  <!-- Portada: la interfaz de la app de fondo (réplica en interfaz.js, solo en computadora;
+       en celular, su imagen). «Try the interface» quita los textos y la deja usable. -->
   <section id="inicio" class="portada">
-    <!-- Cada uno hace un ciclo de espera al cargar, escalonado, y se queda quieto. -->
-    <div class="fila" aria-hidden="true">
-      <i class="sp f4" style="--w:15;--h:23;--n:0;background-image:url(../img/char1-idle.png)"></i>
-      <i class="sp f4" style="--w:19;--h:24;--n:1;background-image:url(../img/char2-idle.png)"></i>
-      <i class="sp f4" style="--w:13;--h:21;--n:2;background-image:url(../img/char3-idle.png)"></i>
-      <i class="sp f4" style="--w:17;--h:23;--n:3;background-image:url(../img/char4-idle.png)"></i>
-      <i class="sp f4" style="--w:17;--h:23;--n:4;background-image:url(../img/char5-idle.png)"></i>
-      <i class="sp f4" style="--w:17;--h:23;--n:5;background-image:url(../img/char6-idle.png)"></i>
-      <i class="sp f4" style="--w:17;--h:23;--n:6;background-image:url(../img/char7-idle.png)"></i>
-      <i class="sp f4" style="--w:17;--h:23;--n:7;background-image:url(../img/char8-idle.png)"></i>
+    <div class="ui" id="interfaz" inert></div>
+    <div class="velo" id="velo">
+      <p class="etiqueta"><i></i>Free and open source</p>
+      <h1>Your coding agents, <span>in an office you can watch.</span></h1>
+      <p class="parrafo">Claude Code, Codex and other AI CLIs work as employees, each in its own copy of the repository. You only talk to the boss: it builds the team, hands out the tasks and reviews the deliveries, and nothing reaches your branch without your approval.</p>
+      <div class="acciones">
+        <button class="boton primario probar" id="probar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l14 9-14 9z"/></svg>Try the interface</button>
+        <a class="boton descargar" href="#descargar">Download</a>
+        <a class="boton" href="https://github.com/artuino0/Orquest-AI" target="_blank" rel="noopener">View the code</a>
+      </div>
+      <p class="aclara">A replica with a sample project that moves on its own: explore it without installing anything.</p>
     </div>
-    <h1>Orquest AI</h1>
-    <p class="frase">Your coding agents, working in an office you can watch.</p>
-    <p class="parrafo">Claude Code, Codex and other AI CLIs join as employees of a pixel-art studio. You only talk to the boss: it builds the team, assigns the tasks, reviews the deliveries and asks for your approval before merging into your branch.</p>
-    <div class="acciones">
-      <a class="boton primario" href="#descargar">Download</a>
-      <a class="boton" href="https://github.com/artuino0/Orquest-AI" target="_blank" rel="noopener">View the code</a>
-    </div>
+  </section>
 
+  <!-- En celular la interfaz no se prueba: queda la oficina de píxel, como antes. -->
+  <section class="oficina-sola">
     <figure class="oficina">
       <div class="marco">
         <img class="poster" src="../img/oficina-poster.png" alt="The Orquest AI pixel office: the boss at its desk and the employees at theirs" width="960" height="712">
@@ -271,5 +270,6 @@
 </footer>
 
 <script src="../main.js" defer></script>
+<script src="../interfaz.js" defer></script>
 </body>
 </html>
