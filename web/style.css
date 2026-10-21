@@ -414,11 +414,11 @@ code { padding: 6px 10px; background: var(--superficie-2); color: var(--texto); 
   .portada.con-ui { background-image: url(img/interfaz.png); }
   .js .portada .descargar { background: var(--acento); color: var(--borde); }
   .oficina-sola { display: flex; }
-  .velo { background: #0f0d14e6; gap: 20px; }
+  .velo { background: #0f0d14e8; backdrop-filter: blur(3px); gap: 20px; }
 }
 @media (max-width: 640px) {
-  .portada { height: auto; min-height: calc(100svh - 56px); }
-  .velo { position: relative; padding: 40px 20px 48px; }
+  .portada { height: auto; min-height: calc(100svh - 56px); display: flex; flex-direction: column; }
+  .velo { position: relative; flex: 1; padding: 40px 20px 48px; }
   .portada .acciones { flex-direction: column; align-items: stretch; width: 100%; }
   .portada .acciones .boton { justify-content: center; }
   .oficina-sola { padding: 40px 20px 56px; }
