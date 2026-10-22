@@ -123,4 +123,31 @@ describe('servidor para el celular', () => {
     expect((await call('POST', '/api/accion', { raiz: root, accion: 'borrar_todo' }, token)).body.motivo).toMatch(/No conozco/)
     expect((await call('GET', '/api/proyecto?raiz=C%3A%2Fotro&version=0&espera=1', undefined, token)).body.motivo).toMatch(/no está abierto/)
   })
+
+  it('la plantilla propuesta se aprueba desde el celular con los puestos que el usuario dejó', async () => {
+    const { root, devices, call } = await setup()
+    const { token } = await devices.pair(devices.newCode().code, 'Pixel')
+    const act = (fields: Record<string, unknown>) => call('POST', '/api/accion', { raiz: root, accion: 'aprobar_plantilla', ...fields }, token)
+    expect((await act({ puestos: ['S1'] })).body.motivo).toMatch(/No hay una plantilla/)
+
+    await studio!.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const boss = { kind: 'boss' } as Parameters<Studio['call']>[0]
+    await studio!.call(boss, 'proponer_plantilla', {
+      puestos: [
+        { puesto: 'backend', proveedor: 'claude', modelo: 'opus', motivo: 'API de pagos' },
+        { puesto: 'qa', proveedor: 'claude', motivo: 'Pruebas' },
+      ],
+    })
+    const list = await call('GET', '/api/proyectos', undefined, token)
+    expect(list.body.proyectos[0].plantilla).toBe(2)
+    const [backend, qa] = studio!.snapshot().slots
+    expect((await act({ puestos: [] })).body.motivo).toMatch(/al menos un puesto/)
+
+    // Sin QA: se aprueba solo backend, tal cual lo propuso el jefe.
+    expect((await act({ puestos: [backend.id, 'S99', 7] })).body).toEqual({ ok: true })
+    expect(studio!.snapshot().slots).toEqual([expect.objectContaining({ id: backend.id, name: backend.name, role: 'backend', model: 'opus', status: 'approved' })])
+    expect(studio!.snapshot().slots.some((x) => x.id === qa.id)).toBe(false)
+    expect(studio!.snapshot().messages.at(-1)?.text ?? '').not.toContain('qa')
+    expect((await call('GET', '/api/proyectos', undefined, token)).body.proyectos[0].plantilla).toBe(0)
+  })
 })

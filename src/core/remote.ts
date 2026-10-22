@@ -150,6 +150,7 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
           teNecesitan: v.employees.filter((e) => e.state === 'blocked' || e.problem).length,
           entregas: v.snapshot.tasks.filter((t) => t.status === 'approved').length,
           preguntas: v.snapshot.questions.filter((q) => q.status === 'open').length,
+          plantilla: v.snapshot.slots.filter((x) => x.status === 'proposed').length,
         }
       }),
     }),
@@ -217,6 +218,16 @@ export async function startRemoteServer(deps: RemoteDeps, port = REMOTE_PORT, ho
           return { ok: true }
         case 'descartar':
           return { ok: true, rama: await s.discard(text(b.tarea), text(b.motivo) || undefined) }
+        case 'aprobar_plantilla': {
+          // Del celular no se ajusta nada: se aprueban tal cual los puestos que el usuario dejó marcados.
+          const proposed = s.snapshot().slots.filter((x) => x.status === 'proposed')
+          if (!proposed.length) throw new RuleError(T`No hay una plantilla esperando tu aprobación.`)
+          const keep = new Set(Array.isArray(b.puestos) ? b.puestos.filter((x): x is string => typeof x === 'string') : [])
+          const chosen = proposed.filter((x) => keep.has(x.id))
+          if (!chosen.length) throw new RuleError(T`Elige al menos un puesto.`)
+          s.approveTemplate(chosen.map(({ id: slot, name, role, provider, model, effort, account }) => ({ id: slot, name, role, provider, model, effort, account })))
+          return { ok: true }
+        }
         default:
           throw new RuleError(T`No conozco esa acción.`)
       }

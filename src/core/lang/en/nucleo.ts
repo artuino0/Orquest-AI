@@ -246,6 +246,8 @@ const en: Record<string, string> = {
   "Ese proyecto no está abierto en la compu.": "That project isn't open on the computer.",
   "{0} no está esperando una respuesta.": "{0} isn't waiting for an answer.",
   "No conozco esa acción.": "I don't know that action.",
+  "No hay una plantilla esperando tu aprobación.": "There's no team proposal waiting for your approval.",
+  "Elige al menos un puesto.": "Pick at least one role.",
   "No existe.": "Doesn't exist.",
   "Este celular no está emparejado con la compu. Vuelve a emparejarlo.": "This phone isn't paired with the computer. Pair it again.",
   "Algo falló en la compu.": "Something failed on the computer.",

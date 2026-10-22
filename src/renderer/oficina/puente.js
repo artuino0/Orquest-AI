@@ -84,6 +84,53 @@ const soltar = (e) => {
 window.addEventListener('pointerup', soltar, { passive: false })
 window.addEventListener('pointercancel', soltar, { passive: false })
 
+// Cambia el zoom (de 1 a 4) y avisa la escala; app.js vuelve a medir al avisarle del cambio de tamaño.
+// Con `ancla` (un punto de la pantalla), ese punto de la oficina se queda bajo el dedo.
+function ponerZoom(nuevo, ancla) {
+  nuevo = Math.min(4, Math.max(1, Math.round(nuevo * 100) / 100))
+  if (nuevo === zoom) return
+  // Lo que se recorre es el <main> de la oficina, no la página.
+  const raiz = document.querySelector('main') ?? document.scrollingElement
+  const caja = raiz.getBoundingClientRect()
+  const ax = ancla ? ancla.x - caja.left : 0
+  const ay = ancla ? ancla.y - caja.top : 0
+  const fx = (raiz.scrollLeft + ax) / raiz.scrollWidth
+  const fy = (raiz.scrollTop + ay) / raiz.scrollHeight
+  zoom = nuevo
+  window.OFICINA.zoom = zoom
+  window.dispatchEvent(new Event('resize'))
+  if (ancla) raiz.scrollTo(fx * raiz.scrollWidth - ax, fy * raiz.scrollHeight - ay)
+  alPanel({ type: 'escala', escala: zoom })
+}
+
+// En el celular se pellizca con dos dedos; con uno, la página se recorre sola. El zoom se aplica
+// a lo más una vez por cuadro: app.js vuelve a dibujar la oficina a la nueva escala.
+if (movil) {
+  let pellizco = null
+  let cuadro = 0
+  const medir = (t) => ({ d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 })
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2) return
+    const m = medir(e.touches)
+    pellizco = { d0: m.d || 1, z0: zoom, m }
+  }, { passive: true })
+  window.addEventListener('touchmove', (e) => {
+    if (!pellizco || e.touches.length !== 2) return
+    e.preventDefault()
+    pellizco.m = medir(e.touches)
+    if (cuadro) return
+    cuadro = requestAnimationFrame(() => {
+      cuadro = 0
+      if (pellizco) ponerZoom(pellizco.z0 * (pellizco.m.d / pellizco.d0), pellizco.m)
+    })
+  }, { passive: false })
+  const fin = (e) => {
+    if (e.touches.length < 2) pellizco = null
+  }
+  window.addEventListener('touchend', fin)
+  window.addEventListener('touchcancel', fin)
+}
+
 // El primer estado llega antes de que arranque la oficina: así nace con quien ya está.
 const primero = new Promise((listo) => {
   window.addEventListener('message', (e) => {
@@ -93,11 +140,8 @@ const primero = new Promise((listo) => {
       recibirEstado(e.data)
       listo()
     } else if (e.data.type === 'zoom') {
-      // Un cuarto más o menos; app.js vuelve a medir al avisarle del cambio de tamaño.
-      zoom = Math.min(4, Math.max(1, zoom + e.data.delta))
-      window.OFICINA.zoom = zoom
-      window.dispatchEvent(new Event('resize'))
-      alPanel({ type: 'escala', escala: zoom })
+      // Los botones: un cuarto más o menos, sobre el centro de la pantalla.
+      ponerZoom(zoom + e.data.delta, { x: innerWidth / 2, y: innerHeight / 2 })
     } else if (e.data.type === 'evento') {
       const { at, agent, type, text, emoji, verdict } = e.data.evento
       avisar({ type: 'evento', evento: { ts: new Date(at).toISOString(), agent, type, text, emoji, verdict } })
