@@ -446,6 +446,8 @@ handle('language:set', async (lang: Lang) => {
 
 // Que Windows agrupe la ventana bajo Orquest AI y no bajo Electron.
 app.setAppUserModelId('ai.orquest.app')
+// En Linux (Wayland sobre todo) el ícono sale del .desktop que se llama como la ventana.
+if (process.platform === 'linux') app.setDesktopName('orquest-ai.desktop')
 
 app.whenReady().then(async () => {
   settings = await loadSettings(settingsFile)
