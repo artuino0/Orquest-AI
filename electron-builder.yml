@@ -42,4 +42,10 @@ linux:
   target: AppImage
   icon: assets/herdr-oficina/sprites/oficina.png
   category: Development
+  # El nombre del ejecutable y StartupWMClass igualan a `app.setDesktopName`: en Wayland
+  # el escritorio saca el ícono del .desktop que coincide con la ventana, no de la ventana.
+  executableName: orquest-ai
+  desktop:
+    entry:
+      StartupWMClass: orquest-ai
   artifactName: Orquest-AI-${version}-${arch}.${ext}
