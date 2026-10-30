@@ -23,6 +23,7 @@ import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
 import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
+import { adoptShellPath } from '../core/shellpath.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
@@ -450,6 +451,8 @@ app.setAppUserModelId('ai.orquest.app')
 if (process.platform === 'linux') app.setDesktopName('orquest-ai.desktop')
 
 app.whenReady().then(async () => {
+  // Abierta desde el escritorio o el Finder, la app no trae el PATH de la terminal y no encuentra las CLIs.
+  await adoptShellPath()
   settings = await loadSettings(settingsFile)
   setLang(startLang(settings, app.getPreferredSystemLanguages()))
   store = new StudioStore(join(app.getPath('userData'), 'studio.db'))

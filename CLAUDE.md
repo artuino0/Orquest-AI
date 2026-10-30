@@ -39,6 +39,7 @@ Requiere Node ≥ 22.5 (`node:sqlite`).
 | --- | --- |
 | `providers.ts` | Adaptador por CLI: binario, args de modelo/esfuerzo/manual, conexión MCP + permisos (`mcpArgs`), patrones de pantalla (working/blocked/idle/contexto). Solo Claude Code está `verified`. |
 | `detect.ts` | Qué CLIs hay instaladas y con sesión: se le pregunta a la propia CLI si tiene comando para eso; si no, se mira si existe su entrada en el almacén de credenciales del sistema (`keyringHas`: solo si existe, nunca su contenido) o su archivo de sesión. Antigravity (`agy`) guarda la suya en el almacén, con el nombre `gemini:antigravity`. |
+| `shellpath.ts` | Al arrancar en Linux y macOS, suma al PATH de la app el de tu shell (`$SHELL -ilc`): abierta desde el escritorio o el Finder no lo hereda, y sin nvm ni `~/.local/bin` no encontraba ninguna CLI. En Windows no hace nada. |
 | `worktree.ts` | Oficinas = `git worktree` en `<repo>/.orquest/oficinas/<id>` (excluido con `.git/info/exclude`), commit de entrega, diff, merge `--no-ff` con abort si hay conflicto. |
 | `state.ts` | `ScreenReader`: emula la terminal con `@xterm/headless` y lee la pantalla real; señal OSC 7777 de hooks gana sobre la pantalla. |
 | `employees.ts` | `EmployeeManager`: CLIs en `node-pty`, estado, `atPrompt` (prompt visible y pantalla quieta 800 ms), contexto. |
@@ -151,7 +152,7 @@ Las medidas para armar un puesto (dónde van silla, persona, monitor y mampara r
 
 ## Pendiente
 
-- Instalador: `npm run dist` (Windows probado a mano; arranca y el comando `orquest` responde). macOS y Linux solo se arman en GitHub (`.github/workflows/instaladores.yml`) y nadie los ha abierto. Sin firma de código. En macOS una app abierta desde el Finder no hereda el PATH de la terminal: puede que no encuentre las CLIs.
+- Instalador: `npm run dist` (Windows probado a mano; arranca y el comando `orquest` responde). macOS y Linux solo se arman en GitHub (`.github/workflows/instaladores.yml`) y nadie los ha abierto. Sin firma de código. Una app abierta desde el escritorio o el Finder no hereda el PATH de la terminal: `shellpath.ts` se lo pide a tu shell al arrancar (probado el shell en Linux, falta la AppImage armada y macOS).
 - Enlaces para crear cuenta (`signup` en `providers.ts`, botón «Crear cuenta» en la guía de instalación y en Cuentas): apuntan a la página de planes de cada proveedor, sin referido (el de Claude solo admite tres invitados y el de ChatGPT va por correo). Si algún día llevan uno, se marca `referral: true` y la app lo dice junto al botón.
 
 - Correr la app en Electron de verdad (nunca se pudo en el entorno donde se escribió) y ajustar lo que falle.
