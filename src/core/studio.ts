@@ -1353,6 +1353,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   private async employeeTool(id: string, tool: string, a: Record<string, any>): Promise<string> {
     const b = this.board
     switch (tool) {
+      case 'responder_al_usuario': {
+        // El diseñador trabaja directo con el usuario: lo que le conteste sale en el chat del Estudio.
+        if (b.member(id).role !== 'diseno') throw new RuleError(T`Solo el diseñador le habla directo al usuario; tú, con preguntar_al_jefe.`)
+        const text = String(a.mensaje ?? '').trim()
+        if (!text) throw new RuleError(T`El mensaje va vacío.`)
+        b.say(id, 'usuario', text.slice(0, 8000))
+        return T`Listo: el usuario lo ve en el chat del Estudio.`
+      }
       case 'leer_tarea': {
         const t = b.start(id)
         if (!t) {
@@ -1515,7 +1523,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const file = await designFile(this.root)
     try {
       const hired = await this.hireSlot(slot, undefined, [
-        T`Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context).${file ? ` ${T`El diseño del proyecto es ${file}.`}` : ''} Espera a que te pida algo.`,
+        T`Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context). Él no ve tu terminal: al terminar cada pedido contéstale con responder_al_usuario qué hiciste y qué decidiste.${file ? ` ${T`El diseño del proyecto es ${file}.`}` : ''} Espera a que te pida algo.`,
       ])
       this.notify(BOSS_ID, T`El usuario contrató a ${slot.name} como diseño; trabaja directo con él en Trazo. No le asignes tareas de diseño sin que el usuario lo pida. El diseño se lee con leer_diseno: pide a cada quien construir a partir de él.`)
       return hired
@@ -1953,4 +1961,4 @@ export const BOSS_TOOLS = new Set([
   'mandar_a_qa',
   'ejecutar_revision',
 ])
-export const EMPLOYEE_TOOLS = new Set(['leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])
+export const EMPLOYEE_TOOLS = new Set(['responder_al_usuario', 'leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])

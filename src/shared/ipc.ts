@@ -62,7 +62,8 @@ export interface DesignState {
   file: string | null
   /** La página del editor; null si no se pudo levantar. */
   editorUrl: string | null
-  designer: { id: string; name: string; detail: string } | null
+  /** `live`: su terminal está abierta (al reabrir la app puede seguir fuera hasta que lo traigas). */
+  designer: { id: string; name: string; detail: string; live: boolean } | null
 }
 
 export interface OrquestApi {

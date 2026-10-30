@@ -14,7 +14,7 @@ import { useStudio } from '../stores/studio'
 import { useCanvas } from '../stores/canvas'
 import { EFFORT_LABEL } from '../status'
 import { getLang, T } from '../../../core/i18n'
-import type { TrazoResponse } from '../../../core/trazomcp'
+import type { TrazoRequest, TrazoResponse } from '../../../core/trazomcp'
 import { serveTrazo } from '../trazo'
 
 const studio = useStudio()
@@ -72,6 +72,18 @@ async function hire() {
   }
 }
 
+/** El diseñador quedó fuera (al reabrir la app, si no lo trajiste): vuelve a su escritorio. */
+async function bringBack() {
+  const d = state.value?.designer
+  if (!d) return
+  busy.value = true
+  await studio.bringBack(d.id)
+  busy.value = false
+  await load()
+}
+// Llegó o se fue: el aviso de arriba se pone al día.
+watch(() => studio.employees.some((e) => e.id === state.value?.designer?.id), load)
+
 // ── El editor ──────────────────────────────────────────────────────────────
 const src = computed(() => {
   const s = state.value
@@ -105,17 +117,80 @@ async function answer({ op, args = {} }: Ask): Promise<unknown> {
     case 'decir': {
       const d = state.value?.designer
       if (!d) throw new Error(T`No hay diseñador en el proyecto.`)
-      return o.say(d.id, String(args.prompt ?? ''))
+      if (!studio.employees.some((e) => e.id === d.id)) throw new Error(T`${d.name} no está en su escritorio: tráelo de vuelta desde el aviso de arriba.`)
+      await o.say(d.id, String(args.prompt ?? ''))
+      turn = { started: Date.now(), worked: false }
+      return
     }
     case 'mcpEstado':
       return o.trazoStatus()
     case 'detener': {
       const d = state.value?.designer
-      return d ? o.stopEmployee(d.id) : undefined
+      if (!d) return
+      await o.stopEmployee(d.id)
+      endTurn(null)
+      return
     }
   }
   throw new Error(T`El editor pidió algo que Orquest no conoce: ${op}`)
 }
+
+// ── El chat de Trazo: lo que hace y dice el diseñador ──────────────────────
+// Su CLI corre en su terminal y no da salida JSON: el chat recibe eventos con la forma del stream-json de
+// Claude Code, armados con lo que sí pasa por aquí (sus llamadas al editor, lo que contesta con
+// responder_al_usuario y cuándo vuelve a quedar quieto).
+/** El pedido en curso: desde que el usuario le escribe hasta que termina su turno. */
+let turn: { started: number; worked: boolean } | null = null
+const run = () => state.value?.designer?.name ?? ''
+function emit(ev: Record<string, unknown>) {
+  frame.value?.contentWindow?.postMessage({ trazo: 'evento', tipo: 'salida', datos: { run: run(), stream: 'stdout', line: JSON.stringify(ev) } }, origin.value)
+}
+function endTurn(code: number | null) {
+  if (!turn) return
+  if (code === 0) emit({ type: 'result', subtype: 'success', is_error: false })
+  turn = null
+  frame.value?.contentWindow?.postMessage({ trazo: 'evento', tipo: 'fin', datos: { run: run(), code } }, origin.value)
+}
+/** Una llamada al editor sale en el chat como herramienta; si falla, con su error; si es una captura, con su miniatura. */
+function toolEvents(req: TrazoRequest, res: TrazoResponse) {
+  if (req.method !== 'tools/call' || req.run !== state.value?.designer?.id) return
+  const use = `orquest-${req.id}`
+  const p = req.params as { name?: string; arguments?: unknown }
+  emit({ type: 'assistant', message: { content: [{ type: 'tool_use', id: use, name: `mcp__trazo__${p.name ?? ''}`, input: p.arguments ?? {} }] } })
+  const result = 'result' in res ? (res.result as { isError?: boolean; content?: { type: string; text?: string; data?: string; mimeType?: string }[] }) : null
+  const failed = !result || result.isError
+  const text = 'error' in res ? res.error.message : (result?.content ?? []).map((c) => c.text ?? '').join(' ')
+  const image = result?.content?.find((c) => c.type === 'image' && c.data)
+  const content = image ? [{ type: 'image', source: { type: 'base64', media_type: image.mimeType ?? 'image/png', data: image.data } }] : [{ type: 'text', text }]
+  emit({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: use, is_error: failed, content: failed ? [{ type: 'text', text }] : content }] } })
+}
+// Lo que el diseñador le contesta al usuario (responder_al_usuario), una vez cada mensaje.
+// Lo anterior a abrir el panel ya no se repite: se parte de lo último que había.
+let said: number | null = null
+watch(
+  () => (studio.board?.messages ?? []).filter((m) => m.from === state.value?.designer?.id && m.to === 'usuario'),
+  (list) => {
+    if (!state.value?.designer) return
+    const last = list.at(-1)?.at ?? 0
+    if (said === null) said = last
+    for (const m of list.filter((x) => x.at > said!)) emit({ type: 'assistant', message: { content: [{ type: 'text', text: m.text }] } })
+    said = Math.max(said, last)
+  },
+  { immediate: true },
+)
+// Fin del turno: estuvo trabajando y volvió a quedar quieto (estado en calma: no cuenta la pausa entre paso y paso).
+watch(
+  () => {
+    const e = studio.employees.find((x) => x.id === state.value?.designer?.id)
+    return e ? studio.calmStateOf(e) : 'offline'
+  },
+  (now) => {
+    if (!turn) return
+    if (now === 'working') turn.worked = true
+    else if (now === 'offline') endTurn(1)
+    else if (turn.worked && now === 'idle') endTurn(0)
+  },
+)
 
 // ── El MCP «trazo»: el editor atiende lo que pide el diseñador ──────────────
 let mcpSeq = 0
@@ -129,7 +204,10 @@ function serve() {
         const win = frame.value?.contentWindow
         if (!win) return ok({ error: { code: -32603, message: T`El editor de Trazo no está abierto.` } })
         const id = ++mcpSeq
-        mcpWaiting.set(id, ok)
+        mcpWaiting.set(id, (res) => {
+          toolEvents(req, res)
+          ok(res)
+        })
         win.postMessage({ trazo: 'mcp', id, req: JSON.parse(JSON.stringify(req)) }, origin.value)
       }),
   )
@@ -221,6 +299,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <p v-if="showEditor && state?.designer && !state.designer.live" class="away">
+      {{ T`${state.designer.name} no está en su escritorio: no recibe lo que le escribas.` }}
+      <button class="btn" :disabled="busy" @click="bringBack">{{ T`Traerlo de vuelta` }}</button>
+    </p>
     <iframe v-if="showEditor" ref="frame" :key="src" :src="src" :title="T`Editor de Trazo`" />
     <p v-if="error" class="stop">{{ error }}</p>
   </div>
@@ -238,5 +320,6 @@ iframe { flex: 1; width: 100%; border: 0; display: block; background: #0f0c14; }
 .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; text-align: left; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-secondary); }
 .form input, .form select { font: inherit; font-size: 12px; color: var(--text-primary); background: var(--surface); border: 2px solid var(--border); padding: 6px 8px; }
+.away { margin: 0; padding: 8px 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; background: var(--surface); border-bottom: 2px solid var(--border); }
 .stop { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--danger, #f0524f); }
 </style>

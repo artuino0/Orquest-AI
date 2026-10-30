@@ -401,7 +401,7 @@ handle('design:state', async () => {
   return {
     file: await s.designFile(),
     editorUrl: url,
-    designer: d ? { id: d.id, name: d.name, detail: [cli, d.model, slot?.effort].filter(Boolean).join(' · ') } : null,
+    designer: d ? { id: d.id, name: d.name, detail: [cli, d.model, slot?.effort].filter(Boolean).join(' · '), live: s.manager.isLive(d.id) } : null,
   }
 })
 handle('design:create', async () => {
@@ -473,6 +473,7 @@ let trazo: TrazoMcp | undefined
 function startTrazo() {
   trazo = new TrazoMcp({
     skills: join(trazoDir(), 'skills'),
+    version: app.getVersion(),
     onSessions: (sessions) => send('trazo:sessions', sessions),
     forward: (req, ms) =>
       new Promise((ok, ko) => {

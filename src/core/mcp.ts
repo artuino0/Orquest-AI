@@ -22,6 +22,8 @@ const roles = () => T`desarrollo, backend, frontend, dba, infra, qa o diseno`
 
 interface ToolDef {
   who: Caller['kind'] | 'both'
+  /** Solo para empleados de este puesto. */
+  role?: string
   readonly description: string
   readonly input: z.ZodRawShape
 }
@@ -234,6 +236,16 @@ export const TOOLS: Record<string, ToolDef> = {
       return { traspaso: z.string().describe(T`Markdown breve`) }
     },
   },
+  responder_al_usuario: {
+    who: 'employee',
+    role: 'diseno',
+    get description() {
+      return T`Le contestas al usuario en el chat del Estudio: qué hiciste, qué decidiste o qué necesitas de él. No ve tu terminal: es lo único que lee de ti.`
+    },
+    get input() {
+      return { mensaje: z.string().describe(T`Lo que le dices, breve`) }
+    },
+  },
   leer_diseno: {
     who: 'both',
     get description() {
@@ -265,6 +277,7 @@ function buildServer(studio: Studio, caller: Caller): McpServer {
   const server = new McpServer({ name: 'orquest', version: '0.2.0' })
   for (const [name, def] of Object.entries(TOOLS)) {
     if (def.who !== 'both' && def.who !== caller.kind) continue
+    if (def.role && (caller.kind !== 'employee' || studio.board.staff.find((m) => m.id === caller.id)?.role !== def.role)) continue
     server.registerTool(name, { description: def.description, inputSchema: def.input }, async (args: Record<string, unknown>) => {
       try {
         const text = await studio.call(caller, name, args ?? {})

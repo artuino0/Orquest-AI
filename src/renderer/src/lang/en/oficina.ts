@@ -359,6 +359,9 @@ const en: Record<string, string> = {
   "Contratar diseñador": "Hire designer",
   "Por ahora diseño yo": "I'll design myself for now",
   "Editor de Trazo": "Trazo editor",
+  "{0} no está en su escritorio: tráelo de vuelta desde el aviso de arriba.": "{0} isn't at their desk: bring them back from the notice above.",
+  "{0} no está en su escritorio: no recibe lo que le escribas.": "{0} isn't at their desk: they won't get what you write.",
+  "Traerlo de vuelta": "Bring them back",
 }
 
 export default en

@@ -265,7 +265,7 @@ const en: Record<string, string> = {
   "Id o nombre de la página": "Page id or name",
   "Id del nodo, como sale en el árbol": "Node id, as listed in the tree",
   "El proyecto ya tiene diseño en Trazo ({0}). Antes de construir una pantalla, léela con leer_diseno: medidas, colores (variables), tipografía y textos salen de ahí, no de una captura ni al tanteo.": "The project now has a Trazo design ({0}). Before building a screen, read it with leer_diseno: sizes, colors (variables), typography and texts come from there, not from a screenshot or guesswork.",
-  "Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context).{0} Espera a que te pida algo.": "The user hired you directly and you work with them, not with the boss: they talk to you from the Studio panel, where the Trazo editor is open with the project's design. You design there with the tools of the «trazo» MCP server (start with get_context).{0} Wait for them to ask you for something.",
+  "Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context). Él no ve tu terminal: al terminar cada pedido contéstale con responder_al_usuario qué hiciste y qué decidiste.{0} Espera a que te pida algo.": "The user hired you directly and you work with them, not with the boss: they talk to you from the Studio panel, where the Trazo editor is open with the project's design. You design there with the tools of the «trazo» MCP server (start with get_context). They can't see your terminal: when you finish each request, reply with responder_al_usuario saying what you did and what you decided.{0} Wait for them to ask you for something.",
   "El diseño del proyecto es {0}.": "The project's design is {0}.",
   "El usuario contrató a {0} como diseño; trabaja directo con él en Trazo. No le asignes tareas de diseño sin que el usuario lo pida. El diseño se lee con leer_diseno: pide a cada quien construir a partir de él.": "The user hired {0} for design; they work directly with the user in Trazo. Don't assign them design tasks unless the user asks. The design is read with leer_diseno: ask everyone to build from it.",
   // trazomcp.ts y la ruta /trazo: el MCP «trazo» del diseñador
@@ -283,6 +283,12 @@ const en: Record<string, string> = {
   "Se cerró el editor de Trazo.": "The Trazo editor was closed.",
   "El usuario tiene otro proyecto a la vista en Orquest: el editor de este diseño no está abierto. Pídele que vuelva a este proyecto.": "The user has another project in view in Orquest: this design's editor isn't open. Ask them to go back to this project.",
   "El editor de Trazo no está abierto: pídele al usuario que abra el panel Estudio y elija el diseño del proyecto.": "The Trazo editor isn't open: ask the user to open the Studio panel and choose the project's design.",
+  // responder_al_usuario: el diseñador le contesta al usuario en el Estudio
+  "Le contestas al usuario en el chat del Estudio: qué hiciste, qué decidiste o qué necesitas de él. No ve tu terminal: es lo único que lee de ti.": "You reply to the user in the Studio chat: what you did, what you decided or what you need from them. They can't see your terminal: this is the only thing they read from you.",
+  "Lo que le dices, breve": "What you tell them, briefly",
+  "Solo el diseñador le habla directo al usuario; tú, con preguntar_al_jefe.": "Only the designer talks directly to the user; you use preguntar_al_jefe.",
+  "El mensaje va vacío.": "The message is empty.",
+  "Listo: el usuario lo ve en el chat del Estudio.": "Done: the user sees it in the Studio chat.",
 }
 
 export default en

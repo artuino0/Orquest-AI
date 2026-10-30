@@ -11,7 +11,8 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { T } from './i18n.js'
 
-const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
+// La más nueva primero; Claude Code 2.1.314 pide 2025-11-25 y, si se le contesta una anterior, no sigue.
+const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
 export const SKILLS_PREFIX = 'trazo://skills/'
 /** Mismo texto que Trazo de escritorio: el agente se comporta igual en los dos. */
 const instructions = () =>
@@ -53,6 +54,8 @@ export interface TrazoMcpOptions {
   forward(req: TrazoRequest, timeoutMs: number): Promise<TrazoResponse>
   /** Carpeta con las skills de diseño de Trazo, si vienen en la instalación. */
   skills?: string
+  /** Versión que se anuncia en `serverInfo` (la de Orquest). */
+  version?: string
   /** Avisa cuando cambian las sesiones conectadas. */
   onSessions?(sessions: TrazoSession[]): void
 }
@@ -110,7 +113,8 @@ export class TrazoMcp {
           result: {
             protocolVersion: PROTOCOLS.includes(requested) ? requested : PROTOCOLS[0],
             capabilities: { tools: { listChanged: false }, resources: {} },
-            serverInfo: { name: 'trazo', title: 'Trazo' },
+            // `version` es obligatorio en MCP: sin él, Claude Code descarta la respuesta y no sigue.
+            serverInfo: { name: 'trazo', title: 'Trazo', version: this.opts.version ?? '0.0.0' },
             instructions: instructions(),
           },
         },

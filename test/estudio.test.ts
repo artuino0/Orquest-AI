@@ -153,3 +153,18 @@ describe('Estudio: el MCP «trazo» del diseñador', () => {
     expect(trazo.list()).toEqual([])
   })
 })
+
+describe('Estudio: el diseñador le contesta al usuario', () => {
+  it('responder_al_usuario es solo del diseñador y queda para el chat', async () => {
+    const { studio: s } = await setup()
+    await s.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const d = await s.hireDesigner({ provider: 'claude', name: 'Dalia' })
+    expect(await s.call({ kind: 'employee', id: d.id }, 'responder_al_usuario', { mensaje: 'Listo el inicio: hero con dos botones.' })).toContain('chat del Estudio')
+    expect(s.board.messages.at(-1)).toMatchObject({ from: d.id, to: 'usuario', text: 'Listo el inicio: hero con dos botones.' })
+    await expect(s.call({ kind: 'employee', id: d.id }, 'responder_al_usuario', { mensaje: '  ' })).rejects.toThrow(/vacío/)
+    // Otro empleado no le habla directo al usuario.
+    s.board.addSlot({ role: 'backend', provider: 'claude', name: 'Beto' })
+    s.board.hired(s.board.slots.at(-1)!, { id: 'beto-backend', role: 'backend', provider: 'claude' })
+    await expect(s.call({ kind: 'employee', id: 'beto-backend' }, 'responder_al_usuario', { mensaje: 'hola' })).rejects.toThrow(/Solo el diseñador/)
+  })
+})

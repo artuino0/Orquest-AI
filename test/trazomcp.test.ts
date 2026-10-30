@@ -22,8 +22,8 @@ describe('MCP «trazo» del diseñador', () => {
     const changes: number[] = []
     const t = new TrazoMcp({ forward: async () => ({ result: {} }), onSessions: (s) => changes.push(s.length) })
     const { reply, session } = await t.handle(rpc(1, 'initialize', { protocolVersion: '2025-03-26', clientInfo: { name: 'claude-code', version: '2.1' } }), undefined, 'dalia-diseno', '/p')
-    const r = reply as { result: { serverInfo: { name: string }; protocolVersion: string; instructions: string } }
-    expect(r.result.serverInfo.name).toBe('trazo')
+    const r = reply as { result: { serverInfo: unknown; protocolVersion: string; instructions: string } }
+    expect(r.result.serverInfo).toEqual({ name: 'trazo', title: 'Trazo', version: '0.0.0' })
     expect(r.result.protocolVersion).toBe('2025-03-26')
     expect(r.result.instructions).toContain('get_context')
     expect(session).toMatch(/^[0-9a-f]{32}$/)
