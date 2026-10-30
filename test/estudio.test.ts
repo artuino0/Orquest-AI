@@ -5,7 +5,9 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CliStatus } from '../src/core/detect.js'
 import { EmployeeManager, type Spawner } from '../src/core/employees.js'
+import { startMcpServer, type McpHandle } from '../src/core/mcp.js'
 import { BOSS_ID, Studio } from '../src/core/studio.js'
+import { TrazoMcp, type TrazoRequest } from '../src/core/trazomcp.js'
 import { sample } from './trazozip.js'
 
 async function makeRepo(): Promise<string> {
@@ -22,9 +24,11 @@ async function makeRepo(): Promise<string> {
 
 /** CLI de mentira: muestra su prompt enseguida y guarda lo que se le escribe. */
 const typed = new Map<string, string>()
-const fakeSpawn: Spawner = (_file, _args, o) => {
+const launched = new Map<string, string[]>()
+const fakeSpawn: Spawner = (_file, args, o) => {
   const id = o.env.ORQUEST_EMPLOYEE_ID
   typed.set(id, '')
+  launched.set(id, args)
   let onExit: (e: { exitCode: number }) => void = () => {}
   return {
     pid: 1,
@@ -39,7 +43,12 @@ const fakeSpawn: Spawner = (_file, _args, o) => {
 const CLIS: CliStatus[] = [{ id: 'claude', name: 'Claude Code', installed: true, session: true, version: '2' }]
 
 let studio: Studio | undefined
-afterEach(() => studio?.shutdown())
+let mcp: McpHandle | undefined
+afterEach(async () => {
+  studio?.shutdown()
+  await mcp?.close()
+  mcp = undefined
+})
 
 async function setup() {
   const repo = await makeRepo()
@@ -97,5 +106,50 @@ describe('Estudio: el diseño del proyecto y su diseñador', () => {
 
     // Lee el diseño como todos.
     await expect(s.call({ kind: 'employee', id: hired.id }, 'leer_diseno', {})).rejects.toThrow(/todavía no tiene diseño/)
+  })
+})
+
+describe('Estudio: el MCP «trazo» del diseñador', () => {
+  it('el diseñador nace conectado a trazo y lo que pide llega al editor; nadie más entra', async () => {
+    const repo = await makeRepo()
+    const manager = new EmployeeManager(fakeSpawn, { quietMs: 20, settleMs: 0 })
+    const seen: TrazoRequest[] = []
+    const trazo = new TrazoMcp({ forward: async (req) => (seen.push(req), { result: { tools: [{ name: 'get_context' }] } }) })
+    let s!: Studio
+    mcp = await startMcpServer((token) => {
+      const caller = s.caller(token)
+      return caller && { studio: s, caller }
+    }, trazo)
+    s = studio = await new Studio({ repo, manager, detect: async () => CLIS, mcpUrl: (t) => mcp!.url(t), trazoUrl: (t) => mcp!.trazoUrl(t), replyTimeoutMs: 2000, submitDelayMs: 0 }).init()
+    await s.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const hired = await s.hireDesigner({ provider: 'claude', name: 'Dalia' })
+
+    const args = launched.get(hired.id)!
+    const config = JSON.parse(args[args.indexOf('--mcp-config') + 1])
+    const url: string = config.mcpServers.trazo.url
+    expect(url).toMatch(/\/trazo\/[A-Za-z0-9_-]+$/)
+    expect(JSON.parse(args[args.indexOf('--settings') + 1]).permissions.allow).toContain('mcp__trazo')
+    // El jefe no lo recibe.
+    const bossArgs = launched.get(BOSS_ID)!
+    expect(JSON.parse(bossArgs[bossArgs.indexOf('--mcp-config') + 1]).mcpServers.trazo).toBeUndefined()
+
+    const post = (u: string, body: unknown, headers: Record<string, string> = {}) =>
+      fetch(u, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
+    const init = await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize', params: { clientInfo: { name: 'claude-code' } } })
+    const sid = init.headers.get('mcp-session-id')!
+    expect((await init.json()).result.serverInfo.name).toBe('trazo')
+    const list = await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, { 'mcp-session-id': sid })
+    expect((await list.json()).result.tools[0].name).toBe('get_context')
+    expect(seen[0]).toMatchObject({ method: 'tools/list', run: hired.id, client: 'claude-code', project: s.root })
+    expect((await post(url, { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202)
+
+    // El token del jefe no sirve para trazo, ni una página web, ni un token inventado.
+    const bossUrl = JSON.parse(bossArgs[bossArgs.indexOf('--mcp-config') + 1]).mcpServers.orquest.url.replace('/mcp/', '/trazo/')
+    expect((await post(bossUrl, { jsonrpc: '2.0', id: 1, method: 'ping' })).status).toBe(401)
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'ping' }, { origin: 'https://malo.com' })).status).toBe(403)
+    expect((await post(url.replace(/[^/]+$/, 'inventado'), { jsonrpc: '2.0', id: 1, method: 'ping' })).status).toBe(401)
+    expect((await fetch(url)).status).toBe(405)
+    expect((await fetch(url, { method: 'DELETE', headers: { 'mcp-session-id': sid } })).status).toBe(200)
+    expect(trazo.list()).toEqual([])
   })
 })

@@ -25,6 +25,7 @@ import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js
 import { checkUpdate } from '../core/update.js'
 import { adoptShellPath } from '../core/shellpath.js'
 import { startEditorServer, type EditorServer } from '../core/trazoserver.js'
+import { TrazoMcp, type TrazoResponse } from '../core/trazomcp.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
@@ -238,6 +239,7 @@ handle('project:open', async (repo: string, group?: boolean) => {
       detect: detectAll,
       mcpUrl: (t) => mcp.url(t),
       statusUrl: (t) => mcp.statusUrl(t),
+      trazoUrl: (t) => mcp.trazoUrl(t),
       cli: { url: (t) => mcp.cliUrl(t), dir: cliDir },
     }).init()
     let pending: ReturnType<typeof setTimeout> | undefined
@@ -465,6 +467,33 @@ handle('design:confirm', async (message: string) => {
   const r = await dialogFor((w) => dialog.showMessageBox(w, options), () => dialog.showMessageBox(options))
   return r.response === 0
 })
+// El MCP «trazo» del diseñador: cada petición va a la ventana (el editor del panel Estudio) y vuelve su respuesta.
+const trazoWaiting = new Map<number, (r: TrazoResponse) => void>()
+let trazo: TrazoMcp | undefined
+function startTrazo() {
+  trazo = new TrazoMcp({
+    skills: join(trazoDir(), 'skills'),
+    onSessions: (sessions) => send('trazo:sessions', sessions),
+    forward: (req, ms) =>
+      new Promise((ok, ko) => {
+        if (!win) return ko(new Error(T`Orquest no tiene una ventana abierta.`))
+        const timer = setTimeout(() => {
+          if (trazoWaiting.delete(req.id)) ko(new Error(T`El editor de Trazo tardó demasiado en responder.`))
+        }, ms)
+        trazoWaiting.set(req.id, (r) => {
+          clearTimeout(timer)
+          ok(r)
+        })
+        send('trazo:request', req)
+      }),
+  })
+  return trazo
+}
+handle('trazo:respond', (id: number, r: TrazoResponse) => {
+  trazoWaiting.get(id)?.(r)
+  trazoWaiting.delete(id)
+})
+handle('trazo:status', () => ({ url: '', error: null, sessions: trazo?.list() ?? [] }))
 handle('design:hire', (o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }) => studio().hireDesigner(o))
 handle('employee:stop', (id: string) => studio().stop(id))
 handle('project:save-file', (path: string, text: string, stamp: string) => studio().saveProjectFile(path, text, stamp))
@@ -556,7 +585,7 @@ app.whenReady().then(async () => {
       if (caller) return { studio: s, caller }
     }
     return undefined
-  })
+  }, startTrazo())
   // El comando corre con este mismo Electron en modo Node: no depende de que haya Node instalado.
   // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
   const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')

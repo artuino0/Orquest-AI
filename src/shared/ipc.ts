@@ -19,6 +19,7 @@ import type { FileChange } from '../core/worktree.js'
 import type { FileEntry, FileSides, FileText } from '../core/files.js'
 import type { RecentProject } from '../core/recents.js'
 import type { MobileStatus } from '../core/mobile.js'
+import type { TrazoRequest, TrazoResponse, TrazoSession } from '../core/trazomcp.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
@@ -219,6 +220,11 @@ export interface OrquestApi {
   designConfirm(message: string): Promise<boolean>
   /** Contrata al diseñador directo, sin el jefe. */
   hireDesigner(o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }): Promise<{ id: string; name: string; warnings: string[] }>
+  /** Lo que el diseñador le pide al editor por el MCP «trazo»; se contesta con trazoRespond. */
+  onTrazoRequest(cb: (req: TrazoRequest) => void): () => void
+  trazoRespond(id: number, r: TrazoResponse): Promise<void>
+  trazoStatus(): Promise<{ url: string; error: string | null; sessions: TrazoSession[] }>
+  onTrazoSessions(cb: (sessions: TrazoSession[]) => void): () => void
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void

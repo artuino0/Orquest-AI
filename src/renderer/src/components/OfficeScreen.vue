@@ -17,6 +17,7 @@ import { useCanvas } from '../stores/canvas'
 import { useIde } from '../stores/ide'
 import { useStudio } from '../stores/studio'
 import { LOOK, lookOf } from '../status'
+import { installTrazoBridge } from '../trazo'
 import CanvasPanel from './CanvasPanel.vue'
 import CanvasBackdrop from './CanvasBackdrop.vue'
 import CanvasMenu from './CanvasMenu.vue'
@@ -296,7 +297,10 @@ const keyup = (ev: KeyboardEvent) => ev.code === 'Space' && (space.value = false
 const blur = () => (space.value = false)
 
 let observer: ResizeObserver | undefined
+// Lo que el diseñador le pide al editor de Trazo: si su panel está cerrado, se abre.
+let stopTrazo: (() => void) | undefined
 onMounted(() => {
+  stopTrazo = installTrazoBridge({ project: () => studio.board?.repo, openPanel: () => canvas.open('estudio') })
   observer = new ResizeObserver(([entry]) => canvas.resize({ w: entry.contentRect.width, h: entry.contentRect.height }))
   observer.observe(viewEl.value!)
   // En captura: cuando el lienzo se queda con la rueda, la corta antes de que llegue al contenido (xterm, Monaco);
@@ -307,6 +311,7 @@ onMounted(() => {
   window.addEventListener('blur', blur)
 })
 onBeforeUnmount(() => {
+  stopTrazo?.()
   observer?.disconnect()
   viewEl.value?.removeEventListener('wheel', wheel, { capture: true })
   window.removeEventListener('keydown', keydown)

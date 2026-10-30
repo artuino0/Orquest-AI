@@ -14,6 +14,8 @@ import { useStudio } from '../stores/studio'
 import { useCanvas } from '../stores/canvas'
 import { EFFORT_LABEL } from '../status'
 import { getLang, T } from '../../../core/i18n'
+import type { TrazoResponse } from '../../../core/trazomcp'
+import { serveTrazo } from '../trazo'
 
 const studio = useStudio()
 const canvas = useCanvas()
@@ -105,6 +107,8 @@ async function answer({ op, args = {} }: Ask): Promise<unknown> {
       if (!d) throw new Error(T`No hay diseñador en el proyecto.`)
       return o.say(d.id, String(args.prompt ?? ''))
     }
+    case 'mcpEstado':
+      return o.trazoStatus()
     case 'detener': {
       const d = state.value?.designer
       return d ? o.stopEmployee(d.id) : undefined
@@ -113,10 +117,44 @@ async function answer({ op, args = {} }: Ask): Promise<unknown> {
   throw new Error(T`El editor pidió algo que Orquest no conoce: ${op}`)
 }
 
+// ── El MCP «trazo»: el editor atiende lo que pide el diseñador ──────────────
+let mcpSeq = 0
+const mcpWaiting = new Map<number, (r: TrazoResponse) => void>()
+let unserve: (() => void) | undefined
+function serve() {
+  unserve?.()
+  unserve = serveTrazo(
+    (req) =>
+      new Promise((ok) => {
+        const win = frame.value?.contentWindow
+        if (!win) return ok({ error: { code: -32603, message: T`El editor de Trazo no está abierto.` } })
+        const id = ++mcpSeq
+        mcpWaiting.set(id, ok)
+        win.postMessage({ trazo: 'mcp', id, req: JSON.parse(JSON.stringify(req)) }, origin.value)
+      }),
+  )
+}
+function unserveAll() {
+  unserve?.()
+  unserve = undefined
+  // Lo que quedó esperando no se contesta ya: el proceso principal tiene su tiempo límite, pero mejor decirlo.
+  for (const done of mcpWaiting.values()) done({ error: { code: -32603, message: T`Se cerró el editor de Trazo.` } })
+  mcpWaiting.clear()
+}
+const offSessions = window.orquest.onTrazoSessions((sessions) => frame.value?.contentWindow?.postMessage({ trazo: 'evento', tipo: 'sesiones', datos: JSON.parse(JSON.stringify(sessions)) }, origin.value))
+// Otro diseño o el editor recargado: el anterior ya no atiende.
+watch(src, unserveAll)
+
 function onMessage(e: MessageEvent) {
   if (!frame.value || e.source !== frame.value.contentWindow || e.origin !== origin.value) return
   const m = e.data
   if (m?.trazo === 'toque') canvas.front('estudio')
+  if (m?.trazo === 'servir') serve()
+  if (m?.trazo === 'dejar') unserveAll()
+  if (m?.trazo === 'mcp-respuesta') {
+    mcpWaiting.get(m.id)?.(m.res)
+    mcpWaiting.delete(m.id)
+  }
   if (m?.trazo !== 'pedir') return
   const reply = (r: Record<string, unknown>) => frame.value?.contentWindow?.postMessage({ trazo: 'respuesta', id: m.id, ...r }, origin.value)
   answer(m).then(
@@ -125,7 +163,11 @@ function onMessage(e: MessageEvent) {
   )
 }
 onMounted(() => window.addEventListener('message', onMessage))
-onBeforeUnmount(() => window.removeEventListener('message', onMessage))
+onBeforeUnmount(() => {
+  window.removeEventListener('message', onMessage)
+  offSessions()
+  unserveAll()
+})
 </script>
 
 <template>

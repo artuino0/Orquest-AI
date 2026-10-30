@@ -4,7 +4,7 @@
  * llamada pasa por Studio.call, que valida contra el tablero. Las CLIs que no
  * hablan MCP usan las mismas herramientas por /cli/<token> (comando `orquest`).
  */
-import { createServer, type IncomingMessage, type Server } from 'node:http'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -14,6 +14,7 @@ import { cliArgs, cliFields } from './cli.js'
 import { T } from './i18n.js'
 import { EFFORTS } from './providers.js'
 import type { Caller, Studio } from './studio.js'
+import type { TrazoMcp } from './trazomcp.js'
 
 const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 'kimi', 'grok'] as const
 // T se evalúa al usarse, no al cargar el módulo: por eso las descripciones y los campos van en getters.
@@ -317,15 +318,28 @@ export interface McpHandle {
   statusUrl(token: string): string
   /** URL que usa el comando `orquest` de una terminal. */
   cliUrl(token: string): string
+  /** URL del MCP «trazo» del diseñador. */
+  trazoUrl(token: string): string
   close(): Promise<void>
+}
+
+/** Sin Origin (una CLI) o de esta misma máquina. */
+export function localOrigin(origin: string | undefined): boolean {
+  if (!origin) return true
+  const o = origin.replace(/\/$/, '')
+  return ['http://127.0.0.1', 'http://localhost'].some((p) => o === p || o.startsWith(`${p}:`))
 }
 
 /**
  * Arranca en 127.0.0.1 en un puerto libre. `resolve` encuentra el estudio
  * dueño del token (uno por proyecto abierto).
  */
-export async function startMcpServer(resolve: (token: string) => { studio: Studio; caller: Caller } | undefined): Promise<McpHandle> {
+export async function startMcpServer(resolve: (token: string) => { studio: Studio; caller: Caller } | undefined, trazo?: TrazoMcp): Promise<McpHandle> {
   const http: Server = createServer(async (req, res) => {
+    // El MCP «trazo» del diseñador: lo atiende el editor del panel Estudio (ver core/trazomcp).
+    const tz = /^\/trazo\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
+    if (tz) return void (await serveTrazo(req, res, tz[1]))
+
     // Barra de estado de la CLI: reporta % de contexto (y uso de la cuenta).
     const st = /^\/estado\/([A-Za-z0-9_-]+)\/?$/.exec(req.url ?? '')
     if (st && req.method === 'POST') {
@@ -379,12 +393,40 @@ export async function startMcpServer(resolve: (token: string) => { studio: Studi
       if (!res.headersSent) res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: (err as Error).message }))
     }
   })
+  async function serveTrazo(req: IncomingMessage, res: ServerResponse, token: string) {
+    const json = (code: number, data: unknown, headers: Record<string, string> = {}) => void res.writeHead(code, { 'content-type': 'application/json', ...headers }).end(JSON.stringify(data))
+    // Como Trazo: una página web abierta en el navegador no habla con el editor.
+    if (!localOrigin(req.headers.origin)) return json(403, { error: T`Origen no permitido` })
+    const found = resolve(token)
+    if (!trazo || !found || found.caller.kind !== 'employee') return json(401, { error: T`token inválido` })
+    const me = found.caller.id
+    if (!found.studio.board.staff.some((m) => m.id === me && m.role === 'diseno')) return json(403, { error: T`Trazo es del puesto diseno.` })
+    const sid = typeof req.headers['mcp-session-id'] === 'string' ? req.headers['mcp-session-id'] : undefined
+    if (req.method === 'DELETE') {
+      if (sid) trazo.end(sid)
+      return void res.writeHead(200).end()
+    }
+    // Sin flujo SSE iniciado por el servidor.
+    if (req.method !== 'POST') return void res.writeHead(405, { allow: 'POST, DELETE' }).end()
+    let body: unknown
+    try {
+      body = await readBody(req)
+    } catch {
+      return json(400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: T`JSON inválido` } })
+    }
+    const { reply, session } = await trazo.handle(body, sid, me, found.studio.root)
+    const headers: Record<string, string> = session ? { 'mcp-session-id': session } : {}
+    if (reply === null) return void res.writeHead(202, headers).end()
+    json(200, reply, headers)
+  }
+
   await new Promise<void>((ok) => http.listen(0, '127.0.0.1', ok))
   const { port } = http.address() as AddressInfo
   return {
     url: (token) => `http://127.0.0.1:${port}/mcp/${token}`,
     statusUrl: (token) => `http://127.0.0.1:${port}/estado/${token}`,
     cliUrl: (token) => `http://127.0.0.1:${port}/cli/${token}`,
+    trazoUrl: (token) => `http://127.0.0.1:${port}/trazo/${token}`,
     close: () => new Promise((ok) => http.close(() => ok())),
   }
 }

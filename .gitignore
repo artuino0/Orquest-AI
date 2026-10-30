@@ -26,3 +26,4 @@ __pycache__/
 # El editor de Trazo (build de DyDa) va en el instalador, pero no se sube al repo público
 # hasta que el autor lo decida. La piel y el puente de Orquest (assets/trazo/orquest) sí.
 /assets/trazo/editor/
+/assets/trazo/skills/

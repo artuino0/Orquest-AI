@@ -8,7 +8,9 @@
   const params = new URLSearchParams(location.search)
   let seq = 0
   const pending = new Map()
-  const listeners = { salida: new Set(), fin: new Set() }
+  const listeners = { salida: new Set(), fin: new Set(), sesiones: new Set() }
+  /** Quien atiende el MCP «trazo» dentro del editor (McpBridge de Trazo). */
+  let serving = null
 
   const call = (op, args) =>
     new Promise((ok, ko) => {
@@ -26,6 +28,11 @@
       pending.delete(m.id)
       if (m.error) p.ko(new Error(m.error))
       else p.ok(m.valor)
+    } else if (m?.trazo === 'mcp') {
+      // El diseñador le pide algo al editor por el MCP «trazo»; la respuesta vuelve por el mismo camino.
+      const done = (res) => parent.postMessage({ trazo: 'mcp-respuesta', id: m.id, res }, '*')
+      if (!serving) done({ error: { code: -32603, message: 'Trazo aún no está listo' } })
+      else serving(m.req).then(done, (e) => done({ error: { code: -32603, message: String(e?.message ?? e) } }))
     } else if (m?.trazo === 'evento' && listeners[m.tipo]) {
       for (const cb of listeners[m.tipo]) cb(m.datos)
     }
@@ -49,6 +56,20 @@
       launchFile: () => call('diseno'),
       confirm: (message) => call('confirmar', { message }),
     },
+  }
+
+  host.mcp = {
+    serve(handle) {
+      serving = handle
+      parent.postMessage({ trazo: 'servir' }, '*')
+      return () => {
+        if (serving !== handle) return
+        serving = null
+        parent.postMessage({ trazo: 'dejar' }, '*')
+      }
+    },
+    status: () => call('mcpEstado'),
+    onSessions: listen('sesiones'),
   }
 
   // El diseñador del proyecto: el chat de Trazo le habla a él en vez de ofrecer elegir proveedor y modelo.

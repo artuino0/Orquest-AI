@@ -91,6 +91,8 @@ export interface StudioOptions {
   home?: string
   /** URL donde una CLI reporta su estado (contexto, uso de la cuenta), por token. */
   statusUrl?: (token: string) => string
+  /** URL del MCP «trazo» (el editor del panel Estudio) para el diseñador. */
+  trazoUrl?: (token: string) => string
   /** % de contexto a partir del cual el agente se va a descansar. */
   burnoutAt?: number
   /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
@@ -428,12 +430,15 @@ export class Studio extends EventEmitter<StudioEvents> {
     return getProvider(provider).mcpArgs ? 'mcp' : this.opts.cli ? 'cli' : undefined
   }
 
-  private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions']) {
+  private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions'], role?: string) {
+    // El diseñador además diseña en el editor del panel Estudio, por el MCP «trazo».
+    const trazo = role === 'diseno' ? this.opts.trazoUrl?.(token) : undefined
     return (
       getProvider(provider).mcpArgs?.({
         url: this.opts.mcpUrl(token),
         permissions,
         statusUrl: this.opts.statusUrl?.(token),
+        ...(trazo && { servers: { trazo } }),
       }) ?? []
     )
   }
@@ -585,7 +590,7 @@ export class Studio extends EventEmitter<StudioEvents> {
         repo: this.root,
         office: again?.office ?? (await this.groupOffice(id)),
         binary: this.opts.binaries?.[slot.provider],
-        extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
+        extraArgs: this.connectArgs(slot.provider, token, manual.permissions, slot.role),
       },
       intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel, this.group)],
     }, (e) =>
@@ -1510,7 +1515,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const file = await designFile(this.root)
     try {
       const hired = await this.hireSlot(slot, undefined, [
-        T`Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Para leer el diseño usa leer_diseno.${file ? ` ${T`El diseño del proyecto es ${file}.`}` : ''} Espera a que te pida algo.`,
+        T`Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context).${file ? ` ${T`El diseño del proyecto es ${file}.`}` : ''} Espera a que te pida algo.`,
       ])
       this.notify(BOSS_ID, T`El usuario contrató a ${slot.name} como diseño; trabaja directo con él en Trazo. No le asignes tareas de diseño sin que el usuario lo pida. El diseño se lee con leer_diseno: pide a cada quien construir a partir de él.`)
       return hired
