@@ -252,6 +252,28 @@ const en: Record<string, string> = {
   "Este celular no está emparejado con la compu. Vuelve a emparejarlo.": "This phone isn't paired with the computer. Pair it again.",
   "Algo falló en la compu.": "Something failed on the computer.",
   "Los puertos del {0} al {1} ya los usan otros programas en esta compu.": "Ports {0} to {1} are already used by other programs on this computer.",
+  // design.ts: los diseños de Trazo que lee leer_diseno
+  "El archivo no es un diseño de Trazo (no es un zip).": "The file is not a Trazo design (it isn't a zip).",
+  "El archivo no es un diseño de Trazo (le falta trazo.json).": "The file is not a Trazo design (trazo.json is missing).",
+  "Diseño «{0}».": "Design «{0}».",
+  "Páginas (pide una con `pagina` para ver su árbol, o un nodo con `nodo` para su detalle):": "Pages (ask for one with `pagina` to see its tree, or for a node with `nodo` to get its details):",
+  "Componentes:": "Components:",
+  "Variables (colores y medidas con nombre; los nodos las usan como `var`):": "Variables (named colors and sizes; nodes use them as `var`):",
+  "No hay una página «{0}» en el diseño. Hay: {1}.": "There is no page «{0}» in the design. There are: {1}.",
+  "(Se cortó en {0} renglones: pide un nodo con `nodo` para ver lo de adentro.)": "(Cut at {0} lines: ask for a node with `nodo` to see what's inside.)",
+  "Página «{0}». Pide el detalle de un nodo con `nodo` y su id.": "Page «{0}». Ask for a node's details with `nodo` and its id.",
+  "No hay un nodo «{0}» en el diseño. Los ids salen en el árbol de cada página.": "There is no node «{0}» in the design. The ids are listed in each page's tree.",
+  "Ese nodo es demasiado grande para leerlo de una vez; pide uno de sus hijos (sus ids salen en el árbol de la página).": "That node is too big to read at once; ask for one of its children (their ids are in the page's tree).",
+  // design.ts: el diseño del proyecto
+  "El diseño tiene que ser un archivo .trazo.": "The design has to be a .trazo file.",
+  "Este proyecto todavía no tiene diseño en Trazo.": "This project doesn't have a Trazo design yet.",
+  "No se encontró el diseño del proyecto en {0}.": "The project's design wasn't found at {0}.",
+  // main/index.ts: el Estudio (editor de Trazo)
+  "¿Dónde guardo el diseño del proyecto?": "Where should I save the project's design?",
+  "Elige el diseño del proyecto": "Choose the project's design",
+  "El editor solo abre el diseño del proyecto y lo que elijas tú.": "The editor only opens the project's design and what you choose.",
+  "El editor solo guarda en el diseño del proyecto y donde elijas tú.": "The editor only saves to the project's design and where you choose.",
+  "Sí": "Yes",
 }
 
 export default en

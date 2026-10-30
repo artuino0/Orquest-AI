@@ -24,14 +24,16 @@ import en from '../core/lang/en.js'
 import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
 import { adoptShellPath } from '../core/shellpath.js'
+import { startEditorServer, type EditorServer } from '../core/trazoserver.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
 import { dockEntry } from '../core/dock.js'
 import { Mobile } from '../core/mobile.js'
 import { OfficeShare } from '../core/officeshare.js'
-import { readFile } from 'node:fs/promises'
-import { extname, normalize, sep } from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { basename, extname, isAbsolute, normalize, sep } from 'node:path'
 import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
@@ -374,6 +376,97 @@ handle('employee:format-file', (id: string, path: string, text: string) => {
 handle('project:tree', (dir: string) => studio().projectTree(dir))
 handle('project:file', (path: string) => studio().projectFile(path))
 handle('project:changes', () => studio().projectChanges())
+// ── Estudio: el editor de Trazo ─────────────────────────────────────────
+// El editor pide por el panel (renderer/trazo/puente.js → EstudioPanel.vue) y aquí se decide: lee y escribe
+// solo el diseño del proyecto y lo que el usuario eligió en un diálogo durante esta sesión.
+let editorServer: Promise<EditorServer> | undefined
+/** El editor viene en el instalador junto a la app; en desarrollo, de assets/trazo. */
+const trazoDir = () => (app.isPackaged ? join(process.resourcesPath, 'trazo') : join(app.getAppPath(), 'assets', 'trazo'))
+const picked = new Set<string>()
+const saveTargets = new Set<string>()
+const TRAZO_FILTER = { name: 'Trazo', extensions: ['trazo'] }
+const same = (a: string, b: string) => resolve(a) === resolve(b)
+async function dialogFor<T>(open: (w: BrowserWindow) => Promise<T>, plain: () => Promise<T>) {
+  return win ? open(win) : plain()
+}
+handle('design:state', async () => {
+  const s = studio()
+  editorServer ??= startEditorServer(join(trazoDir(), 'editor'), join(trazoDir(), 'orquest'))
+  const url = await editorServer.then((e) => e.url, () => null)
+  const d = s.designer()
+  const slot = d && s.board.slots.find((x) => x.employeeId === d.id)
+  const cli = d && PROVIDERS[d.provider]?.name
+  return {
+    file: await s.designFile(),
+    editorUrl: url,
+    designer: d ? { id: d.id, name: d.name, detail: [cli, d.model, slot?.effort].filter(Boolean).join(' · ') } : null,
+  }
+})
+handle('design:create', async () => {
+  const s = studio()
+  const options: Electron.SaveDialogOptions = { title: T`¿Dónde guardo el diseño del proyecto?`, defaultPath: join(s.root, 'diseno', `${s.root.split(/[\\/]/).pop() || 'diseno'}.trazo`), filters: [TRAZO_FILTER] }
+  const r = await dialogFor((w) => dialog.showSaveDialog(w, options), () => dialog.showSaveDialog(options))
+  if (r.canceled || !r.filePath) return null
+  return s.chooseDesign(r.filePath.endsWith('.trazo') ? r.filePath : `${r.filePath}.trazo`)
+})
+handle('design:open', async () => {
+  const s = studio()
+  const options: Electron.OpenDialogOptions = { title: T`Elige el diseño del proyecto`, defaultPath: s.root, properties: ['openFile'], filters: [TRAZO_FILTER] }
+  const r = await dialogFor((w) => dialog.showOpenDialog(w, options), () => dialog.showOpenDialog(options))
+  return r.canceled || !r.filePaths[0] ? null : s.chooseDesign(r.filePaths[0])
+})
+// El editor abre con el diseño del proyecto; si aún no existe en disco, empieza vacío y al guardar va ahí.
+handle('design:launch', async () => {
+  const file = await studio().designFile()
+  return file && existsSync(file) ? file : null
+})
+handle('design:read', async (path: string, kind: 'trazo' | 'import') => {
+  const s = studio()
+  const file = await s.designFile()
+  if (kind === 'trazo' && file && same(path, file)) return (await s.readDesign()) ?? Promise.reject(new Error(T`No se encontró el diseño del proyecto en ${file}.`))
+  if (kind === 'import' && picked.has(resolve(path))) return readFile(path)
+  throw new Error(T`El editor solo abre el diseño del proyecto y lo que elijas tú.`)
+})
+handle('design:write', async (path: string, bytes: Uint8Array, kind: 'trazo' | 'export') => {
+  const s = studio()
+  const file = await s.designFile()
+  if (kind === 'trazo') {
+    // Guardar como: el diseño del proyecto pasa a ser ese archivo.
+    if (!file || !same(path, file)) {
+      if (!saveTargets.has(resolve(path))) throw new Error(T`El editor solo guarda en el diseño del proyecto y donde elijas tú.`)
+      await s.chooseDesign(path)
+    }
+    return s.saveDesign(bytes)
+  }
+  if (!saveTargets.has(resolve(path))) throw new Error(T`El editor solo guarda en el diseño del proyecto y donde elijas tú.`)
+  await writeFile(path, bytes)
+})
+handle('design:ask-save', async (defaultPath: string, filters: { name: string; extensions: string[] }[]) => {
+  const s = studio()
+  const file = await s.designFile()
+  // Un diseño por proyecto: el primer guardado de uno nuevo va directo al lugar que ya se eligió.
+  if (file && !existsSync(file) && filters.some((f) => f.extensions.includes('trazo'))) return file
+  const options: Electron.SaveDialogOptions = { defaultPath: isAbsolute(defaultPath) ? defaultPath : join(s.root, defaultPath), filters }
+  const r = await dialogFor((w) => dialog.showSaveDialog(w, options), () => dialog.showSaveDialog(options))
+  if (r.canceled || !r.filePath) return null
+  saveTargets.add(resolve(r.filePath))
+  return r.filePath
+})
+handle('design:pick', async (filters: { name: string; extensions: string[] }[]) => {
+  const options: Electron.OpenDialogOptions = { defaultPath: studio().root, properties: ['openFile'], filters }
+  const r = await dialogFor((w) => dialog.showOpenDialog(w, options), () => dialog.showOpenDialog(options))
+  const path = r.canceled ? undefined : r.filePaths[0]
+  if (!path) return null
+  picked.add(resolve(path))
+  return { name: basename(path), path }
+})
+handle('design:confirm', async (message: string) => {
+  const options: Electron.MessageBoxOptions = { type: 'question', message, buttons: [T`Sí`, T`Cancelar`], defaultId: 1, cancelId: 1 }
+  const r = await dialogFor((w) => dialog.showMessageBox(w, options), () => dialog.showMessageBox(options))
+  return r.response === 0
+})
+handle('design:hire', (o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }) => studio().hireDesigner(o))
+handle('employee:stop', (id: string) => studio().stop(id))
 handle('project:save-file', (path: string, text: string, stamp: string) => studio().saveProjectFile(path, text, stamp))
 handle('project:format-file', (path: string, text: string) => studio().formatProjectFile(path, text))
 ipcMain.on('employee:write', (_e, id: string, data: string) => mgr()?.isLive(id) && mgr()!.write(id, data))
@@ -475,6 +568,7 @@ app.whenReady().then(async () => {
 })
 app.on('window-all-closed', async () => {
   await mobile?.stop()
+  await editorServer?.then((e) => e.close(), () => {})
   for (const s of studios.values()) {
     s.shutdown()
     s.manager.shutdown()

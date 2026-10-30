@@ -341,6 +341,24 @@ const en: Record<string, string> = {
   "Volver a cargar": "Reload",
   "Esa dirección no es de esta máquina: ábrela en tu navegador.": "That address isn't on this machine: open it in your browser.",
   "{0} no tiene una versión levantada.": "{0} has no version running.",
+  // EstudioPanel.vue y el panel Estudio del lienzo
+  "Estudio": "Studio",
+  "diseño en Trazo": "design in Trazo",
+  "Estudio: el diseño del proyecto en Trazo, con tu diseñador": "Studio: the project's design in Trazo, with your designer",
+  "No hay diseñador en el proyecto.": "There's no designer in the project.",
+  "El editor pidió algo que Orquest no conoce: {0}": "The editor asked for something Orquest doesn't know: {0}",
+  "Abriendo el Estudio…": "Opening the Studio…",
+  "No se pudo abrir el editor de Trazo": "Couldn't open the Trazo editor",
+  "Falta el editor en esta instalación de Orquest.": "The editor is missing from this Orquest installation.",
+  "¿Dónde va el diseño de este proyecto?": "Where does this project's design go?",
+  "Un archivo .trazo por proyecto. Si lo guardas dentro del proyecto, va en git con el código y cada agente lo tiene en su oficina; fuera del proyecto, solo lo leen con leer_diseno.": "One .trazo file per project. If you save it inside the project, it goes into git with the code and every agent has it in their office; outside the project, they only read it with leer_diseno.",
+  "Crear diseño nuevo…": "Create a new design…",
+  "Abrir un .trazo que ya tengo…": "Open a .trazo I already have…",
+  "Contrata a tu diseñador": "Hire your designer",
+  "Trabaja contigo directo en este panel, sin pasar por el jefe. Los demás construyen a partir de su diseño.": "They work directly with you in this panel, without going through the boss. Everyone else builds from their design.",
+  "Contratar diseñador": "Hire designer",
+  "Por ahora diseño yo": "I'll design myself for now",
+  "Editor de Trazo": "Trazo editor",
 }
 
 export default en

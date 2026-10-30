@@ -20,6 +20,12 @@ asarUnpack:
   - node_modules/node-pty/**
   - src/cli/**
 
+# El editor de Trazo del panel Estudio, con la piel y el puente de Orquest: lo sirve
+# un servidor local desde disco (core/trazoserver.ts), por eso va suelto y no en el asar.
+extraResources:
+  - from: assets/trazo
+    to: trazo
+
 # node-pty ya trae sus binarios listos (N-API): no hace falta compilador para empaquetar.
 npmRebuild: false
 

@@ -233,6 +233,18 @@ export const TOOLS: Record<string, ToolDef> = {
       return { traspaso: z.string().describe(T`Markdown breve`) }
     },
   },
+  leer_diseno: {
+    who: 'both',
+    get description() {
+      return T`Lee el diseño del proyecto (Trazo). Sin campos: páginas, pantallas, componentes y variables (colores y medidas). Con pagina: el árbol de esa página, un renglón por nodo con su id. Con nodo: todo lo de ese nodo y sus hijos (medidas, acomodo, rellenos, tipografía, textos). Construye a partir de esto, no de capturas ni al tanteo.`
+    },
+    get input() {
+      return {
+        pagina: z.string().optional().describe(T`Id o nombre de la página`),
+        nodo: z.string().optional().describe(T`Id del nodo, como sale en el árbol`),
+      }
+    },
+  },
   entregar: {
     who: 'employee',
     get description() {

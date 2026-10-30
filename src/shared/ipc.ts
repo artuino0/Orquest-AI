@@ -50,6 +50,20 @@ export interface LibraryView {
 
 export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
 
+export interface FileFilter {
+  name: string
+  extensions: string[]
+}
+
+/** Lo que el panel Estudio necesita para arrancar. */
+export interface DesignState {
+  /** El diseño del proyecto; null si aún no se eligió dónde va. */
+  file: string | null
+  /** La página del editor; null si no se pudo levantar. */
+  editorUrl: string | null
+  designer: { id: string; name: string; detail: string } | null
+}
+
 export interface OrquestApi {
   /** El idioma de la app y si lo eligió el usuario (si no, es el de su sistema). */
   language(): Promise<{ lang: Lang; chosen: boolean }>
@@ -189,6 +203,22 @@ export interface OrquestApi {
   formatProjectFile(path: string, text: string): Promise<string>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>
+  /** Lo detiene (Esc), como el botón de detener del jefe. */
+  stopEmployee(id: string): Promise<{ restored?: string }>
+  // Estudio: el editor de Trazo y el diseño del proyecto.
+  designState(): Promise<DesignState>
+  /** Elegir dónde va un diseño nuevo, o uno que ya existe; null si se cancela. */
+  designCreate(): Promise<string | null>
+  designOpen(): Promise<string | null>
+  /** Con qué archivo abre el editor: el diseño si ya existe en disco. */
+  designLaunch(): Promise<string | null>
+  designRead(path: string, kind: 'trazo' | 'import'): Promise<Uint8Array>
+  designWrite(path: string, bytes: Uint8Array, kind: 'trazo' | 'export'): Promise<void>
+  designAskSave(defaultPath: string, filters: FileFilter[]): Promise<string | null>
+  designPick(filters: FileFilter[]): Promise<{ name: string; path: string } | null>
+  designConfirm(message: string): Promise<boolean>
+  /** Contrata al diseñador directo, sin el jefe. */
+  hireDesigner(o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }): Promise<{ id: string; name: string; warnings: string[] }>
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void

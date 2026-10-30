@@ -260,6 +260,14 @@ const en: Record<string, string> = {
   "el usuario le cambió la cuenta a {0}": "the user changed their account to {0}",
   "la principal": "the main one",
   "cambio de cuenta": "account change",
+  // Estudio (Trazo): leer_diseno y el diseñador que contrata el usuario
+  "Lee el diseño del proyecto (Trazo). Sin campos: páginas, pantallas, componentes y variables (colores y medidas). Con pagina: el árbol de esa página, un renglón por nodo con su id. Con nodo: todo lo de ese nodo y sus hijos (medidas, acomodo, rellenos, tipografía, textos). Construye a partir de esto, no de capturas ni al tanteo.": "Reads the project's design (Trazo). With no fields: pages, screens, components and variables (colors and sizes). With pagina: that page's tree, one line per node with its id. With nodo: everything about that node and its children (sizes, layout, fills, typography, texts). Build from this, not from screenshots or by guessing.",
+  "Id o nombre de la página": "Page id or name",
+  "Id del nodo, como sale en el árbol": "Node id, as listed in the tree",
+  "El proyecto ya tiene diseño en Trazo ({0}). Antes de construir una pantalla, léela con leer_diseno: medidas, colores (variables), tipografía y textos salen de ahí, no de una captura ni al tanteo.": "The project now has a Trazo design ({0}). Before building a screen, read it with leer_diseno: sizes, colors (variables), typography and texts come from there, not from a screenshot or guesswork.",
+  "Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Para leer el diseño usa leer_diseno.{0} Espera a que te pida algo.": "The user hired you directly and you work with them, not with the boss: they talk to you from the Studio panel, where the Trazo editor is open with the project's design. To read the design, use leer_diseno.{0} Wait for them to ask you for something.",
+  "El diseño del proyecto es {0}.": "The project's design is {0}.",
+  "El usuario contrató a {0} como diseño; trabaja directo con él en Trazo. No le asignes tareas de diseño sin que el usuario lo pida. El diseño se lee con leer_diseno: pide a cada quien construir a partir de él.": "The user hired {0} for design; they work directly with the user in Trazo. Don't assign them design tasks unless the user asks. The design is read with leer_diseno: ask everyone to build from it.",
 }
 
 export default en

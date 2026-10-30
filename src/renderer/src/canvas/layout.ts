@@ -21,7 +21,7 @@ export interface Camera extends Point {
 }
 
 /** Qué muestra un panel. Los que llevan `ref` son de alguien (un empleado, su versión). */
-export type PanelKind = 'office' | 'boss' | 'employee' | 'version' | 'editor' | 'usage' | 'hire' | 'board' | 'inbox' | 'library' | 'plans' | 'accounts' | 'mobile'
+export type PanelKind = 'office' | 'boss' | 'employee' | 'version' | 'editor' | 'estudio' | 'usage' | 'hire' | 'board' | 'inbox' | 'library' | 'plans' | 'accounts' | 'mobile'
 
 export interface Panel extends Rect {
   id: string
@@ -52,6 +52,8 @@ export const SIZES: Record<PanelKind, Size> = {
   employee: { w: 656, h: 640 },
   version: { w: 576, h: 528 },
   editor: { w: 960, h: 592 },
+  // El editor de Trazo necesita espacio para lienzo, capas e inspector: se agranda o se enfoca a toda la vista.
+  estudio: { w: 1280, h: 768 },
   usage: { w: 336, h: 416 },
   hire: { w: 1008, h: 656 },
   board: { w: 1008, h: 624 },
@@ -63,7 +65,7 @@ export const SIZES: Record<PanelKind, Size> = {
 }
 
 /** Orden al «Ordenar»: la oficina y el jefe primero, luego la gente y lo demás. */
-const ORDER: PanelKind[] = ['office', 'boss', 'employee', 'version', 'editor', 'hire', 'board', 'inbox', 'plans', 'library', 'accounts', 'mobile', 'usage']
+const ORDER: PanelKind[] = ['office', 'boss', 'employee', 'version', 'editor', 'estudio', 'hire', 'board', 'inbox', 'plans', 'library', 'accounts', 'mobile', 'usage']
 
 export const panelId = (kind: PanelKind, ref?: string) => (ref ? `${kind}:${ref}` : kind)
 export const snap = (v: number, g = GRID) => Math.round(v / g) * g
