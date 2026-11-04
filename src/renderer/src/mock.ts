@@ -168,7 +168,7 @@ export function installMock(caso: string) {
     say: async () => {},
     stopEmployee: async () => ({}),
     // En la vista previa no hay servidor del editor: el panel lo dice.
-    designState: async () => ({ file: null, editorUrl: null, designer: null }),
+    designState: async () => ({ file: null, editorUrl: null, editorVersion: null, designer: null }),
     designCreate: async () => null,
     designOpen: async () => null,
     designLaunch: async () => null,
@@ -182,6 +182,9 @@ export function installMock(caso: string) {
     trazoRespond: async () => {},
     trazoStatus: async () => ({ url: '', error: null, sessions: [] }),
     onTrazoSessions: nothing,
+    trazoOffer: async () => ({ version: '0.2.8', bytes: 6_100_000, compatible: true, newer: true }),
+    trazoInstall: async () => Promise.reject(new Error('La vista previa no baja el editor.')),
+    onTrazoProgress: nothing,
     journal: async () => '',
     list: async () => [],
     activities: async () => ({}),

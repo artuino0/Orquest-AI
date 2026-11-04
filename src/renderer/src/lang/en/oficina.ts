@@ -349,7 +349,6 @@ const en: Record<string, string> = {
   "El editor pidió algo que Orquest no conoce: {0}": "The editor asked for something Orquest doesn't know: {0}",
   "Abriendo el Estudio…": "Opening the Studio…",
   "No se pudo abrir el editor de Trazo": "Couldn't open the Trazo editor",
-  "Falta el editor en esta instalación de Orquest.": "The editor is missing from this Orquest installation.",
   "¿Dónde va el diseño de este proyecto?": "Where does this project's design go?",
   "Un archivo .trazo por proyecto. Si lo guardas dentro del proyecto, va en git con el código y cada agente lo tiene en su oficina; fuera del proyecto, solo lo leen con leer_diseno.": "One .trazo file per project. If you save it inside the project, it goes into git with the code and every agent has it in their office; outside the project, they only read it with leer_diseno.",
   "Crear diseño nuevo…": "Create a new design…",
@@ -362,6 +361,19 @@ const en: Record<string, string> = {
   "{0} no está en su escritorio: tráelo de vuelta desde el aviso de arriba.": "{0} isn't at their desk: bring them back from the notice above.",
   "{0} no está en su escritorio: no recibe lo que le escribas.": "{0} isn't at their desk: they won't get what you write.",
   "Traerlo de vuelta": "Bring them back",
+  "Estudio es opcional": "Studio is optional",
+  "Para diseñar el proyecto aquí, con tu diseñador, Orquest baja el editor de diseño Trazo. Se baja una vez, se revisa su firma y después se actualiza sin reinstalar Orquest.": "To design the project here with your designer, Orquest downloads the Trazo design editor. It's downloaded once, its signature is checked, and afterwards it updates without reinstalling Orquest.",
+  "Bajando el editor…": "Downloading the editor…",
+  "Bajando el editor… {0}%": "Downloading the editor… {0}%",
+  "La versión de Trazo que hay ({0}) necesita un Orquest más nuevo: actualiza Orquest primero.": "The available Trazo version ({0}) needs a newer Orquest: update Orquest first.",
+  "Descargar Trazo {0} ({1} MB)": "Download Trazo {0} ({1} MB)",
+  "Descargar Trazo {0}": "Download Trazo {0}",
+  "Consultando Trazo…": "Checking Trazo…",
+  "El servidor local del editor no arrancó. Cierra y vuelve a abrir el panel.": "The editor's local server didn't start. Close and reopen the panel.",
+  "Bajando Trazo {0}…": "Downloading Trazo {0}…",
+  "Bajando Trazo {0}… {1}%": "Downloading Trazo {0}… {1}%",
+  "Hay una versión nueva del editor: Trazo {0} (tienes {1}).": "There's a new editor version: Trazo {0} (you have {1}).",
+  "Estudio (opcional): descarga el editor de diseño Trazo": "Studio (optional): download the Trazo design editor",
 }
 
 export default en

@@ -5,17 +5,19 @@
  * aquí mismo, sin el jefe: el diseño va y viene con el usuario y no puede
  * pasar por el jefe en cada cambio. El editor corre en un iframe y pide todo
  * por postMessage (assets/trazo/orquest/puente.js); el proceso principal
- * decide qué puede leer y escribir.
+ * decide qué puede leer y escribir. El editor es opcional: si no está
+ * instalado, el panel ofrece bajarlo (core/trazoeditor).
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { FilePlus2, FolderOpen, PenTool, UserPlus } from 'lucide-vue-next'
+import { Download, FilePlus2, FolderOpen, PenTool, UserPlus } from 'lucide-vue-next'
 import type { DesignState, Effort, ProviderId } from '../../../shared/ipc'
+import type { EditorOffer } from '../../../core/trazoeditor'
 import { useStudio } from '../stores/studio'
 import { useCanvas } from '../stores/canvas'
 import { EFFORT_LABEL } from '../status'
 import { getLang, T } from '../../../core/i18n'
 import type { TrazoRequest, TrazoResponse } from '../../../core/trazomcp'
-import { serveTrazo } from '../trazo'
+import { editorInstalled, serveTrazo } from '../trazo'
 
 const studio = useStudio()
 const canvas = useCanvas()
@@ -29,11 +31,46 @@ const frame = ref<HTMLIFrameElement>()
 async function load() {
   try {
     state.value = await window.orquest.designState()
+    editorInstalled.value = !!state.value.editorVersion
   } catch (e) {
     error.value = (e as Error).message
   }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  void check()
+})
+
+// ── El editor es opcional: bajarlo o actualizarlo ──────────────────────────
+const offer = ref<EditorOffer | null>(null)
+const offerError = ref('')
+const progress = ref<{ received: number; total: number } | null>(null)
+async function check() {
+  offerError.value = ''
+  try {
+    offer.value = await window.orquest.trazoOffer()
+  } catch (e) {
+    offerError.value = (e as Error).message
+  }
+}
+const offProgress = window.orquest.onTrazoProgress((p) => (progress.value = p))
+async function install() {
+  error.value = ''
+  progress.value = { received: 0, total: offer.value?.bytes ?? 0 }
+  try {
+    await window.orquest.trazoInstall()
+    offer.value = offer.value && { ...offer.value, newer: false }
+    await load()
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    progress.value = null
+  }
+}
+const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1)
+const percent = computed(() => (progress.value?.total ? Math.min(100, Math.round((progress.value.received / progress.value.total) * 100)) : null))
+/** Ya instalado y Trazo publicó uno más nuevo que este Orquest puede usar. */
+const update = computed(() => (state.value?.editorVersion && offer.value?.newer && offer.value.compatible ? offer.value : null))
 // Contratado o despedido desde otro lado: el panel se pone al día.
 watch(() => studio.board?.staff.filter((m) => m.role === 'diseno' && !m.gone).map((m) => m.id).join(), load)
 
@@ -244,6 +281,7 @@ onMounted(() => window.addEventListener('message', onMessage))
 onBeforeUnmount(() => {
   window.removeEventListener('message', onMessage)
   offSessions()
+  offProgress()
   unserveAll()
 })
 </script>
@@ -252,10 +290,30 @@ onBeforeUnmount(() => {
   <div class="estudio">
     <p v-if="!state && !error" class="center dim">{{ T`Abriendo el Estudio…` }}</p>
 
+    <div v-else-if="state && !state.editorVersion" class="center">
+      <Download />
+      <h2>{{ T`Estudio es opcional` }}</h2>
+      <p class="dim">{{ T`Para diseñar el proyecto aquí, con tu diseñador, Orquest baja el editor de diseño Trazo. Se baja una vez, se revisa su firma y después se actualiza sin reinstalar Orquest.` }}</p>
+      <template v-if="progress">
+        <div class="bar"><span :style="{ width: `${percent ?? 0}%` }" :class="{ unknown: percent === null }" /></div>
+        <p class="dim">{{ percent === null ? T`Bajando el editor…` : T`Bajando el editor… ${percent}%` }}</p>
+      </template>
+      <template v-else-if="offer && !offer.compatible">
+        <p class="stop">{{ T`La versión de Trazo que hay (${offer.version}) necesita un Orquest más nuevo: actualiza Orquest primero.` }}</p>
+      </template>
+      <div v-else class="row">
+        <button class="btn primary" :disabled="!offer" @click="install">
+          <Download /> {{ offer ? (offer.bytes ? T`Descargar Trazo ${offer.version} (${mb(offer.bytes)} MB)` : T`Descargar Trazo ${offer.version}`) : T`Consultando Trazo…` }}
+        </button>
+        <button v-if="offerError" class="btn" @click="check">{{ T`Reintentar` }}</button>
+      </div>
+      <p v-if="offerError" class="stop">{{ offerError }}</p>
+    </div>
+
     <div v-else-if="state && !state.editorUrl" class="center">
       <PenTool />
       <h2>{{ T`No se pudo abrir el editor de Trazo` }}</h2>
-      <p class="dim">{{ T`Falta el editor en esta instalación de Orquest.` }}</p>
+      <p class="dim">{{ T`El servidor local del editor no arrancó. Cierra y vuelve a abrir el panel.` }}</p>
     </div>
 
     <div v-else-if="state && !state.file" class="center">
@@ -299,6 +357,13 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <p v-if="showEditor && update" class="away">
+      <template v-if="progress">{{ percent === null ? T`Bajando Trazo ${update.version}…` : T`Bajando Trazo ${update.version}… ${percent}%` }}</template>
+      <template v-else>
+        {{ T`Hay una versión nueva del editor: Trazo ${update.version} (tienes ${state!.editorVersion}).` }}
+        <button class="btn" @click="install"><Download /> {{ T`Actualizar` }}</button>
+      </template>
+    </p>
     <p v-if="showEditor && state?.designer && !state.designer.live" class="away">
       {{ T`${state.designer.name} no está en su escritorio: no recibe lo que le escribas.` }}
       <button class="btn" :disabled="busy" @click="bringBack">{{ T`Traerlo de vuelta` }}</button>
@@ -322,4 +387,8 @@ iframe { flex: 1; width: 100%; border: 0; display: block; background: #0f0c14; }
 .form input, .form select { font: inherit; font-size: 12px; color: var(--text-primary); background: var(--surface); border: 2px solid var(--border); padding: 6px 8px; }
 .away { margin: 0; padding: 8px 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; background: var(--surface); border-bottom: 2px solid var(--border); }
 .stop { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--danger, #f0524f); }
+.bar { width: 100%; max-width: 320px; height: 8px; background: var(--surface); border: 2px solid var(--border); margin-top: 6px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+.bar span.unknown { width: 30% !important; animation: indeterminate 1.2s linear infinite; }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 </style>

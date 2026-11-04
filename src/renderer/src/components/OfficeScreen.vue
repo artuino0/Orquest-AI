@@ -10,14 +10,14 @@
  * Ctrl + rueda acerca y aleja. Clic derecho en el fondo: el menú del lienzo.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlertTriangle, Bell, ChevronDown, ChevronUp, Crown, FileText, FolderOpen, FolderTree, Gauge, PenTool, Inbox, Kanban, LayoutGrid, Loader2, Maximize, Minimize2, Minus, Plus, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, ChevronDown, ChevronUp, Crown, FileText, FolderOpen, FolderTree, Gauge, PenTool, Download, Inbox, Kanban, LayoutGrid, Loader2, Maximize, Minimize2, Minus, Plus, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
 import { toWorld, wheelOwner, type Panel, type PanelKind, type Point } from '../canvas/layout'
 import { useCanvas } from '../stores/canvas'
 import { useIde } from '../stores/ide'
 import { useStudio } from '../stores/studio'
 import { LOOK, lookOf } from '../status'
-import { installTrazoBridge } from '../trazo'
+import { editorInstalled, installTrazoBridge, refreshEditor } from '../trazo'
 import CanvasPanel from './CanvasPanel.vue'
 import CanvasBackdrop from './CanvasBackdrop.vue'
 import CanvasMenu from './CanvasMenu.vue'
@@ -300,6 +300,7 @@ let observer: ResizeObserver | undefined
 // Lo que el diseñador le pide al editor de Trazo: si su panel está cerrado, se abre.
 let stopTrazo: (() => void) | undefined
 onMounted(() => {
+  void refreshEditor()
   stopTrazo = installTrazoBridge({ project: () => studio.board?.repo, openPanel: () => canvas.open('estudio') })
   observer = new ResizeObserver(([entry]) => canvas.resize({ w: entry.contentRect.width, h: entry.contentRect.height }))
   observer.observe(viewEl.value!)
@@ -355,7 +356,7 @@ const badge = (k: PanelKind) => (k === 'hire' ? studio.proposal.length : k === '
         <button class="btn icon" :class="{ on: canvas.has('mobile') }" :title="T`Celular: contesta a tu equipo desde el celular`" @click="canvas.toggle('mobile')"><Smartphone /></button>
         <LangToggle />
         <ThemeToggle />
-        <button class="btn icon" :class="{ on: canvas.has('estudio') }" :title="T`Estudio: el diseño del proyecto en Trazo, con tu diseñador`" @click="canvas.toggle('estudio')"><PenTool /></button>
+        <button class="btn icon" :class="{ on: canvas.has('estudio') }" :title="editorInstalled === false ? T`Estudio (opcional): descarga el editor de diseño Trazo` : T`Estudio: el diseño del proyecto en Trazo, con tu diseñador`" @click="canvas.toggle('estudio')"><Download v-if="editorInstalled === false" /><PenTool v-else /></button>
         <button class="btn icon" :class="{ on: canvas.has('editor') }" :title="T`Editor y archivos del proyecto (Ctrl+B)`" @click="canvas.toggle('editor')"><FolderTree /><b v-if="ide.dirtyCount" class="badge">{{ ide.dirtyCount }}</b></button>
       </nav>
     </header>

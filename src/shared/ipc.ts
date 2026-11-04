@@ -20,6 +20,7 @@ import type { FileEntry, FileSides, FileText } from '../core/files.js'
 import type { RecentProject } from '../core/recents.js'
 import type { MobileStatus } from '../core/mobile.js'
 import type { TrazoRequest, TrazoResponse, TrazoSession } from '../core/trazomcp.js'
+import type { EditorOffer } from '../core/trazoeditor.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
@@ -60,8 +61,10 @@ export interface FileFilter {
 export interface DesignState {
   /** El diseño del proyecto; null si aún no se eligió dónde va. */
   file: string | null
-  /** La página del editor; null si no se pudo levantar. */
+  /** La página del editor; null si no está instalado (es opcional) o no se pudo levantar. */
   editorUrl: string | null
+  /** La versión del editor instalado. */
+  editorVersion: string | null
   /** `live`: su terminal está abierta (al reabrir la app puede seguir fuera hasta que lo traigas). */
   designer: { id: string; name: string; detail: string; live: boolean } | null
 }
@@ -226,6 +229,11 @@ export interface OrquestApi {
   trazoRespond(id: number, r: TrazoResponse): Promise<void>
   trazoStatus(): Promise<{ url: string; error: string | null; sessions: TrazoSession[] }>
   onTrazoSessions(cb: (sessions: TrazoSession[]) => void): () => void
+  /** Qué versión del editor de Trazo hay para bajar (el editor es opcional). */
+  trazoOffer(): Promise<EditorOffer>
+  /** Baja e instala la más nueva; devuelve su versión. */
+  trazoInstall(): Promise<string>
+  onTrazoProgress(cb: (p: { received: number; total: number }) => void): () => void
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void

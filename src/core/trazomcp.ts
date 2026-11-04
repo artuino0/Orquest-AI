@@ -52,8 +52,8 @@ const rpcError = (id: unknown, code: number, message: string) => ({ jsonrpc: '2.
 export interface TrazoMcpOptions {
   /** Lleva la petición al editor y trae su respuesta, o rechaza si no hay editor. */
   forward(req: TrazoRequest, timeoutMs: number): Promise<TrazoResponse>
-  /** Carpeta con las skills de diseño de Trazo, si vienen en la instalación. */
-  skills?: string
+  /** Carpeta con las skills de diseño de Trazo, si el editor está instalado (puede llegar después). */
+  skills?(): string | undefined
   /** Versión que se anuncia en `serverInfo` (la de Orquest). */
   version?: string
   /** Avisa cuando cambian las sesiones conectadas. */
@@ -127,17 +127,18 @@ export class TrazoMcp {
     const req = (m: string, p: Json): TrazoRequest => ({ id: ++this.seq, method: m, params: p, client: s?.client ?? T`desconocido`, run, project })
 
     // Las skills se sirven de aquí, sin pasar por el editor.
-    if (this.opts.skills && method === 'resources/read' && typeof params.uri === 'string' && params.uri.startsWith(SKILLS_PREFIX)) {
+    const skills = this.opts.skills?.()
+    if (skills && method === 'resources/read' && typeof params.uri === 'string' && params.uri.startsWith(SKILLS_PREFIX)) {
       try {
-        return { reply: { jsonrpc: '2.0', id, result: await readSkill(this.opts.skills, params.uri) } }
+        return { reply: { jsonrpc: '2.0', id, result: await readSkill(skills, params.uri) } }
       } catch (e) {
         return { reply: rpcError(id, -32002, (e as Error).message) }
       }
     }
-    if (this.opts.skills && method === 'resources/list') {
+    if (skills && method === 'resources/list') {
       const r = await this.opts.forward(req(method, params), limitFor(params)).catch(() => null)
       const listed = r && 'result' in r ? ((r.result as { resources?: unknown[] })?.resources ?? []) : []
-      return { reply: { jsonrpc: '2.0', id, result: { resources: [...listed, ...(await skillResources(this.opts.skills))] } } }
+      return { reply: { jsonrpc: '2.0', id, result: { resources: [...listed, ...(await skillResources(skills))] } } }
     }
     if (FORWARDED.has(method)) {
       try {

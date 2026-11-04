@@ -274,6 +274,16 @@ const en: Record<string, string> = {
   "El editor solo abre el diseño del proyecto y lo que elijas tú.": "The editor only opens the project's design and what you choose.",
   "El editor solo guarda en el diseño del proyecto y donde elijas tú.": "The editor only saves to the project's design and where you choose.",
   "Sí": "Yes",
+  "El manifiesto del editor de Trazo no es válido.": "The Trazo editor manifest isn't valid.",
+  "No se pudo consultar el editor de Trazo: revisa tu conexión.": "Couldn't check the Trazo editor: check your connection.",
+  "No se pudo consultar el editor de Trazo ({0}).": "Couldn't check the Trazo editor ({0}).",
+  "No se pudo bajar el editor de Trazo: revisa tu conexión.": "Couldn't download the Trazo editor: check your connection.",
+  "No se pudo bajar el editor de Trazo ({0}).": "Couldn't download the Trazo editor ({0}).",
+  "Esta versión de Trazo ({0}) necesita un Orquest más nuevo: actualiza Orquest primero.": "This Trazo version ({0}) needs a newer Orquest: update Orquest first.",
+  "El editor de Trazo llegó dañado (no coincide su sha256). No se instaló.": "The Trazo editor arrived damaged (its sha256 doesn't match). It wasn't installed.",
+  "La firma del editor de Trazo no es válida. No se instaló.": "The Trazo editor's signature isn't valid. It wasn't installed.",
+  "El editor de Trazo no vino como zip. No se instaló.": "The Trazo editor didn't come as a zip. It wasn't installed.",
+  "Al editor de Trazo le falta editor/index.html. No se instaló.": "The Trazo editor is missing editor/index.html. It wasn't installed.",
 }
 
 export default en

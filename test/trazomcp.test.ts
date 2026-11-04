@@ -68,7 +68,7 @@ describe('MCP «trazo» del diseñador', () => {
 
   it('las skills se sirven de su carpeta, sin salirse de ella', async () => {
     const dir = await skills()
-    const t = new TrazoMcp({ skills: dir, forward: async () => ({ result: { resources: [{ uri: 'trazo://docs/contrato.md' }] } }) })
+    const t = new TrazoMcp({ skills: () => dir, forward: async () => ({ result: { resources: [{ uri: 'trazo://docs/contrato.md' }] } }) })
     const list = (await t.handle(rpc(1, 'resources/list'), undefined, 'd', '/p')).reply as { result: { resources: { uri: string }[] } }
     expect(list.result.resources.map((r) => r.uri)).toEqual(['trazo://docs/contrato.md', 'trazo://skills/diseno-trazo/SKILL.md'])
     const read = (await t.handle(rpc(2, 'resources/read', { uri: 'trazo://skills/diseno-trazo/reference/tokens.json' }), undefined, 'd', '/p')).reply as { result: { contents: { mimeType: string }[] } }

@@ -25,6 +25,7 @@ import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js
 import { checkUpdate } from '../core/update.js'
 import { adoptShellPath } from '../core/shellpath.js'
 import { startEditorServer, type EditorServer } from '../core/trazoserver.js'
+import { fetchManifest, installedEditor, installEditor, MANIFEST_URL, offerFor, TRAZO_PUBKEY, type InstalledEditor } from '../core/trazoeditor.js'
 import { TrazoMcp, type TrazoResponse } from '../core/trazomcp.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
@@ -381,9 +382,40 @@ handle('project:changes', () => studio().projectChanges())
 // ── Estudio: el editor de Trazo ─────────────────────────────────────────
 // El editor pide por el panel (renderer/trazo/puente.js → EstudioPanel.vue) y aquí se decide: lee y escribe
 // solo el diseño del proyecto y lo que el usuario eligió en un diálogo durante esta sesión.
+// El editor es opcional: se baja a <userData>/trazo cuando el usuario lo pide (core/trazoeditor). El puente y la
+// piel de Orquest sí vienen en el instalador.
 let editorServer: Promise<EditorServer> | undefined
-/** El editor viene en el instalador junto a la app; en desarrollo, de assets/trazo. */
-const trazoDir = () => (app.isPackaged ? join(process.resourcesPath, 'trazo') : join(app.getAppPath(), 'assets', 'trazo'))
+let editor: InstalledEditor | null | undefined
+const trazoHome = () => join(app.getPath('userData'), 'trazo')
+const ownDir = () => (app.isPackaged ? join(process.resourcesPath, 'trazo', 'orquest') : join(app.getAppPath(), 'assets', 'trazo', 'orquest'))
+// En desarrollo se puede probar contra otro manifiesto y otra llave; la app instalada solo confía en Trazo.
+const manifestUrl = () => (!app.isPackaged && process.env.ORQUEST_TRAZO_MANIFIESTO) || MANIFEST_URL
+const trazoKey = () => (!app.isPackaged && process.env.ORQUEST_TRAZO_LLAVE) || TRAZO_PUBKEY
+async function currentEditor() {
+  if (editor === undefined) editor = await installedEditor(trazoHome())
+  return editor
+}
+async function editorUrl() {
+  const e = await currentEditor()
+  if (!e) return null
+  editorServer ??= startEditorServer(join(e.root, 'editor'), ownDir())
+  return editorServer.then((x) => x.url, () => null)
+}
+handle('trazo:offer', async () => offerFor(await fetchManifest(manifestUrl()), await currentEditor()))
+let installing: Promise<string> | undefined
+handle('trazo:install', () => {
+  installing ??= (async () => {
+    const m = await fetchManifest(manifestUrl())
+    const got = await installEditor(m, { home: trazoHome(), pubkey: trazoKey(), onProgress: (received, total) => send('trazo:progress', { received, total: total || m.bytes || 0 }) })
+    // El servidor servía la carpeta anterior, que ya no existe: el siguiente se levanta con la nueva.
+    const old = editorServer
+    editorServer = undefined
+    editor = got
+    await old?.then((x) => x.close(), () => {})
+    return got.version
+  })().finally(() => (installing = undefined))
+  return installing
+})
 const picked = new Set<string>()
 const saveTargets = new Set<string>()
 const TRAZO_FILTER = { name: 'Trazo', extensions: ['trazo'] }
@@ -393,14 +425,14 @@ async function dialogFor<T>(open: (w: BrowserWindow) => Promise<T>, plain: () =>
 }
 handle('design:state', async () => {
   const s = studio()
-  editorServer ??= startEditorServer(join(trazoDir(), 'editor'), join(trazoDir(), 'orquest'))
-  const url = await editorServer.then((e) => e.url, () => null)
+  const url = await editorUrl()
   const d = s.designer()
   const slot = d && s.board.slots.find((x) => x.employeeId === d.id)
   const cli = d && PROVIDERS[d.provider]?.name
   return {
     file: await s.designFile(),
     editorUrl: url,
+    editorVersion: editor?.version ?? null,
     designer: d ? { id: d.id, name: d.name, detail: [cli, d.model, slot?.effort].filter(Boolean).join(' · '), live: s.manager.isLive(d.id) } : null,
   }
 })
@@ -471,8 +503,10 @@ handle('design:confirm', async (message: string) => {
 const trazoWaiting = new Map<number, (r: TrazoResponse) => void>()
 let trazo: TrazoMcp | undefined
 function startTrazo() {
+  // Para que el diseñador que vuelve solo al abrir la app encuentre sus skills sin esperar al panel.
+  void currentEditor()
   trazo = new TrazoMcp({
-    skills: join(trazoDir(), 'skills'),
+    skills: () => (editor ? join(editor.root, 'skills') : undefined),
     version: app.getVersion(),
     onSessions: (sessions) => send('trazo:sessions', sessions),
     forward: (req, ms) =>

@@ -4,8 +4,15 @@
  * Estudio, que se registra con `serveTrazo` cuando está listo. Si el panel
  * está cerrado se abre y se le espera un momento.
  */
+import { ref } from 'vue'
 import type { TrazoRequest, TrazoResponse } from '../../core/trazomcp'
 import { T } from '../../core/i18n'
+
+/** El editor es opcional: mientras no esté instalado, su botón sale con el ícono de descarga. */
+export const editorInstalled = ref<boolean | null>(null)
+export async function refreshEditor() {
+  editorInstalled.value = await window.orquest.designState().then((s) => !!s.editorVersion, () => null)
+}
 
 type Server = (req: TrazoRequest) => Promise<TrazoResponse>
 let server: Server | null = null
