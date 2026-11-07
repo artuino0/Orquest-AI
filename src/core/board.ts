@@ -291,6 +291,30 @@ export class Board {
     return approved
   }
 
+  /**
+   * Un puesto que el usuario abre por su cuenta, sin propuesta del jefe (el
+   * diseñador, que trabaja directo con él). No toca la propuesta pendiente.
+   */
+  addSlot(s: Pick<Slot, 'role' | 'provider'> & Partial<Pick<Slot, 'name' | 'model' | 'effort' | 'account'>>, rule?: SlotRule): Slot {
+    const [warning] = this.checkAll([s], rule)
+    const taken = this.takenNames()
+    const wanted = s.name?.trim()
+    if (wanted && taken.some((t) => nameKey(t) === nameKey(wanted))) throw new RuleError(T`Ya hay alguien llamado ${wanted} en el proyecto.`)
+    const slot: Slot = {
+      id: `S${++this.seq.slot}`,
+      name: wanted || pickName(taken),
+      role: s.role,
+      provider: s.provider,
+      model: s.model || undefined,
+      effort: s.effort,
+      account: s.account || undefined,
+      warning,
+      status: 'approved',
+    }
+    this.slots.push(slot)
+    return slot
+  }
+
   /** Nombres ocupados: plantilla y quienes ya pasaron por el proyecto. */
   private takenNames(includeProposed = true): string[] {
     return [...this.slots.filter((s) => includeProposed || s.status !== 'proposed').map((s) => s.name), ...this.staff.map((m) => m.name)]
@@ -569,7 +593,7 @@ export class Board {
     const t = this.task(taskId)
     if (t.status !== 'delivered') throw new RuleError(T`${t.id} no está entregada (estado: ${t.status}).`)
     const qa = this.member(qaEmployee)
-    if (qa.role.toLowerCase() !== 'qa') throw new RuleError(T`${qa.id} es de ${qa.role}, no de QA.`)
+    if (!['qa', 'seguridad'].includes(qa.role.toLowerCase())) throw new RuleError(T`${qa.id} es de ${qa.role}, no de QA.`)
     if (qa.id === t.assignee) throw new RuleError(T`Nadie revisa su propio trabajo.`)
     if (!qa.online) throw new RuleError(`${qa.id} ya no está en la oficina.`)
     const review: Task = {

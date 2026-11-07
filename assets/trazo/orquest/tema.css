@@ -1,0 +1,52 @@
+/* Piel de Orquest para el editor de Trazo: solo el marco, nunca el lienzo (.world). */
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #15121b;
+  --p: #221d2c;
+  --p2: #2f2839;
+  --p3: #3a3246;
+  --ln: #08070b;
+  --ln2: #4a4159;
+  --tx: #f4eadb;
+  --mu: #a89db6;
+  --ac: #f2b544;
+  --acd: #1a1206;
+  --pk: #f58bb8;
+  --vi: #b58cf2;
+  --warn: #f2b544;
+  --err: #f0524f;
+  --panel-shadow: 3px 3px 0 #000000aa;
+  --pop-shadow: 4px 4px 0 #000000aa;
+}
+body { background: #0f0c14; }
+#root, #root :is(div, span, button, input, select, textarea, label, p):not(.world *) { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+::selection { background: rgba(242, 181, 68, 0.3); }
+
+/* Sin esquinas y con borde duro en todo el marco; el diseño del usuario queda intacto. */
+#root *:not(.world):not(.world *):not(.overlay *) { border-radius: 0 !important; }
+.btn2, .ib, .tool, .seg, .inp, .num, .search, .ltab, .tab, .ver-btn, .zoom, .comp-bar, .pop, .ctx-menu, .modal {
+  border-width: 2px !important;
+  border-color: var(--ln) !important;
+}
+.btn2, .ib { box-shadow: 2px 2px 0 #000000aa; }
+.btn2:active, .ib:active { translate: 2px 2px; box-shadow: none; }
+
+/* Títulos y pestañas en pixel; números y valores siguen en mono. */
+.ltab, .tab, .comp-t, .vt-h, .home-files-h, .logo, h1, h2, h3 { font-family: 'Pixelify Sans', 'JetBrains Mono', monospace !important; letter-spacing: 0.02em; }
+.ltab[aria-selected='true'], .tab[aria-selected='true'], .tool[aria-pressed='true'], .tool.on { background: var(--ac) !important; color: var(--acd) !important; }
+
+.ruler { background: rgba(21, 18, 27, 0.94) !important; color: #7d7390 !important; }
+
+/* Caja del chat: un solo marco; dentro, controles planos para que no compitan con el texto. */
+.cbox { border: 2px solid var(--ln2) !important; background: var(--bg) !important; padding: 8px !important; gap: 6px !important; }
+.cbox:focus-within { border-color: var(--ac) !important; }
+.cbox textarea { resize: none; }
+.composer .ib { border: 0 !important; box-shadow: none !important; background: transparent !important; color: var(--mu); }
+.composer .ib:hover { background: var(--p2) !important; color: var(--tx); }
+.composer .ib:active { translate: none; }
+.send { width: 30px !important; height: 30px !important; border: 2px solid var(--ln) !important; box-shadow: 2px 2px 0 #000000aa; }
+.send:active { translate: 2px 2px; box-shadow: none; }
+.cbar .bare { font-size: 11px; letter-spacing: -0.02em; }
+.cbar.model { padding-top: 6px !important; border-top: 2px dashed var(--p3); }
+.fixed-agent { border-top: 2px dashed var(--p3); }

@@ -34,5 +34,5 @@ export function lookOf(e: Pick<Employee, 'id' | 'state'>, hints: StudioSnapshot[
 export const EFFORT_LABEL: Record<string, string> = { low: T`Bajo`, medium: T`Medio`, high: T`Alto`, xhigh: T`Muy alto`, max: T`Máximo` }
 
 /** Cómo se escribe un puesto para la gente (los identificadores no llevan acentos ni eñes). */
-const ROLE_LABEL: Record<string, string> = { diseno: T`diseño`, qa: 'QA', dba: 'DBA' }
+const ROLE_LABEL: Record<string, string> = { arquitecto: T`arquitecto`, seguridad: T`seguridad`, diseno: T`diseño`, qa: 'QA', dba: 'DBA' }
 export const roleLabel = (role: string) => ROLE_LABEL[role.toLowerCase()] ?? role

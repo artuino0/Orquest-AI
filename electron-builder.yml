@@ -9,6 +9,7 @@ directories:
 # Solo lo que la app usa al correr: lo ya compilado y el comando `orquest`.
 files:
   - out/**
+  - skills/**
   - src/cli/orquest.mjs
   - package.json
   - LICENSE
@@ -17,8 +18,16 @@ files:
 # Fuera del paquete comprimido: node-pty lanza sus propios ejecutables y el
 # comando `orquest` lo corren las terminales de los agentes, desde fuera de la app.
 asarUnpack:
+  - skills/**
   - node_modules/node-pty/**
   - src/cli/**
+
+# El puente y la piel de Orquest para el editor de Trazo del panel Estudio. El editor es
+# opcional y no viene aquí: se baja cuando el usuario lo pide (core/trazoeditor.ts).
+# Lo sirve un servidor local desde disco (core/trazoserver.ts), por eso va suelto y no en el asar.
+extraResources:
+  - from: assets/trazo/orquest
+    to: trazo/orquest
 
 # node-pty ya trae sus binarios listos (N-API): no hace falta compilador para empaquetar.
 npmRebuild: false

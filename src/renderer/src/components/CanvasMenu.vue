@@ -45,6 +45,7 @@ const kinds = computed<{ kind: PanelKind; ref?: string; label: string }[]>(() =>
   { kind: 'plans', label: T`Planes` },
   { kind: 'library', label: T`Expedientes` },
   { kind: 'editor', label: T`Editor` },
+  { kind: 'estudio', label: T`Estudio` },
   { kind: 'usage', label: T`Uso` },
   { kind: 'accounts', label: T`Cuentas` },
   { kind: 'mobile', label: T`Celular` },

@@ -137,6 +137,8 @@ export interface ConnectOptions {
   permissions?: Permissions
   /** URL donde la CLI reporta su estado (contexto, uso de la cuenta), si sabe hacerlo. */
   statusUrl?: string
+  /** Otros servidores MCP HTTP del puesto, por nombre (el diseñador recibe «trazo»). Sus herramientas no piden permiso. */
+  servers?: Record<string, string>
 }
 
 export interface SessionCheck {
@@ -279,6 +281,11 @@ export function codexModels(text: string): string[] {
   }
 }
 
+/** Las herramientas de los servidores extra del puesto pasan sin preguntar, como las de Orquest. */
+function withServers<P extends { allow: string[] }>(p: P, servers: Record<string, string>): P {
+  return { ...p, allow: [...p.allow, ...Object.keys(servers).map((n) => `mcp__${n}`)] }
+}
+
 /**
  * De los nombres que trae el programa de Claude Code, los vigentes: de la 4.5
  * en adelante, lo más nuevo primero. Los anteriores siguen ahí por
@@ -356,14 +363,14 @@ export const PROVIDERS: Record<ProviderId, ProviderAdapter> = {
       return args
     },
     unsupported: () => [],
-    mcpArgs: ({ url, permissions, statusUrl }) => [
+    mcpArgs: ({ url, permissions, statusUrl, servers = {} }) => [
       '--mcp-config',
-      JSON.stringify({ mcpServers: { orquest: { type: 'http', url } } }),
+      JSON.stringify({ mcpServers: { orquest: { type: 'http', url }, ...Object.fromEntries(Object.entries(servers).map(([name, u]) => [name, { type: 'http', url: u }])) } }),
       '--settings',
       JSON.stringify({
         // Las herramientas de Orquest se validan en la app; no piden permiso.
         // Lo demás, según el manual del puesto.
-        permissions: permissions ? claudePermissions(permissions) : { allow: ['mcp__orquest'] },
+        permissions: withServers(permissions ? claudePermissions(permissions) : { allow: ['mcp__orquest'] }, servers),
         // La barra de estado recibe el % de contexto usado y el uso de la
         // cuenta; se lo reenvía a Orquest y no pinta nada.
         ...(statusUrl && {
@@ -434,9 +441,10 @@ ${stderr}`
         ...(o.systemPrompt ? [T`Codex no recibe prompt de sistema por argumento; se envía como primer mensaje`] : []),
       ]
     },
-    mcpArgs: ({ url, permissions }) => [
+    mcpArgs: ({ url, permissions, servers = {} }) => [
       '-c',
       `mcp_servers.orquest.url=${JSON.stringify(url)}`,
+      ...Object.entries(servers).flatMap(([name, u]) => ['-c', `mcp_servers.${name}.url=${JSON.stringify(u)}`, '-c', `mcp_servers.${name}.default_tools_approval_mode="approve"`]),
       // Las herramientas de Orquest (leer_tarea, entregar…) no piden permiso, igual que en Claude Code:
       // sin esto Codex pregunta "Allow the orquest MCP server to run tool …?" en cada llamada.
       '-c',

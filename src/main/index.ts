@@ -24,14 +24,18 @@ import en from '../core/lang/en.js'
 import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
 import { adoptShellPath } from '../core/shellpath.js'
+import { startEditorServer, type EditorServer } from '../core/trazoserver.js'
+import { fetchManifest, installedEditor, installEditor, MANIFEST_URL, offerFor, TRAZO_PUBKEY, type InstalledEditor } from '../core/trazoeditor.js'
+import { TrazoMcp, type TrazoResponse } from '../core/trazomcp.js'
 import { loadSettings, saveSettings, startLang, type Settings } from '../core/settings.js'
 import { BOSS_ID, Studio } from '../core/studio.js'
 import { Devices } from '../core/devices.js'
 import { dockEntry } from '../core/dock.js'
 import { Mobile } from '../core/mobile.js'
 import { OfficeShare } from '../core/officeshare.js'
-import { readFile } from 'node:fs/promises'
-import { extname, normalize, sep } from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { basename, extname, isAbsolute, normalize, sep } from 'node:path'
 import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
 import type { BossRequest, SlotEdit } from '../shared/ipc.js'
@@ -229,6 +233,7 @@ handle('project:open', async (repo: string, group?: boolean) => {
   if (!s) {
     s = await new Studio({
       repo: root,
+      skillsDir: join(app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'), 'skills'),
       group: !!group,
       manager: newManager(),
       store,
@@ -236,6 +241,7 @@ handle('project:open', async (repo: string, group?: boolean) => {
       detect: detectAll,
       mcpUrl: (t) => mcp.url(t),
       statusUrl: (t) => mcp.statusUrl(t),
+      trazoUrl: (t) => mcp.trazoUrl(t),
       cli: { url: (t) => mcp.cliUrl(t), dir: cliDir },
     }).init()
     let pending: ReturnType<typeof setTimeout> | undefined
@@ -269,7 +275,7 @@ handle('documents:list', () => {
   return s.repos.length ? listGroupDocuments(s.root, s.repos) : listDocuments(s.snapshot().repo)
 })
 handle('documents:read', (path: string) => readDocument(studio().snapshot().repo, path))
-handle('tools:list', () => listTools(current?.snapshot().repo))
+handle('tools:list', () => listTools(current?.snapshot().repo, undefined, join(app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'), 'skills')))
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))
@@ -374,6 +380,158 @@ handle('employee:format-file', (id: string, path: string, text: string) => {
 handle('project:tree', (dir: string) => studio().projectTree(dir))
 handle('project:file', (path: string) => studio().projectFile(path))
 handle('project:changes', () => studio().projectChanges())
+// ── Estudio: el editor de Trazo ─────────────────────────────────────────
+// El editor pide por el panel (renderer/trazo/puente.js → EstudioPanel.vue) y aquí se decide: lee y escribe
+// solo el diseño del proyecto y lo que el usuario eligió en un diálogo durante esta sesión.
+// El editor es opcional: se baja a <userData>/trazo cuando el usuario lo pide (core/trazoeditor). El puente y la
+// piel de Orquest sí vienen en el instalador.
+let editorServer: Promise<EditorServer> | undefined
+let editor: InstalledEditor | null | undefined
+const trazoHome = () => join(app.getPath('userData'), 'trazo')
+const ownDir = () => (app.isPackaged ? join(process.resourcesPath, 'trazo', 'orquest') : join(app.getAppPath(), 'assets', 'trazo', 'orquest'))
+// En desarrollo se puede probar contra otro manifiesto y otra llave; la app instalada solo confía en Trazo.
+const manifestUrl = () => (!app.isPackaged && process.env.ORQUEST_TRAZO_MANIFIESTO) || MANIFEST_URL
+const trazoKey = () => (!app.isPackaged && process.env.ORQUEST_TRAZO_LLAVE) || TRAZO_PUBKEY
+async function currentEditor() {
+  if (editor === undefined) editor = await installedEditor(trazoHome())
+  return editor
+}
+async function editorUrl() {
+  const e = await currentEditor()
+  if (!e) return null
+  editorServer ??= startEditorServer(join(e.root, 'editor'), ownDir())
+  return editorServer.then((x) => x.url, () => null)
+}
+handle('trazo:offer', async () => offerFor(await fetchManifest(manifestUrl()), await currentEditor()))
+let installing: Promise<string> | undefined
+handle('trazo:install', () => {
+  installing ??= (async () => {
+    const m = await fetchManifest(manifestUrl())
+    const got = await installEditor(m, { home: trazoHome(), pubkey: trazoKey(), onProgress: (received, total) => send('trazo:progress', { received, total: total || m.bytes || 0 }) })
+    // El servidor servía la carpeta anterior, que ya no existe: el siguiente se levanta con la nueva.
+    const old = editorServer
+    editorServer = undefined
+    editor = got
+    await old?.then((x) => x.close(), () => {})
+    return got.version
+  })().finally(() => (installing = undefined))
+  return installing
+})
+const picked = new Set<string>()
+const saveTargets = new Set<string>()
+const TRAZO_FILTER = { name: 'Trazo', extensions: ['trazo'] }
+const same = (a: string, b: string) => resolve(a) === resolve(b)
+async function dialogFor<T>(open: (w: BrowserWindow) => Promise<T>, plain: () => Promise<T>) {
+  return win ? open(win) : plain()
+}
+handle('design:state', async () => {
+  const s = studio()
+  const url = await editorUrl()
+  const d = s.designer()
+  const slot = d && s.board.slots.find((x) => x.employeeId === d.id)
+  const cli = d && PROVIDERS[d.provider]?.name
+  return {
+    file: await s.designFile(),
+    editorUrl: url,
+    editorVersion: editor?.version ?? null,
+    designer: d ? { id: d.id, name: d.name, detail: [cli, d.model, slot?.effort].filter(Boolean).join(' · '), live: s.manager.isLive(d.id) } : null,
+  }
+})
+handle('design:create', async () => {
+  const s = studio()
+  const options: Electron.SaveDialogOptions = { title: T`¿Dónde guardo el diseño del proyecto?`, defaultPath: join(s.root, 'diseno', `${s.root.split(/[\\/]/).pop() || 'diseno'}.trazo`), filters: [TRAZO_FILTER] }
+  const r = await dialogFor((w) => dialog.showSaveDialog(w, options), () => dialog.showSaveDialog(options))
+  if (r.canceled || !r.filePath) return null
+  return s.chooseDesign(r.filePath.endsWith('.trazo') ? r.filePath : `${r.filePath}.trazo`)
+})
+handle('design:open', async () => {
+  const s = studio()
+  const options: Electron.OpenDialogOptions = { title: T`Elige el diseño del proyecto`, defaultPath: s.root, properties: ['openFile'], filters: [TRAZO_FILTER] }
+  const r = await dialogFor((w) => dialog.showOpenDialog(w, options), () => dialog.showOpenDialog(options))
+  return r.canceled || !r.filePaths[0] ? null : s.chooseDesign(r.filePaths[0])
+})
+// El editor abre con el diseño del proyecto; si aún no existe en disco, empieza vacío y al guardar va ahí.
+handle('design:launch', async () => {
+  const file = await studio().designFile()
+  return file && existsSync(file) ? file : null
+})
+handle('design:read', async (path: string, kind: 'trazo' | 'import') => {
+  const s = studio()
+  const file = await s.designFile()
+  if (kind === 'trazo' && file && same(path, file)) return (await s.readDesign()) ?? Promise.reject(new Error(T`No se encontró el diseño del proyecto en ${file}.`))
+  if (kind === 'import' && picked.has(resolve(path))) return readFile(path)
+  throw new Error(T`El editor solo abre el diseño del proyecto y lo que elijas tú.`)
+})
+handle('design:write', async (path: string, bytes: Uint8Array, kind: 'trazo' | 'export') => {
+  const s = studio()
+  const file = await s.designFile()
+  if (kind === 'trazo') {
+    // Guardar como: el diseño del proyecto pasa a ser ese archivo.
+    if (!file || !same(path, file)) {
+      if (!saveTargets.has(resolve(path))) throw new Error(T`El editor solo guarda en el diseño del proyecto y donde elijas tú.`)
+      await s.chooseDesign(path)
+    }
+    return s.saveDesign(bytes)
+  }
+  if (!saveTargets.has(resolve(path))) throw new Error(T`El editor solo guarda en el diseño del proyecto y donde elijas tú.`)
+  await writeFile(path, bytes)
+})
+handle('design:ask-save', async (defaultPath: string, filters: { name: string; extensions: string[] }[]) => {
+  const s = studio()
+  const file = await s.designFile()
+  // Un diseño por proyecto: el primer guardado de uno nuevo va directo al lugar que ya se eligió.
+  if (file && !existsSync(file) && filters.some((f) => f.extensions.includes('trazo'))) return file
+  const options: Electron.SaveDialogOptions = { defaultPath: isAbsolute(defaultPath) ? defaultPath : join(s.root, defaultPath), filters }
+  const r = await dialogFor((w) => dialog.showSaveDialog(w, options), () => dialog.showSaveDialog(options))
+  if (r.canceled || !r.filePath) return null
+  saveTargets.add(resolve(r.filePath))
+  return r.filePath
+})
+handle('design:pick', async (filters: { name: string; extensions: string[] }[]) => {
+  const options: Electron.OpenDialogOptions = { defaultPath: studio().root, properties: ['openFile'], filters }
+  const r = await dialogFor((w) => dialog.showOpenDialog(w, options), () => dialog.showOpenDialog(options))
+  const path = r.canceled ? undefined : r.filePaths[0]
+  if (!path) return null
+  picked.add(resolve(path))
+  return { name: basename(path), path }
+})
+handle('design:confirm', async (message: string) => {
+  const options: Electron.MessageBoxOptions = { type: 'question', message, buttons: [T`Sí`, T`Cancelar`], defaultId: 1, cancelId: 1 }
+  const r = await dialogFor((w) => dialog.showMessageBox(w, options), () => dialog.showMessageBox(options))
+  return r.response === 0
+})
+// El MCP «trazo» del diseñador: cada petición va a la ventana (el editor del panel Estudio) y vuelve su respuesta.
+const trazoWaiting = new Map<number, (r: TrazoResponse) => void>()
+let trazo: TrazoMcp | undefined
+function startTrazo() {
+  // Para que el diseñador que vuelve solo al abrir la app encuentre sus skills sin esperar al panel.
+  void currentEditor()
+  trazo = new TrazoMcp({
+    skills: () => (editor ? join(editor.root, 'skills') : undefined),
+    version: app.getVersion(),
+    onSessions: (sessions) => send('trazo:sessions', sessions),
+    forward: (req, ms) =>
+      new Promise((ok, ko) => {
+        if (!win) return ko(new Error(T`Orquest no tiene una ventana abierta.`))
+        const timer = setTimeout(() => {
+          if (trazoWaiting.delete(req.id)) ko(new Error(T`El editor de Trazo tardó demasiado en responder.`))
+        }, ms)
+        trazoWaiting.set(req.id, (r) => {
+          clearTimeout(timer)
+          ok(r)
+        })
+        send('trazo:request', req)
+      }),
+  })
+  return trazo
+}
+handle('trazo:respond', (id: number, r: TrazoResponse) => {
+  trazoWaiting.get(id)?.(r)
+  trazoWaiting.delete(id)
+})
+handle('trazo:status', () => ({ url: '', error: null, sessions: trazo?.list() ?? [] }))
+handle('design:hire', (o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }) => studio().hireDesigner(o))
+handle('employee:stop', (id: string) => studio().stop(id))
 handle('project:save-file', (path: string, text: string, stamp: string) => studio().saveProjectFile(path, text, stamp))
 handle('project:format-file', (path: string, text: string) => studio().formatProjectFile(path, text))
 ipcMain.on('employee:write', (_e, id: string, data: string) => mgr()?.isLive(id) && mgr()!.write(id, data))
@@ -463,7 +621,7 @@ app.whenReady().then(async () => {
       if (caller) return { studio: s, caller }
     }
     return undefined
-  })
+  }, startTrazo())
   // El comando corre con este mismo Electron en modo Node: no depende de que haya Node instalado.
   // Instalada, la app va comprimida (app.asar) y el comando queda a un lado, donde una terminal sí lo alcanza.
   const appDir = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
@@ -475,6 +633,7 @@ app.whenReady().then(async () => {
 })
 app.on('window-all-closed', async () => {
   await mobile?.stop()
+  await editorServer?.then((e) => e.close(), () => {})
   for (const s of studios.values()) {
     s.shutdown()
     s.manager.shutdown()
