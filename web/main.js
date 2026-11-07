@@ -113,9 +113,11 @@ if (!QUIETO) {
 
 // ── Descargas: se resalta la del sistema del visitante y se apunta a la versión más nueva.
 const SISTEMA = /Windows/i.test(navigator.userAgent) ? 'win' : /Mac/i.test(navigator.userAgent) ? 'mac' : /Linux|X11/i.test(navigator.userAgent) ? 'linux' : ''
-document.querySelector(`.descarga[data-os="${SISTEMA}"]`)?.classList.add('tuyo')
+// En Linux se resaltan los dos: el AppImage y el .deb.
+const RESALTA = SISTEMA === 'linux' ? '[data-os="linux"], .descarga[data-os="deb"]' : `[data-os="${SISTEMA}"]`
+for (const tuyo of document.querySelectorAll(`.descarga${RESALTA}`)) tuyo.classList.add('tuyo')
 
-const ARCHIVO = { win: /\.exe$/i, mac: /\.dmg$/i, linux: /\.AppImage$/i }
+const ARCHIVO = { win: /\.exe$/i, mac: /\.dmg$/i, linux: /\.AppImage$/i, deb: /\.deb$/i }
 // Si GitHub no contesta, se quedan los enlaces fijos que ya trae la página.
 fetch(`https://api.github.com/repos/${REPO}/releases?per_page=5`)
   .then((r) => (r.ok ? r.json() : []))
