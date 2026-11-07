@@ -100,6 +100,8 @@ export interface StudioOptions {
   burnoutAt?: number
   /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
   handoffTimeoutMs?: number
+  /** Si en este tiempo el aviso de traspaso ni siquiera le llegó (su CLI no vuelve a su prompt), no se le espera más. */
+  handoffDeliverMs?: number
   /**
    * Comando `orquest`: su URL por token y la carpeta donde está instalado. Con
    * esto una CLI sin MCP usa las herramientas desde su terminal.
@@ -133,6 +135,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private launches = new Map<string, Launch>()
   /** Envíos en curso a cada terminal, para que no se encimen. */
   private sending = new Map<string, Promise<void>>()
+  /** Cuántas veces se ha detenido a cada quien: lo que se le estaba escribiendo antes ya no sigue. */
+  private stops = new Map<string, number>()
   /** Quién falta por dejar su corte al cerrar la app. */
   private cuts = new Map<string, () => void>()
   /** Quién está jugando videojuegos (limpiando contexto) y por qué. */
@@ -341,10 +345,14 @@ export class Studio extends EventEmitter<StudioEvents> {
     const pause = this.opts.submitDelayMs ?? 700
     const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))
     const previous = this.sending.get(id) ?? Promise.resolve()
+    const round = this.stops.get(id) ?? 0
+    // Si lo detienen a medio envío, no se le sigue tecleando: tras el Esc, un texto o un Enter de más
+    // caen en lo que su CLI haya abierto (en Claude Code, un segundo Esc abre el menú para regresar la conversación).
+    const halted = () => (this.stops.get(id) ?? 0) !== round || !this.opts.manager.isLive(id)
     // Un envío que falle no debe dejar mudos a los siguientes.
     this.sending.set(id, previous.catch(() => {}).then(async () => {
       for (const msg of batch) {
-        if (!this.opts.manager.isLive(id)) return
+        if (halted()) return
         const provider = this.opts.manager.get(id)?.provider
         this.opts.manager.write(id, provider && getProvider(provider).paste ? `\x1b[200~${msg}\x1b[201~` : msg)
         const since = Date.now()
@@ -360,7 +368,7 @@ export class Studio extends EventEmitter<StudioEvents> {
           if (shownAt && (this.opts.manager.quietFor(id) >= 500 || Date.now() - shownAt >= 1500)) break
           await wait(100)
         }
-        if (!this.opts.manager.isLive(id)) return
+        if (halted()) return
         // El Enter puede no entrar a la primera (a Codex le pasa con textos largos: lo toma como un
         // renglón más). Si la CLI no se puso a trabajar, se le da de nuevo, como haría una persona.
         let working = false
@@ -377,8 +385,8 @@ export class Studio extends EventEmitter<StudioEvents> {
           for (const ms of pause > 0 ? SUBMIT_RETRIES_MS : []) {
             await wait(ms)
             const state = this.opts.manager.get(id)?.state
-            // Trabajando, detenido en una pregunta o fuera: ya no hay Enter que dar.
-            if (working || state !== 'idle') break
+            // Trabajando, detenido en una pregunta, fuera o lo detuvieron: ya no hay Enter que dar.
+            if (working || state !== 'idle' || halted()) break
             this.opts.manager.write(id, '\r')
           }
         } finally {
@@ -812,7 +820,20 @@ export class Studio extends EventEmitter<StudioEvents> {
     const wrote = new Promise<void>((ok) => this.handoffWaiters.set(id, ok))
     const timeout = new Promise<void>((ok) => setTimeout(ok, this.opts.handoffTimeoutMs ?? 180_000).unref?.())
     this.notify(id, message)
-    await Promise.race([wrote, timeout])
+    // Una terminal que ya no contesta (se cerró o no vuelve a su prompt) no va a escribir nada:
+    // esperarla los tres minutos dejaba la interfaz como trabada. Si el aviso no le llega pronto, se sigue sin él.
+    const msg = `[Orquest] ${oneLine(message)}`
+    const deadline = Date.now() + (this.opts.handoffDeliverMs ?? 20_000)
+    let watch: ReturnType<typeof setInterval> | undefined
+    const unreachable = new Promise<void>((ok) => {
+      watch = setInterval(() => {
+        const pending = this.queues.get(id)?.includes(msg)
+        if (!this.opts.manager.isLive(id) || (pending && Date.now() >= deadline)) ok()
+      }, 250)
+      watch.unref?.()
+    })
+    await Promise.race([wrote, timeout, unreachable])
+    clearInterval(watch)
     this.handoffWaiters.delete(id)
   }
 
@@ -1639,9 +1660,16 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (!this.opts.manager.isLive(id)) throw new RuleError(T`${this.nameOf(id)} no está en la oficina.`)
     this.queues.set(id, [])
     this.stopRetry(id)
+    this.stops.set(id, (this.stops.get(id) ?? 0) + 1)
     const last = [...this.board.messages].reverse().find((m) => m.from === 'usuario' && m.to === id)
-    this.opts.manager.write(id, '\x1b')
-    await new Promise((r) => setTimeout(r, this.opts.stopSettleMs ?? 800))
+    // Esc solo si está trabajando o detenido en una pantalla. En su prompt no hace falta, y dos Esc
+    // seguidos en Claude Code abren el menú para regresar la conversación: lo que se le escribía
+    // después caía ahí y la terminal dejaba de contestar.
+    const state = this.opts.manager.get(id)?.state
+    if (state === 'working' || state === 'blocked') {
+      this.opts.manager.write(id, '\x1b')
+      await new Promise((r) => setTimeout(r, this.opts.stopSettleMs ?? 800))
+    }
     let restored: string | undefined
     if (last && this.opts.manager.inputHolds(id, last.text)) {
       // Se vacía la caja; si no, lo próximo que se le escriba se pegaría detrás. Ctrl+U borra un

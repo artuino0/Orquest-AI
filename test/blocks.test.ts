@@ -355,21 +355,83 @@ describe('detener al jefe', () => {
     await expect.poll(() => t.typed.join('').includes('[Orquest]'), { timeout: 5000 }).toBe(true)
     studio.sayToBoss('borra la carpeta de pruebas')
     await expect.poll(() => t.typed.join('').includes('borra la carpeta'), { timeout: 5000 }).toBe(true)
-    // Lo detienes al instante: Claude Code regresa el mensaje a su caja.
+    // Se pone a trabajar y lo detienes al instante: Claude Code regresa el mensaje a su caja.
+    t.feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+    await expect.poll(() => manager?.get('jefe')?.state, { timeout: 2000 }).toBe('working')
     t.typed.length = 0
+    const stopping = studio.stop()
     t.feed(`${CLEAR}──────────────────────\r\n❯ [Orquest] El usuario dice: borra la carpeta de pruebas (contéstale con decir_al_usuario; no ve tu terminal)\r\n──────────────────────\r\n`)
-    const r = await studio.stop()
+    const r = await stopping
     // Esc y luego Ctrl+U hasta vaciarla (esta terminal de mentira no la vacía: se insiste con tope).
     expect(t.typed[0]).toBe('\x1b')
     expect(t.typed.slice(1).length).toBeGreaterThan(0)
     expect(t.typed.slice(1).every((k) => k === '\x15')).toBe(true)
     expect(t.typed.length).toBeLessThanOrEqual(13)
     expect(r.restored).toBe('borra la carpeta de pruebas')
-    // Ya trabajando o terminado (su caja vacía): solo el Esc.
+    // Trabajando con su caja vacía: solo el Esc.
+    t.feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+    await expect.poll(() => manager?.get('jefe')?.state, { timeout: 2000 }).toBe('working')
     t.typed.length = 0
-    t.feed(CLAUDE_PROMPT)
     expect(await studio.stop()).toEqual({ restored: undefined })
     expect(t.typed).toEqual(['\x1b'])
+    // Ya terminó, en su prompt: nada. Un segundo Esc ahí abre en Claude Code el menú para regresar la conversación.
+    t.feed(CLAUDE_PROMPT)
+    await expect.poll(() => manager?.get('jefe')?.state, { timeout: 2000 }).toBe('idle')
+    t.typed.length = 0
+    expect(await studio.stop()).toEqual({ restored: undefined })
+    expect(t.typed).toEqual([])
+  })
+
+  it('lo que se le estaba tecleando cuando lo detienes ya no sigue', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: repo(), manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 100, stopSettleMs: 30 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    const t = terminals[0]
+    // La caja de Claude Code con lo último que se le tecleó, como lo pinta al recibirlo.
+    const echo = (text = t.typed.filter((k) => k.length > 1).at(-1)) => t.feed(`${CLEAR}──────────────────────\r\n❯ ${text}\r\n──────────────────────\r\n`)
+    t.feed(CLAUDE_PROMPT)
+    await expect.poll(() => t.typed.join('').includes('[Orquest]'), { timeout: 5000 }).toBe(true)
+    echo()
+    await expect.poll(() => t.typed.includes('\r'), { timeout: 5000 }).toBe(true)
+    // Lo toma, trabaja y vuelve a su prompt.
+    t.feed(`${CLEAR}✻ Pensando… (esc to interrupt)\r\n`)
+    await wait(150)
+    t.feed(CLAUDE_PROMPT)
+    await wait(300)
+    // Dos avisos seguidos (como contestar dos preguntas): mientras se teclea el primero, lo detienes.
+    t.typed.length = 0
+    studio.sayToBoss('primero')
+    studio.sayToBoss('segundo')
+    await expect.poll(() => t.typed.join('').includes('primero'), { timeout: 5000 }).toBe(true)
+    const typing = t.typed.filter((k) => k.length > 1).at(-1)
+    await studio.stop()
+    t.typed.length = 0
+    // Su CLI termina de mostrar lo que se le tecleó: antes, aquí le seguía el Enter y luego el siguiente aviso.
+    echo(typing)
+    await wait(2500)
+    const after = t.typed.join('')
+    expect(after).not.toContain('segundo')
+    expect(after).not.toContain('\r')
+  })
+})
+
+describe('despedir al jefe que ya no contesta', () => {
+  it('no espera su traspaso: cierra su terminal y queda el lugar para otro jefe', async () => {
+    const { terminals, spawn } = screenPty()
+    manager = new EmployeeManager(spawn, { quietMs: 20, settleMs: 0 })
+    const clis = [{ id: 'claude' as const, name: 'Claude Code', installed: true, session: true }]
+    studio = await new Studio({ repo: repo(), manager, detect: async () => clis, mcpUrl: (t) => `http://127.0.0.1:1/mcp/${t}`, submitDelayMs: 0, handoffDeliverMs: 300 }).init()
+    await studio.hireBoss({ provider: 'claude', goal: 'Tienda' })
+    // Atorado en una pantalla que no es su prompt: el aviso de traspaso nunca le llega.
+    terminals[0].feed(CLAUDE_OFFER)
+    await wait(60)
+    const started = Date.now()
+    await studio.fire('jefe')
+    expect(Date.now() - started).toBeLessThan(3000)
+    expect(studio.bossOnline).toBe(false)
+    expect(studio.snapshot().boss).toBeFalsy()
   })
 })
 
