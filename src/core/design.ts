@@ -198,14 +198,22 @@ export async function designFile(root: string): Promise<string | null> {
   }
 }
 
+/**
+ * Ruta real: una misma carpeta puede tener dos nombres (enlaces, /var y /private/var en macOS, nombres
+ * cortos de Windows). Lo que aún no existe se arma sobre la real de su carpeta más cercana que sí.
+ */
+async function realPath(path: string): Promise<string> {
+  const real = await realpath(path).catch(() => null)
+  if (real) return real
+  const parent = dirname(path)
+  return parent === path ? path : join(await realPath(parent), basename(path))
+}
+
 /** Anota cuál es el diseño del proyecto. Dentro del proyecto se guarda relativo: así sigue sirviendo si se mueve la carpeta. */
 export async function setDesignFile(root: string, file: string): Promise<string> {
   if (!/\.trazo$/i.test(file)) throw new RuleError(T`El diseño tiene que ser un archivo .trazo.`)
   const full = resolve(file)
-  // Una misma carpeta puede tener dos nombres (enlaces, /var y /private/var en macOS, nombres cortos
-  // de Windows): se comparan las rutas reales. El archivo puede no existir aún; su carpeta sí.
-  const real = (p: string) => realpath(p).catch(() => p)
-  const rel = relative(await real(root), join(await real(dirname(full)), basename(full)))
+  const rel = relative(await realPath(root), await realPath(full))
   const inside = rel && !rel.startsWith('..') && !isAbsolute(rel)
   const config = join(root, ...DESIGN_CONFIG.split('/'))
   await mkdir(dirname(config), { recursive: true })
