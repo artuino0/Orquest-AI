@@ -40,8 +40,10 @@ export function inside(root: string, path: string): string | null {
   } catch {
     return null
   }
-  const full = normalize(join(root, rel))
-  return full === root || full.startsWith(root.endsWith(sep) ? root : root + sep) ? full : null
+  // root también se normaliza: en Windows '/a/editor' queda '\a\editor' al unirse.
+  const base = normalize(root)
+  const full = normalize(join(base, rel))
+  return full === base || full.startsWith(base.endsWith(sep) ? base : base + sep) ? full : null
 }
 
 export interface EditorServer {

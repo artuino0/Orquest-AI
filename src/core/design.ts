@@ -6,8 +6,8 @@
  * medidas con nombre) y `components.json`. Una página pesa cientos de KB: se
  * da un índice y, de lo que se pida, el detalle completo.
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { inflateRawSync } from 'node:zlib'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
@@ -202,7 +202,10 @@ export async function designFile(root: string): Promise<string | null> {
 export async function setDesignFile(root: string, file: string): Promise<string> {
   if (!/\.trazo$/i.test(file)) throw new RuleError(T`El diseño tiene que ser un archivo .trazo.`)
   const full = resolve(file)
-  const rel = relative(root, full)
+  // Una misma carpeta puede tener dos nombres (enlaces, /var y /private/var en macOS, nombres cortos
+  // de Windows): se comparan las rutas reales. El archivo puede no existir aún; su carpeta sí.
+  const real = (p: string) => realpath(p).catch(() => p)
+  const rel = relative(await real(root), join(await real(dirname(full)), basename(full)))
   const inside = rel && !rel.startsWith('..') && !isAbsolute(rel)
   const config = join(root, ...DESIGN_CONFIG.split('/'))
   await mkdir(dirname(config), { recursive: true })
