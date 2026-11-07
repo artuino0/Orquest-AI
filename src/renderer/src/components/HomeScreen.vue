@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BookOpen, Download, ExternalLink, FolderGit2, FolderOpen, Heart, RefreshCw, TriangleAlert, UserPlus, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import type { CliStatus, UpdateInfo } from '../../../shared/ipc'
+import type { CliStatus, UpdateInfo, UpdateProgress } from '../../../shared/ipc'
 import { getLang, T } from '../../../core/i18n'
 import { ago } from '../format'
 import { useStudio, type Recent } from '../stores/studio'
@@ -54,6 +54,17 @@ onMounted(async () => {
   }
   if (found && found.version !== skipped) update.value = found
 })
+// Donde la app se actualiza sola, «Actualizar» la baja aquí mismo y luego pide reiniciar.
+const progress = ref<UpdateProgress | null>(null)
+const stopProgress = window.orquest.onUpdateProgress((p) => (progress.value = p))
+onBeforeUnmount(stopProgress)
+const installUpdate = () => window.orquest.installUpdate().catch((err: Error) => (progress.value = { phase: 'error', message: err.message }))
+function startUpdate() {
+  if (!update.value) return
+  if (!update.value.auto) return openLink(update.value.url)
+  progress.value = { phase: 'downloading', percent: 0 }
+  void window.orquest.downloadUpdate()
+}
 function skipUpdate() {
   try {
     localStorage.setItem(SKIPPED, update.value?.version ?? '')
@@ -217,9 +228,20 @@ import ThemeToggle from './ThemeToggle.vue'
 
     <aside v-if="update" class="update">
       <Download />
-      <span>{{ T`Hay una versión nueva: ${update.version}` }}</span>
-      <button class="btn primary" @click="openLink(update.url)">{{ T`Descargar` }}</button>
-      <button class="btn close" :title="T`Ahora no`" @click="skipUpdate"><X /></button>
+      <template v-if="progress?.phase === 'downloading'">
+        <span>{{ T`Bajando la versión ${update.version}… ${progress.percent}%` }}</span>
+      </template>
+      <template v-else-if="progress?.phase === 'ready'">
+        <span>{{ T`La versión ${update.version} está lista.` }}</span>
+        <button class="btn primary" @click="installUpdate">{{ T`Reiniciar y actualizar` }}</button>
+      </template>
+      <template v-else>
+        <span v-if="progress?.phase === 'error'">{{ T`No se pudo actualizar: ${progress.message}` }}</span>
+        <span v-else>{{ T`Hay una versión nueva: ${update.version}` }}</span>
+        <button class="btn primary" @click="startUpdate">{{ !update.auto ? T`Descargar` : progress?.phase === 'error' ? T`Reintentar` : T`Actualizar ahora` }}</button>
+        <button v-if="progress?.phase === 'error'" class="btn" @click="openLink(update.url)">{{ T`Descargar a mano` }}</button>
+        <button class="btn close" :title="T`Ahora no`" @click="skipUpdate"><X /></button>
+      </template>
     </aside>
     <InstallGuide v-if="guide" :clis="[...noSession, ...missing]" @close="guide = false" />
   </div>

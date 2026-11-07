@@ -1,7 +1,9 @@
 /**
  * ¿Hay una versión más nueva de Orquest AI? Se le pregunta a GitHub por las
- * publicadas y se compara con la instalada. No descarga ni instala nada: solo
- * dice cuál hay y de dónde bajar el instalador de este sistema.
+ * publicadas y se compara con la instalada: cuál hay y de dónde bajar el
+ * instalador de este sistema. Donde la app puede actualizarse sola (`selfUpdates`),
+ * el proceso principal la baja e instala con electron-updater; en macOS, sin
+ * firma de código, no se puede y el aviso lleva a descargarla.
  */
 export const RELEASES_API = 'https://api.github.com/repos/artuino0/Orquest-AI/releases?per_page=5'
 
@@ -10,6 +12,32 @@ export interface UpdateInfo {
   version: string
   /** El instalador para este sistema; si esa versión no lo trae, su página. */
   url: string
+  /** Esta instalación puede bajarla e instalarla sola (lo pone el proceso principal). */
+  auto?: boolean
+}
+
+/** Cómo va una actualización que se baja sola, para el aviso de Inicio. */
+export type UpdateProgress = { phase: 'downloading'; percent: number } | { phase: 'ready' } | { phase: 'error'; message: string }
+
+/** Cómo quedó instalada la app: lo que decide si puede actualizarse sola. */
+export interface Install {
+  /** La app instalada, no la de desarrollo. */
+  packaged: boolean
+  /** La ruta del AppImage que corre (variable APPIMAGE), si es uno. */
+  appImage?: string
+  /** Lo que el instalador de Linux anota en `resources/package-type` (deb, rpm…); null si no hay. */
+  packageType?: string | null
+}
+
+/**
+ * Windows (instalador NSIS) y Linux (AppImage o .deb) se actualizan solos aun sin firma.
+ * macOS no: solo deja que una app se reemplace sola si va firmada.
+ */
+export function selfUpdates(platform: NodeJS.Platform, install: Install): boolean {
+  if (!install.packaged) return false
+  if (platform === 'win32') return true
+  if (platform === 'linux') return !!install.appImage || install.packageType === 'deb'
+  return false
 }
 
 /** Lo que interesa de cada versión publicada en GitHub. */

@@ -29,6 +29,15 @@ extraResources:
   - from: assets/trazo/orquest
     to: trazo/orquest
 
+# De dónde se actualiza sola la app (electron-updater): cada versión publica junto a sus
+# instaladores los `latest*.yml` con el sha512 de cada uno. El instalador nunca sube nada
+# (`--publish never`): lo publica el workflow de GitHub.
+publish:
+  provider: github
+  owner: artuino0
+  repo: Orquest-AI
+  releaseType: prerelease
+
 # node-pty ya trae sus binarios listos (N-API): no hace falta compilador para empaquetar.
 npmRebuild: false
 
@@ -48,7 +57,8 @@ mac:
   artifactName: Orquest-AI-${version}-${arch}.${ext}
 
 linux:
-  target: AppImage
+  target: [AppImage, deb]
+  maintainer: Jose Arturo Muñoz Castorena <arturosistemas94@gmail.com>
   icon: assets/herdr-oficina/sprites/oficina.png
   category: Development
   # El nombre del ejecutable y StartupWMClass igualan a `app.setDesktopName`: en Wayland

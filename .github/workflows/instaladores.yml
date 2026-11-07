@@ -1,7 +1,8 @@
 # Arma el instalador en los tres sistemas. Se corre a mano (Actions → Instaladores
 # → Run workflow) o al publicar una etiqueta de versión (v0.1.0). A mano, los
 # archivos quedan como adjuntos de la corrida; con etiqueta, además se publican
-# en Releases. Ninguno va firmado todavía: Windows y macOS avisan al abrirlos.
+# en Releases con los `latest*.yml` de los que la app instalada se actualiza sola
+# (Windows y Linux). Ninguno va firmado todavía: Windows y macOS avisan al abrirlos.
 name: Instaladores
 
 on:
@@ -44,6 +45,9 @@ jobs:
             dist/*.exe
             dist/*.dmg
             dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest*.yml
           if-no-files-found: error
 
   # Con etiqueta de versión: lo que se haya armado sale en Releases, como versión preliminar.
