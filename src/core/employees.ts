@@ -48,7 +48,7 @@ export interface HireRequest {
   /** Retomar su conversación anterior en vez de empezar una nueva (ver ProviderAdapter.sessions). */
   session?: { id?: string; resume: boolean }
   /** Archivos que su CLI lee de su carpeta de trabajo (ver ProviderAdapter.workspaceFiles). */
-  files?: Record<string, string>
+  files?: Record<string, string | Uint8Array>
 }
 
 export interface Employee {
@@ -217,7 +217,7 @@ export class EmployeeManager extends EventEmitter<ManagerEvents> {
       pid: pty.pid,
       warnings: [
         ...adapter.unsupported(launch),
-        ...kept.map((f) => T`Su carpeta ya trae ${f} del proyecto: no se le pudo poner el de Orquest, y lo prohibido del manual no se le aplica.`),
+        ...kept.map((f) => f.startsWith('.claude/skills/') ? T`Su carpeta ya trae la skill ${f} del proyecto: se conservó y no se instaló la de Orquest.` : T`Su carpeta ya trae ${f} del proyecto: no se le pudo poner el de Orquest, y lo prohibido del manual no se le aplica.`),
       ],
       sessionId,
       resumed,

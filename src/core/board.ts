@@ -569,7 +569,7 @@ export class Board {
     const t = this.task(taskId)
     if (t.status !== 'delivered') throw new RuleError(T`${t.id} no está entregada (estado: ${t.status}).`)
     const qa = this.member(qaEmployee)
-    if (qa.role.toLowerCase() !== 'qa') throw new RuleError(T`${qa.id} es de ${qa.role}, no de QA.`)
+    if (!['qa', 'seguridad'].includes(qa.role.toLowerCase())) throw new RuleError(T`${qa.id} es de ${qa.role}, no de QA.`)
     if (qa.id === t.assignee) throw new RuleError(T`Nadie revisa su propio trabajo.`)
     if (!qa.online) throw new RuleError(`${qa.id} ya no está en la oficina.`)
     const review: Task = {

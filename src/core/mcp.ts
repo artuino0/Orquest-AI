@@ -17,7 +17,7 @@ import type { Caller, Studio } from './studio.js'
 
 const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 'kimi', 'grok'] as const
 // T se evalúa al usarse, no al cargar el módulo: por eso las descripciones y los campos van en getters.
-const roles = () => T`desarrollo, backend, frontend, dba, infra, qa o diseno`
+const roles = () => T`desarrollo, backend, frontend, dba, infra, qa, diseno, arquitecto o seguridad`
 
 interface ToolDef {
   who: Caller['kind'] | 'both'
@@ -173,7 +173,7 @@ export const TOOLS: Record<string, ToolDef> = {
   mandar_a_qa: {
     who: 'boss',
     get description() {
-      return T`Asigna una entrega a un empleado de QA con instrucciones de prueba.`
+      return T`Asigna una entrega a un empleado de QA o seguridad con instrucciones de revisión.`
     },
     input: { tarea: z.string(), empleado_qa: z.string(), instrucciones: z.string() },
   },
@@ -236,13 +236,13 @@ export const TOOLS: Record<string, ToolDef> = {
   entregar: {
     who: 'employee',
     get description() {
-      return T`Cierra tu tarea. La app hace commit de tu oficina. QA debe dar veredicto.`
+      return T`Cierra tu tarea. La app hace commit de tu oficina. QA y seguridad deben dar veredicto.`
     },
     get input() {
       return {
         reporte: z.string().describe(T`Qué hiciste y cómo probarlo`),
         capturas: z.array(z.string()).optional().describe(T`Rutas de capturas`),
-        veredicto: z.enum(['pasa', 'no_pasa']).optional().describe(T`Solo QA`),
+        veredicto: z.enum(['pasa', 'no_pasa']).optional().describe(T`Solo QA o seguridad`),
       }
     },
   },

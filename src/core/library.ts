@@ -12,7 +12,7 @@
 import { T } from './i18n.js'
 import type { ProviderId } from './providers.js'
 
-export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno'] as const
+export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno', 'arquitecto', 'seguridad'] as const
 export type Role = (typeof ROLES)[number]
 
 export interface Dossier {
@@ -62,6 +62,8 @@ export interface Manual {
   docs: string[]
   /** Skills que debe usar, por nombre. */
   skills: string[]
+  /** Ya se aplicó la migración de skills incluidas; respeta las que el usuario quite. */
+  bundledSkills?: boolean
   permissions: Permissions
   /** Qué debe llevar la entrega. */
   delivery: string
@@ -114,6 +116,8 @@ const defaultPrompts = (): Record<Role, string> => ({
   dba: T`DBA: esquema, migraciones y consultas. Toda migración debe poder revertirse.`,
   infra: T`Infra: build, CI, despliegue y configuración. No toques secretos reales.`,
   qa: T`QA: pruebas la entrega de otro, no la corriges. Tu entrega dice si pasa o no (veredicto) con pasos para reproducir cada fallo.`,
+  arquitecto: T`Arquitectura: antes de repartir el trabajo propones opciones con sus costos, decides en ADRs, diagramas C4 en texto o Mermaid, requisitos no funcionales y riesgos. No implementas la funcionalidad.`,
+  seguridad: T`Seguridad: revisas entregas de otros sin corregirlas. Entregas un veredicto pasa/no_pasa con hallazgos: severidad, archivo:línea, cómo explotarlo y cómo corregirlo.`,
   diseno: T`Diseño: pantallas, flujos y piezas visuales. Trabajas en el software de diseño que el usuario haya indicado (Pencil, Figma u otro), con su skill o su servidor MCP. Si nadie te ha dicho cuál usar, pregúntaselo al jefe antes de empezar. No escribes el código de la app: entregas el diseño y sus exportaciones para que frontend lo construya.`,
 })
 
@@ -124,15 +128,27 @@ const defaultDelivery = (): Record<Role, string> => ({
   dba: T`Reporte: cambios de esquema, migración y cómo revertirla.`,
   infra: T`Reporte: qué cambió en build o despliegue y cómo verificarlo.`,
   qa: T`Veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.`,
+  arquitecto: T`Documento de arquitectura y ADRs guardados en tu oficina, con un resumen.`,
+  seguridad: T`Veredicto (pasa / no_pasa) con hallazgos: severidad, archivo:línea, cómo explotarlo y cómo corregirlo.`,
   diseno: T`Reporte: qué diseñaste, con qué herramienta y en qué archivo quedó; las pantallas exportadas (PNG) guardadas en tu oficina y adjuntas como capturas; decisiones y lo que falta.`,
 })
+
+/** Skills incluidas que corresponden a cada puesto. */
+export function bundledSkillsFor(role: Role): string[] {
+  if (role === 'diseno') return []
+  if (role === 'qa') return ['orquest-qa']
+  if (role === 'seguridad') return ['orquest-seguridad']
+  if (role === 'arquitecto') return ['orquest-arquitectura', 'orquest-seguridad']
+  return ['orquest-clean-code', 'orquest-seguridad']
+}
 
 export function defaultManual(role: Role): Manual {
   return {
     role,
     prompt: defaultPrompts()[role],
     docs: [],
-    skills: [],
+    skills: bundledSkillsFor(role),
+    bundledSkills: true,
     permissions: { edit: true, allow: [...DEV_ALLOW], deny: [...DEV_DENY], install: true },
     delivery: defaultDelivery()[role],
     // Un diseño se entrega viéndose.
@@ -178,7 +194,16 @@ export class Library {
     for (const d of saved.length ? saved : DEFAULT_DOSSIERS) this.dossiersByKey.set(key(d.provider, d.model), d)
     if (!saved.length) for (const d of DEFAULT_DOSSIERS) store?.saveDossier(d)
     // Un manual guardado antes de existir el permiso de instalar lo recibe activado.
-    for (const m of store?.loadManuals() ?? []) this.manualsByRole.set(m.role, { ...m, permissions: { ...m.permissions, install: m.permissions.install ?? true } })
+    for (const m of store?.loadManuals() ?? []) {
+      const migrated: Manual = {
+        ...m,
+        skills: !m.bundledSkills && !m.skills.some((id) => id.startsWith('orquest-')) ? [...m.skills, ...bundledSkillsFor(m.role)] : m.skills,
+        bundledSkills: true,
+        permissions: { ...m.permissions, install: m.permissions.install ?? true },
+      }
+      this.manualsByRole.set(m.role, migrated)
+      if (!m.bundledSkills) store?.saveManual(migrated)
+    }
     this.history = store?.loadHistory() ?? []
   }
 
@@ -271,6 +296,7 @@ export class Library {
     if (!isRole(m.role)) throw new Error(T`Puesto desconocido: ${m.role}`)
     const clean: Manual = {
       ...m,
+      bundledSkills: true,
       docs: m.docs.map((x) => x.trim()).filter(Boolean),
       skills: m.skills.map((x) => x.trim()).filter(Boolean),
       permissions: {

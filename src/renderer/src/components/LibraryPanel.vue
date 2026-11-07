@@ -10,13 +10,15 @@ import PanelFrame from './PanelFrame.vue'
  * Expedientes (por proveedor y modelo) y manuales de puesto. Viven en el
  * estudio y se reusan entre proyectos; el jefe los lee al proponer.
  */
-const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
+const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno', 'arquitecto', 'seguridad']
 const ROLE_NAME: Record<Role, [string, string]> = {
   desarrollo: [T`Desarrollo`, T`generalista`],
   backend: ['Backend', T`API y servicios`],
   frontend: ['Frontend', T`interfaz y capturas`],
   dba: ['DBA', T`esquema y migraciones`],
   infra: ['Infra', T`CI y despliegue`],
+  arquitecto: [T`Arquitecto`, T`arquitectura y ADRs`],
+  seguridad: [T`Seguridad`, T`revisión de seguridad`],
   qa: ['QA', T`veredictos`],
   diseno: [T`Diseño`, T`Pencil, Figma u otro`],
 }

@@ -9,6 +9,7 @@
  *   /preview.html?proyecto=1&rapido=1     todo cinco veces más rápido
  */
 import type { DossierView, Employee, EmployeeState, Manual, OrquestApi, ProviderId, Role, Slot, StudioSnapshot, Task } from '../../shared/ipc'
+import { defaultManual } from '../../core/library'
 import { dockEntry } from '../../core/dock'
 
 export const MOCK_REPO = 'E:\\desarrollo\\tienda-en-linea'
@@ -34,7 +35,7 @@ const PROPOSED: Slot[] = [
   { id: 's7', name: 'Iván', role: 'dba', provider: 'kimi', model: 'kimi-k2', effort: 'medium', reason: 'Barato para migraciones largas. Sin historial contigo en DBA.', status: 'proposed' },
   { id: 's8', name: 'Gus', role: 'infra', provider: 'grok', model: 'grok-4', effort: 'high', reason: 'Rápido en scripts de CI según el reporte semanal del mercado.', status: 'proposed' },
 ]
-const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno']
+const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno', 'arquitecto', 'seguridad']
 const stats = (integradas: number, primera: number, rechazos: number, por: Record<string, [number, number]> = {}): DossierView['stats'] => ({
   entregas: integradas + rechazos, integradas, a_la_primera: primera, rechazos_qa: rechazos, regresadas: rechazos,
   aprobadas_a_la_primera: integradas ? Math.round((primera / integradas) * 100) : null,
@@ -54,7 +55,8 @@ const MANUALS: Manual[] = ROLES.map((role) => ({
   role,
   prompt: `Eres ${role} en este estudio. Trabajas solo en tu oficina (worktree) y en tu rama. Sin dependencias nuevas sin permiso. Entrega con capturas.`,
   docs: role === 'frontend' ? ['docs/diseno/tokens.md', 'docs/frontend/convenciones.md'] : ['docs/convenciones.md'],
-  skills: role === 'frontend' ? ['impeccable', 'playwright-cli'] : [],
+  skills: [...defaultManual(role).skills, ...(role === 'frontend' ? ['impeccable', 'playwright-cli'] : [])],
+  bundledSkills: true,
   permissions: { edit: true, allow: ['npm run dev', 'npm test'], deny: ['npm install', 'git push', 'rm -rf'] },
   delivery: '1. Qué cambié y por qué\n2. Archivos tocados\n3. Cómo probarlo\n4. Riesgos o pendientes',
   requireScreenshots: role === 'frontend' || role === 'qa',

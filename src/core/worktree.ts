@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { access, appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, lstat, appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
@@ -73,11 +73,34 @@ export async function restoreOffice(repo: string, office: Office): Promise<boole
  * deja fuera de git, para que no se cuelen en una entrega. Si el proyecto ya trae uno con ese nombre,
  * no se toca y se devuelve en la lista.
  */
-export async function placeWorkspaceFiles(dir: string, files: Record<string, string>): Promise<string[]> {
+export async function placeWorkspaceFiles(dir: string, files: Record<string, string | Uint8Array>): Promise<string[]> {
   const kept: string[] = []
+  const blocked = new Set<string>()
+  const owned = new Set<string>()
+  // Una carpeta del proyecto puede ser un enlace: nunca escribimos a través de él.
+  const hasLink = async (rel: string): Promise<boolean> => {
+    const parts = rel.split('/')
+    for (let i = 1; i <= parts.length; i++) {
+      if (await lstat(join(dir, ...parts.slice(0, i))).then((s) => s.isSymbolicLink(), () => false)) return true
+    }
+    return false
+  }
+  for (const rel of Object.keys(files)) {
+    const folder = /^\.claude\/skills\/[^/]+/.exec(rel)?.[0]
+    if (!folder || blocked.has(folder)) continue
+    if (await hasLink(rel)) { blocked.add(folder); kept.push(folder); continue }
+    if (owned.has(folder)) continue
+    const existing = await lstat(join(dir, folder)).catch(() => undefined)
+    if (!existing) continue
+    const marker = await lstat(join(dir, folder, '.orquest-bundled')).catch(() => undefined)
+    if (!existing.isSymbolicLink() && marker?.isFile()) owned.add(folder)
+    else { blocked.add(folder); kept.push(folder) }
+  }
   for (const [rel, content] of Object.entries(files)) {
+    const folder = /^\.claude\/skills\/[^/]+/.exec(rel)?.[0]
+    if (folder && blocked.has(folder)) continue
     const path = join(dir, rel)
-    const mine = await readFile(path, 'utf8').then((t) => t === content, () => undefined)
+    const mine = folder && owned.has(folder) ? true : await readFile(path).then((t) => t.equals(Buffer.from(content)), () => undefined)
     if (mine === false) {
       kept.push(rel)
       continue

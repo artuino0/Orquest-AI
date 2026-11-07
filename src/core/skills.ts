@@ -11,13 +11,14 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { BUNDLED_IDS, bundledDirectory } from './bundled.js'
 import { T } from './i18n.js'
 
 export interface InstalledTool {
   /** Como se le nombra al agente (nombre de la skill o del servidor MCP). */
   name: string
   kind: 'skill' | 'mcp'
-  /** De dónde sale, dicho para el usuario: "tuyas", "plugin vercel", "del proyecto", "Codex". */
+  /** De dónde sale, dicho para el usuario: "tuyas", "plugin vercel", "del proyecto", "Codex", "de Orquest". */
   source: string
   description?: string
 }
@@ -53,8 +54,15 @@ async function json(path: string): Promise<Record<string, unknown> | null> {
 
 const mcpNames = (config: Record<string, unknown> | null) => Object.keys((config?.mcpServers as Record<string, unknown> | undefined) ?? {})
 
-export async function listTools(repo?: string, home = homedir()): Promise<InstalledTool[]> {
-  const tools: InstalledTool[] = [...(await skillsIn(join(home, '.claude', 'skills'), T`tuyas`))]
+export async function listTools(repo?: string, home = homedir(), skillsDir?: string): Promise<InstalledTool[]> {
+  const tools: InstalledTool[] = []
+  if (skillsDir) for (const id of BUNDLED_IDS) {
+    const dir = await bundledDirectory(skillsDir, id)
+    if (!dir) continue
+    const header = skillHeader(await readFile(join(dir, 'SKILL.md'), 'utf8'))
+    tools.push({ name: id, kind: 'skill', source: T`de Orquest`, description: header.description })
+  }
+  tools.push(...(await skillsIn(join(home, '.claude', 'skills'), T`tuyas`)))
 
   // Plugins de Claude Code: cada uno dice dónde quedó instalado.
   const installed = await json(join(home, '.claude', 'plugins', 'installed_plugins.json'))
@@ -70,7 +78,7 @@ export async function listTools(repo?: string, home = homedir()): Promise<Instal
   for (const name of mcpNames(await json(join(home, '.claude.json')))) tools.push({ name, kind: 'mcp', source: T`MCP tuyo` })
   if (repo) for (const name of mcpNames(await json(join(repo, '.mcp.json')))) tools.push({ name, kind: 'mcp', source: T`MCP del proyecto` })
 
-  // La misma skill puede estar en dos lados: se queda la primera (las tuyas mandan).
+  // La misma skill puede estar en dos lados: se queda la primera (los ids de Orquest se reservan para las incluidas).
   const seen = new Set<string>()
   return tools.filter((t) => !seen.has(`${t.kind}:${t.name}`) && seen.add(`${t.kind}:${t.name}`)).sort((a, b) => a.name.localeCompare(b.name))
 }

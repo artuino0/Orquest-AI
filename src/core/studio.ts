@@ -3,6 +3,7 @@
  * PTY), git y los avisos entre jefe, empleados y usuario. Las herramientas MCP
  * y las acciones de la UI entran por aquí; ninguna toca el tablero directo.
  */
+import { bundledWorkspaceFiles } from './bundled.js'
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
 import { access, mkdir, rmdir } from 'node:fs/promises'
@@ -62,6 +63,8 @@ export interface StudioSnapshot extends BoardSnapshot {
 }
 
 export interface StudioOptions {
+  /** Carpeta de skills incluidas con la app. */
+  skillsDir?: string
   repo: string
   /**
    * `repo` no es un repositorio: es una carpeta que agrupa varios (sus
@@ -579,14 +582,14 @@ export class Studio extends EventEmitter<StudioEvents> {
         model: slot.model,
         effort: slot.effort,
         env: { ...accountEnv(slot.provider, slot.account, this.opts.home), ...this.connectEnv(slot.provider, token, manual.permissions) },
-        files: adapter.workspaceFiles?.({ url: this.opts.mcpUrl(token), permissions: manual.permissions }),
+        files: { ...adapter.workspaceFiles?.({ url: this.opts.mcpUrl(token), permissions: manual.permissions }), ...await bundledWorkspaceFiles(this.opts.skillsDir, manual.skills) },
         role: slot.role,
         repo: this.root,
         office: again?.office ?? (await this.groupOffice(id)),
         binary: this.opts.binaries?.[slot.provider],
         extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
       },
-      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel, this.group)],
+      intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel, this.group, slot.provider)],
     }, (e) =>
       again
         ? [e.resumed ? T`La app se reabrió y retomaste tu sesión. Revisa el corte que dejaste en tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).` : T`La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
@@ -1847,7 +1850,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       ultimo_qa: t.qa && { veredicto: t.qa.verdict, reporte: t.qa.report },
       entrega_esperada: (() => {
         const m = this.library.manual(b.member(t.assignee).role)
-        const base = t.kind === 'qa' ? T`entregar con veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.` : m.delivery
+        const base = t.kind === 'qa' && m.role !== 'seguridad' ? T`entregar con veredicto (pasa / no_pasa) y reporte con pasos para reproducir cada fallo.` : m.delivery
         return m.requireScreenshots && t.kind === 'work' ? `${base} ${T`Capturas obligatorias.`}` : base
       })(),
     }

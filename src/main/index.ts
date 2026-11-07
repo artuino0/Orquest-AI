@@ -229,6 +229,7 @@ handle('project:open', async (repo: string, group?: boolean) => {
   if (!s) {
     s = await new Studio({
       repo: root,
+      skillsDir: join(app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'), 'skills'),
       group: !!group,
       manager: newManager(),
       store,
@@ -269,7 +270,7 @@ handle('documents:list', () => {
   return s.repos.length ? listGroupDocuments(s.root, s.repos) : listDocuments(s.snapshot().repo)
 })
 handle('documents:read', (path: string) => readDocument(studio().snapshot().repo, path))
-handle('tools:list', () => listTools(current?.snapshot().repo))
+handle('tools:list', () => listTools(current?.snapshot().repo, undefined, join(app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'), 'skills')))
 handle('app:close-now', () => skipCuts?.())
 handle('boss:hire', (req: BossRequest) => studio().hireBoss(req))
 handle('boss:say', (text: string) => studio().sayToBoss(text))
