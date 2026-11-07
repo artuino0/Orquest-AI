@@ -1,6 +1,6 @@
 {
   "name": "orquest-ai",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Orquestador de agentes de código hecho juego: una oficina en pixel art donde cada CLI es un empleado.",
   "license": "Apache-2.0",
   "author": "Jose Arturo Muñoz Castorena",
@@ -10,6 +10,7 @@
   },
   "private": true,
   "main": "out/main/index.js",
+  "desktopName": "orquest-ai.desktop",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -24,6 +25,7 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@noble/hashes": "^2.4.0",
     "@xterm/headless": "^6.0.0",
+    "electron-updater": "^6.8.11",
     "node-pty": "^1.1.0",
     "prettier": "^3.9.10",
     "zod": "^4.6.5"

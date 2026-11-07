@@ -5,7 +5,7 @@
  * salvo con ?caso=normal (las del diseño) o ?caso=sin-agentes.
  */
 import { pickLang } from '../../core/i18n'
-import type { CliStatus, OrquestApi, ProjectSummary } from '../../shared/ipc'
+import type { CliStatus, OrquestApi, ProjectSummary, UpdateProgress } from '../../shared/ipc'
 import type { MobileStatus } from '../../core/mobile'
 
 const cli = (id: CliStatus['id'], name: string, version: string | null, session: boolean | null, login: string, install: CliStatus['install']): CliStatus => ({
@@ -62,6 +62,7 @@ let mobileMock: MobileStatus = {
   detail: false,
 }
 const nothing = () => () => {}
+const updateListeners = new Set<(p: UpdateProgress) => void>()
 
 import { mockStudio } from './mockstudio'
 
@@ -93,8 +94,24 @@ export function installMock(caso: string) {
     createGroup: async (_path, names) => names,
     checkGroup: async (path) => ({ repos: caso === 'varios-repos' ? ['back', 'front', 'movil'].map((n) => ({ name: n, path: `${path}/${n}` })) : [], empty: [] }),
     version: async () => '0.0.0',
-    // ?actualiza=1: como si hubiera una versión nueva publicada.
-    checkUpdate: async () => (new URLSearchParams(location.search).get('actualiza') ? { version: '9.9.9', url: 'https://github.com/artuino0/Orquest-AI/releases' } : null),
+    // ?actualiza=1: como si hubiera una versión nueva publicada; ?actualiza=sola, una que se baja e instala sola.
+    checkUpdate: async () => {
+      const mode = new URLSearchParams(location.search).get('actualiza')
+      return mode ? { version: '9.9.9', url: 'https://github.com/artuino0/Orquest-AI/releases', auto: mode === 'sola' } : null
+    },
+    downloadUpdate: async () => {
+      let percent = 0
+      const tick = setInterval(() => {
+        percent += 20
+        for (const cb of updateListeners) cb(percent >= 100 ? { phase: 'ready' } : { phase: 'downloading', percent })
+        if (percent >= 100) clearInterval(tick)
+      }, 400)
+    },
+    onUpdateProgress: (cb) => {
+      updateListeners.add(cb)
+      return () => updateListeners.delete(cb)
+    },
+    installUpdate: async () => location.reload(),
     detectClis: async () => {
       // Sin ?caso, las CLIs son las de verdad de esta máquina (las detecta el servidor de vista previa).
       if (!(caso in CLIS)) {

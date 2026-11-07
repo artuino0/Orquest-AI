@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkUpdate, isNewer, pickUpdate, type Release } from '../src/core/update.js'
+import { checkUpdate, isNewer, pickUpdate, selfUpdates, type Release } from '../src/core/update.js'
 
 const release = (tag: string, files: string[] = ['Orquest-AI-x-instalador.exe', 'Orquest-AI-x-arm64.dmg', 'Orquest-AI-x-x86_64.AppImage'], draft = false): Release => ({
   tag_name: tag,
@@ -37,5 +37,17 @@ describe('aviso de versión nueva', () => {
     expect(await checkUpdate('0.2.1', (async () => new Response('límite', { status: 403 })) as unknown as typeof fetch)).toBeNull()
     const ok = (async () => new Response(JSON.stringify([release('v9.0.0')]), { status: 200 })) as unknown as typeof fetch
     expect((await checkUpdate('0.2.1', ok))?.version).toBe('9.0.0')
+  })
+})
+
+describe('actualizarse sola', () => {
+  it('Windows y Linux (AppImage o .deb) sí; macOS y la app de desarrollo no', () => {
+    expect(selfUpdates('win32', { packaged: true })).toBe(true)
+    expect(selfUpdates('linux', { packaged: true, appImage: '/home/u/Orquest-AI-0.8.1-x86_64.AppImage' })).toBe(true)
+    expect(selfUpdates('linux', { packaged: true, packageType: 'deb' })).toBe(true)
+    expect(selfUpdates('linux', { packaged: true, packageType: null })).toBe(false)
+    expect(selfUpdates('linux', { packaged: true, packageType: 'rpm' })).toBe(false)
+    expect(selfUpdates('darwin', { packaged: true })).toBe(false)
+    expect(selfUpdates('win32', { packaged: false })).toBe(false)
   })
 })

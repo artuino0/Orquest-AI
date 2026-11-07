@@ -23,6 +23,7 @@ import { addDictionary, getLang, setLang, T, type Lang } from '../core/i18n.js'
 import en from '../core/lang/en.js'
 import { checkGroup, checkRepo, prepareRepo, createGroup } from '../core/repo.js'
 import { checkUpdate } from '../core/update.js'
+import { canSelfUpdate, downloadUpdate, installUpdate, updateReady } from './updater.js'
 import { adoptShellPath } from '../core/shellpath.js'
 import { startEditorServer, type EditorServer } from '../core/trazoserver.js'
 import { fetchManifest, installedEditor, installEditor, MANIFEST_URL, offerFor, TRAZO_PUBKEY, type InstalledEditor } from '../core/trazoeditor.js'
@@ -100,6 +101,8 @@ function createWindow() {
 /** Cuánto se espera a que los agentes dejen su corte antes de cerrar de todos modos. */
 const CUT_TIMEOUT_MS = 90_000
 let closing: 'no' | 'esperando' | 'ya' = 'no'
+/** Al terminar de cerrar se instala la versión nueva ya bajada. */
+let installOnExit = false
 let skipCuts: (() => void) | undefined
 
 /** Cerrar la ventana no mata a los agentes a media frase: primero cada uno deja su corte. */
@@ -154,7 +157,19 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
 }
 
 handle('app:version', () => app.getVersion())
-handle('update:check', () => checkUpdate(app.getVersion()))
+handle('update:check', async () => {
+  const found = await checkUpdate(app.getVersion())
+  return found && { ...found, auto: canSelfUpdate() }
+})
+handle('update:download', () => {
+  void downloadUpdate((p) => send('update:progress', p))
+})
+// Reiniciar para actualizar es el cierre de siempre (cada agente deja su corte) y al final se instala.
+handle('update:install', () => {
+  if (!updateReady()) throw new Error(T`La versión nueva todavía no termina de bajarse.`)
+  installOnExit = true
+  win?.close()
+})
 handle('clis:detect', () => detectAll())
 handle('requirements:detect', () => detectRequirements())
 handle('clis:models', async () => detectModels(await detectAll()))
@@ -640,5 +655,6 @@ app.on('window-all-closed', async () => {
   }
   await mcp?.close()
   store?.close()
-  app.quit()
+  if (installOnExit) installUpdate()
+  else app.quit()
 })

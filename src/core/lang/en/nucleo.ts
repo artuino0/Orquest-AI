@@ -297,6 +297,8 @@ const en: Record<string, string> = {
   "La firma del editor de Trazo no es válida. No se instaló.": "The Trazo editor's signature isn't valid. It wasn't installed.",
   "El editor de Trazo no vino como zip. No se instaló.": "The Trazo editor didn't come as a zip. It wasn't installed.",
   "Al editor de Trazo le falta editor/index.html. No se instaló.": "The Trazo editor is missing editor/index.html. It wasn't installed.",
+  'No hay una versión más nueva que bajar.': 'There is no newer version to download.',
+  'La versión nueva todavía no termina de bajarse.': 'The new version has not finished downloading yet.',
 }
 
 export default en

@@ -1,5 +1,5 @@
 /** Contrato entre el proceso principal y los paneles. La UI solo pide y muestra. */
-import type { UpdateInfo } from '../core/update.js'
+import type { UpdateInfo, UpdateProgress } from '../core/update.js'
 import type { GroupCheck, ProjectRepo, RepoCheck } from '../core/repo.js'
 import type { Lang } from '../core/i18n.js'
 import type { ProjectSummary, Slot, Task } from '../core/board.js'
@@ -78,6 +78,11 @@ export interface OrquestApi {
   version(): Promise<string>
   /** Si hay una versión más nueva publicada: cuál y de dónde bajar su instalador. */
   checkUpdate(): Promise<UpdateInfo | null>
+  /** Empieza a bajar la versión nueva (solo si `UpdateInfo.auto`); cómo va llega por onUpdateProgress. */
+  downloadUpdate(): Promise<void>
+  onUpdateProgress(cb: (p: UpdateProgress) => void): () => void
+  /** Cierra como siempre (cortes de los agentes), instala lo bajado y vuelve a abrir. */
+  installUpdate(): Promise<void>
   detectClis(): Promise<CliStatus[]>
   /** Lo que hace falta instalado además de las CLIs (git). */
   requirements(): Promise<Requirement[]>
@@ -250,4 +255,4 @@ export interface OrquestApi {
 
 export type { GroupCheck, ProjectRepo, RepoCheck }
 export type { BlockKind }
-export type { UpdateInfo }
+export type { UpdateInfo, UpdateProgress }
