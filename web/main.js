@@ -115,7 +115,7 @@ if (!QUIETO) {
 const SISTEMA = /Windows/i.test(navigator.userAgent) ? 'win' : /Mac/i.test(navigator.userAgent) ? 'mac' : /Linux|X11/i.test(navigator.userAgent) ? 'linux' : ''
 document.querySelector(`.descarga[data-os="${SISTEMA}"]`)?.classList.add('tuyo')
 
-const ARCHIVO = { win: /\.exe$/i, mac: /\.dmg$/i, linux: /\.AppImage$/i }
+const ARCHIVO = { win: /\.exe$/i, mac: /\.dmg$/i, linux: /\.AppImage$/i, deb: /\.deb$/i }
 // Si GitHub no contesta, se quedan los enlaces fijos que ya trae la página.
 fetch(`https://api.github.com/repos/${REPO}/releases?per_page=5`)
   .then((r) => (r.ok ? r.json() : []))
@@ -123,8 +123,9 @@ fetch(`https://api.github.com/repos/${REPO}/releases?per_page=5`)
     const ultima = versiones.find((v) => !v.draft && v.assets?.length)
     if (!ultima) return
     document.getElementById('version').textContent = ultima.tag_name
-    for (const enlace of document.querySelectorAll('.descarga')) {
-      const paquete = ultima.assets.find((a) => ARCHIVO[enlace.dataset.os].test(a.name))
+    // Linux lleva dos enlaces en su tarjeta (AppImage y .deb); los demás, la tarjeta entera.
+    for (const enlace of document.querySelectorAll('a.descarga, [data-paquete]')) {
+      const paquete = ultima.assets.find((a) => ARCHIVO[enlace.dataset.paquete ?? enlace.dataset.os].test(a.name))
       if (paquete) enlace.href = paquete.browser_download_url
     }
   })
