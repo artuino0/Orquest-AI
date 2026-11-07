@@ -19,6 +19,8 @@ import type { FileChange } from '../core/worktree.js'
 import type { FileEntry, FileSides, FileText } from '../core/files.js'
 import type { RecentProject } from '../core/recents.js'
 import type { MobileStatus } from '../core/mobile.js'
+import type { TrazoRequest, TrazoResponse, TrazoSession } from '../core/trazomcp.js'
+import type { EditorOffer } from '../core/trazoeditor.js'
 
 export type { Check, Dossier, Manual, Role, Stats }
 export type { Activity, Capture, InstalledTool, ProjectDocument }
@@ -49,6 +51,23 @@ export interface LibraryView {
 }
 
 export type SlotEdit = Partial<Slot> & Pick<Slot, 'role' | 'provider'>
+
+export interface FileFilter {
+  name: string
+  extensions: string[]
+}
+
+/** Lo que el panel Estudio necesita para arrancar. */
+export interface DesignState {
+  /** El diseño del proyecto; null si aún no se eligió dónde va. */
+  file: string | null
+  /** La página del editor; null si no está instalado (es opcional) o no se pudo levantar. */
+  editorUrl: string | null
+  /** La versión del editor instalado. */
+  editorVersion: string | null
+  /** `live`: su terminal está abierta (al reabrir la app puede seguir fuera hasta que lo traigas). */
+  designer: { id: string; name: string; detail: string; live: boolean } | null
+}
 
 export interface OrquestApi {
   /** El idioma de la app y si lo eligió el usuario (si no, es el de su sistema). */
@@ -189,6 +208,32 @@ export interface OrquestApi {
   formatProjectFile(path: string, text: string): Promise<string>
   /** Le escribe un mensaje a alguien y se lo envía (texto, pausa y Enter, con reintento). */
   say(id: string, text: string): Promise<void>
+  /** Lo detiene (Esc), como el botón de detener del jefe. */
+  stopEmployee(id: string): Promise<{ restored?: string }>
+  // Estudio: el editor de Trazo y el diseño del proyecto.
+  designState(): Promise<DesignState>
+  /** Elegir dónde va un diseño nuevo, o uno que ya existe; null si se cancela. */
+  designCreate(): Promise<string | null>
+  designOpen(): Promise<string | null>
+  /** Con qué archivo abre el editor: el diseño si ya existe en disco. */
+  designLaunch(): Promise<string | null>
+  designRead(path: string, kind: 'trazo' | 'import'): Promise<Uint8Array>
+  designWrite(path: string, bytes: Uint8Array, kind: 'trazo' | 'export'): Promise<void>
+  designAskSave(defaultPath: string, filters: FileFilter[]): Promise<string | null>
+  designPick(filters: FileFilter[]): Promise<{ name: string; path: string } | null>
+  designConfirm(message: string): Promise<boolean>
+  /** Contrata al diseñador directo, sin el jefe. */
+  hireDesigner(o: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }): Promise<{ id: string; name: string; warnings: string[] }>
+  /** Lo que el diseñador le pide al editor por el MCP «trazo»; se contesta con trazoRespond. */
+  onTrazoRequest(cb: (req: TrazoRequest) => void): () => void
+  trazoRespond(id: number, r: TrazoResponse): Promise<void>
+  trazoStatus(): Promise<{ url: string; error: string | null; sessions: TrazoSession[] }>
+  onTrazoSessions(cb: (sessions: TrazoSession[]) => void): () => void
+  /** Qué versión del editor de Trazo hay para bajar (el editor es opcional). */
+  trazoOffer(): Promise<EditorOffer>
+  /** Baja e instala la más nueva; devuelve su versión. */
+  trazoInstall(): Promise<string>
+  onTrazoProgress(cb: (p: { received: number; total: number }) => void): () => void
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   onData(cb: (id: string, data: string) => void): () => void

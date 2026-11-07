@@ -6,7 +6,7 @@
 import { bundledWorkspaceFiles } from './bundled.js'
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
-import { access, mkdir, rmdir } from 'node:fs/promises'
+import { access, mkdir, readFile, rmdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { accountEnv, accountVar, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
@@ -23,6 +23,7 @@ import { listPlans, savePlan } from './plans.js'
 import { askReminder, bossPrompt, employeePrompt, oneLine, planReminder, type Channel, type GroupInfo } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import { checkGroup, groupRepos, type ProjectRepo } from './repo.js'
+import { designFile, readDesignTool, setDesignFile, writeDesign } from './design.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
 import { commitDelivery, createCopy, currentBranch, deliveryDiff, forkPoint, headOf, isAncestor, mergeOffice, nothingToMerge, officeChanges, officeDiff, officePending, removeOffice, repoRoot, restoreOffice, undoDelivery, type FileChange, type Office } from './worktree.js'
@@ -93,6 +94,8 @@ export interface StudioOptions {
   home?: string
   /** URL donde una CLI reporta su estado (contexto, uso de la cuenta), por token. */
   statusUrl?: (token: string) => string
+  /** URL del MCP «trazo» (el editor del panel Estudio) para el diseñador. */
+  trazoUrl?: (token: string) => string
   /** % de contexto a partir del cual el agente se va a descansar. */
   burnoutAt?: number
   /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
@@ -430,12 +433,15 @@ export class Studio extends EventEmitter<StudioEvents> {
     return getProvider(provider).mcpArgs ? 'mcp' : this.opts.cli ? 'cli' : undefined
   }
 
-  private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions']) {
+  private connectArgs(provider: ProviderId, token: string, permissions: Parameters<NonNullable<ReturnType<typeof getProvider>['mcpArgs']>>[0]['permissions'], role?: string) {
+    // El diseñador además diseña en el editor del panel Estudio, por el MCP «trazo».
+    const trazo = role === 'diseno' ? this.opts.trazoUrl?.(token) : undefined
     return (
       getProvider(provider).mcpArgs?.({
         url: this.opts.mcpUrl(token),
         permissions,
         statusUrl: this.opts.statusUrl?.(token),
+        ...(trazo && { servers: { trazo } }),
       }) ?? []
     )
   }
@@ -553,7 +559,7 @@ export class Studio extends EventEmitter<StudioEvents> {
   private rule = (s: { provider: ProviderId; model?: string; role: string }) => this.library.check(s.provider, s.model, s.role)
 
   /** Levanta a quien ocupa un puesto. Con `again`, es alguien que ya estaba y vuelve al reabrir la app. */
-  private async hireSlot(slot: Slot, again?: StaffMember) {
+  private async hireSlot(slot: Slot, again?: StaffMember, extra: string[] = []) {
     // El expediente pudo cambiar desde que se aprobó.
     const check = this.rule(slot)
     if (!check.ok) throw new RuleError(check.reason)
@@ -587,13 +593,13 @@ export class Studio extends EventEmitter<StudioEvents> {
         repo: this.root,
         office: again?.office ?? (await this.groupOffice(id)),
         binary: this.opts.binaries?.[slot.provider],
-        extraArgs: this.connectArgs(slot.provider, token, manual.permissions),
+        extraArgs: this.connectArgs(slot.provider, token, manual.permissions, slot.role),
       },
       intro: (office) => [employeePrompt(manual, office, { name: slot.name, journal: journalPath }, channel, this.group, slot.provider)],
     }, (e) =>
       again
         ? [e.resumed ? T`La app se reabrió y retomaste tu sesión. Revisa el corte que dejaste en tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).` : T`La app se reabrió. Lee tu bitácora (${journalPath}) y sigue donde ibas (leer_tarea).`]
-        : before.length ? [T`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : [],
+        : [...(before.length ? [T`Antes que tú, en ${slot.role} estuvo ${before.join('; ')}. Lee su bitácora: es tu capacitación (su traspaso es su versión; los hechos son de Orquest).`] : []), ...extra],
     !!again)
     if (again) return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
     this.board.hired(slot, { id, role: slot.role, provider: slot.provider, effort: slot.effort, account: slot.account, sessionId: emp.sessionId, office: emp.office })
@@ -1124,6 +1130,8 @@ export class Studio extends EventEmitter<StudioEvents> {
         this.changed()
       }
     }
+    // Todos programan a partir del diseño: lo leen el jefe y cualquier empleado.
+    if (tool === 'leer_diseno') return readDesignTool(await designFile(this.root), args)
     const boss = BOSS_TOOLS.has(tool)
     const employee = EMPLOYEE_TOOLS.has(tool)
     if (!boss && !employee) throw new RuleError(T`Herramienta desconocida: ${tool}`)
@@ -1348,6 +1356,14 @@ export class Studio extends EventEmitter<StudioEvents> {
   private async employeeTool(id: string, tool: string, a: Record<string, any>): Promise<string> {
     const b = this.board
     switch (tool) {
+      case 'responder_al_usuario': {
+        // El diseñador trabaja directo con el usuario: lo que le conteste sale en el chat del Estudio.
+        if (b.member(id).role !== 'diseno') throw new RuleError(T`Solo el diseñador le habla directo al usuario; tú, con preguntar_al_jefe.`)
+        const text = String(a.mensaje ?? '').trim()
+        if (!text) throw new RuleError(T`El mensaje va vacío.`)
+        b.say(id, 'usuario', text.slice(0, 8000))
+        return T`Listo: el usuario lo ve en el chat del Estudio.`
+      }
       case 'leer_tarea': {
         const t = b.start(id)
         if (!t) {
@@ -1461,6 +1477,66 @@ export class Studio extends EventEmitter<StudioEvents> {
     )
     this.changed()
     return approved
+  }
+
+  // ── Diseño (Trazo) ───────────────────────────────────────────────────────
+
+  /** El diseño del proyecto, o null si el usuario aún no eligió dónde. */
+  designFile(): Promise<string | null> {
+    return designFile(this.root)
+  }
+
+  /**
+   * El usuario eligió el diseño del proyecto (uno nuevo o uno que ya tenía).
+   * Desde ahí, todos lo leen con leer_diseno: se le avisa a quien ya trabaja.
+   */
+  async chooseDesign(file: string): Promise<string> {
+    const full = await setDesignFile(this.root, file)
+    for (const id of [BOSS_ID, ...this.board.staff.filter((m) => m.online && !m.gone).map((m) => m.id)]) {
+      if (this.opts.manager.get(id)) this.notify(id, T`El proyecto ya tiene diseño en Trazo (${full}). Antes de construir una pantalla, léela con leer_diseno: medidas, colores (variables), tipografía y textos salen de ahí, no de una captura ni al tanteo.`)
+    }
+    this.changed()
+    return full
+  }
+
+  async readDesign(): Promise<Uint8Array | null> {
+    const file = await designFile(this.root)
+    if (!file) return null
+    return readFile(file).catch(() => null)
+  }
+
+  /** Guarda lo que hizo el editor, solo en el diseño que eligió el usuario. */
+  async saveDesign(bytes: Uint8Array): Promise<void> {
+    const file = await designFile(this.root)
+    if (!file) throw new RuleError(T`Este proyecto todavía no tiene diseño en Trazo.`)
+    await writeDesign(file, bytes)
+  }
+
+  /** Quien trabaja en el diseño ahora: el último diseñador que sigue en el proyecto. */
+  designer(): StaffMember | undefined {
+    return [...this.board.staff].reverse().find((m) => m.role === 'diseno' && !m.gone)
+  }
+
+  /**
+   * El usuario contrata al diseñador por su cuenta, sin el jefe: diseñar es ir
+   * y venir con el usuario, y no puede pasar por el jefe en cada cambio.
+   */
+  async hireDesigner(s: { provider: ProviderId; name?: string; model?: string; effort?: Effort; account?: string }) {
+    const slot = this.board.addSlot({ ...s, role: 'diseno' }, this.rule)
+    const file = await designFile(this.root)
+    try {
+      const hired = await this.hireSlot(slot, undefined, [
+        T`Te contrató el usuario directamente y trabajas con él, no con el jefe: te habla desde el panel Estudio, donde está el editor de Trazo con el diseño del proyecto. Diseñas ahí con las herramientas del servidor MCP «trazo» (empieza por get_context). Él no ve tu terminal: al terminar cada pedido contéstale con responder_al_usuario qué hiciste y qué decidiste.${file ? ` ${T`El diseño del proyecto es ${file}.`}` : ''} Espera a que te pida algo.`,
+      ])
+      this.notify(BOSS_ID, T`El usuario contrató a ${slot.name} como diseño; trabaja directo con él en Trazo. No le asignes tareas de diseño sin que el usuario lo pida. El diseño se lee con leer_diseno: pide a cada quien construir a partir de él.`)
+      return hired
+    } catch (e) {
+      // Si no se pudo levantar, el puesto no se queda colgado.
+      this.board.slots = this.board.slots.filter((x) => x.id !== slot.id)
+      throw e
+    } finally {
+      this.changed()
+    }
   }
 
   /** El usuario aprueba el merge de una entrega aprobada por el jefe. */
@@ -1888,4 +1964,4 @@ export const BOSS_TOOLS = new Set([
   'mandar_a_qa',
   'ejecutar_revision',
 ])
-export const EMPLOYEE_TOOLS = new Set(['leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])
+export const EMPLOYEE_TOOLS = new Set(['responder_al_usuario', 'leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])
