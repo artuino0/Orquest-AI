@@ -140,6 +140,6 @@ export const EN = {
 /** Textos que son iguales en los dos idiomas. */
 export const IGUALES = new Set([
   'Orquest AI', 'GitHub', 'EN', 'Claude Code', 'Codex', 'Antigravity', 'OpenCode', 'Command Code', 'Kimi', 'Grok',
-  'Windows', 'macOS', 'Linux', 'Apple Silicon · .dmg', 'x86_64 · .AppImage', 'Ubuntu · Debian · .deb', 'npm install &amp;&amp; npm run dev', 'v0.1.0', '.',
+  'Windows', 'macOS', 'Linux', 'Apple Silicon · .dmg', 'x86_64 · .AppImage', '.AppImage', '.deb', 'npm install &amp;&amp; npm run dev', 'v0.1.0', '.',
   'Git', 'QA', 'Pencil', 'Playwright', 'GitHub CLI', '20 USD', '1 USD',
 ])

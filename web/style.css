@@ -188,7 +188,7 @@ h4 { font: 700 18px/1.3 var(--mono); }
 
 /* Descargar */
 #descargar { gap: 32px; }
-.instaladores { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.instaladores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .descarga { padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--superficie-2); color: var(--texto); border: 3px solid var(--borde); box-shadow: var(--sombra); text-decoration: none; }
 .descarga span { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .descarga b { font: 700 28px/1.1 var(--pixel); }
@@ -197,6 +197,8 @@ h4 { font: 700 18px/1.3 var(--mono); }
 .descarga svg { flex: none; width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; }
 .descarga.tuyo { background: var(--acento); color: var(--borde); }
 .descarga.tuyo small { color: var(--borde); }
+.paquetes a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.paquetes a:hover { text-decoration-thickness: 2px; }
 .descarga.tuyo em { display: block; }
 .aviso { padding: 20px; display: flex; gap: 16px; background: var(--superficie); border-left: 6px solid var(--acento); font-size: 15px; line-height: 23px; }
 .aviso svg { flex: none; width: 22px; height: 22px; margin-top: 1px; fill: none; stroke: var(--acento); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
