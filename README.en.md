@@ -6,7 +6,7 @@ An orchestrator for coding agents, made as a game: your studio is a pixel-art of
 
 You only talk to the **boss**, which is another agent: it proposes the team, assigns tasks with their dependencies and reviews deliveries. You approve the team and every merge. Each animation is a real state: typing means working, a raised hand means it needs you, walking with a paper means it's delivering.
 
-- Website and downloads: https://orquest.dydasites.com/en/
+- Website and downloads: https://orquest.dydasoftware.com/en/
 - Full product plan (Spanish): [docs/plan.md](docs/plan.md)
 - Detailed status by phase (Spanish): [README.md](README.md)
 
@@ -56,7 +56,7 @@ Pull Requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish). The
 
 ## Support the project
 
-Orquest AI is free and open source. If it saves you time, or you would rather have me walk you through the setup, on the website you can [buy a coffee or book a 1-on-1 session over video call](https://orquest.dydasites.com/en/#apoyo).
+Orquest AI is free and open source. If it saves you time, or you would rather have me walk you through the setup, on the website you can [buy a coffee or book a 1-on-1 session over video call](https://orquest.dydasoftware.com/en/#apoyo).
 
 ## Disclaimer
 

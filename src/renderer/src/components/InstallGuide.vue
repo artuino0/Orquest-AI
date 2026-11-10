@@ -8,7 +8,7 @@ defineProps<{ clis: CliStatus[] }>()
 const emit = defineEmits<{ close: [] }>()
 const open = (url: string) => window.orquest.openExternal(url)
 /** La sección «Apoya el proyecto» de la página web, en el idioma de la app. */
-const supportUrl = () => `https://orquest.dydasites.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`
+const supportUrl = () => `https://orquest.dydasoftware.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`
 </script>
 
 <template>
