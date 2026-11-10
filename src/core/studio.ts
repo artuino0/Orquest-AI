@@ -6,7 +6,7 @@
 import { bundledWorkspaceFiles } from './bundled.js'
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
-import { access, mkdir, readFile, rmdir } from 'node:fs/promises'
+import { access, mkdir, readFile, rmdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { accountEnv, accountVar, listAccounts, parseClaudeLimits, type AccountUsage } from './accounts.js'
 import { Board, RuleError, type BossRecord, type BoardSnapshot, type Slot, type StaffMember, type Task } from './board.js'
@@ -18,15 +18,18 @@ import type { Employee, EmployeeManager, HireRequest } from './employees.js'
 import { getLang, T } from './i18n.js'
 import { Journal, type JournalOwner } from './journal.js'
 import { slug } from './names.js'
-import { BOSS_PERMISSIONS, Library, type Outcome } from './library.js'
+import { BOSS_PERMISSIONS, ERRAND_ROLE, Library, type Outcome } from './library.js'
+import { addChangelogEntry, branchFor, clashes, ERRAND_KINDS, errandIdFor, isOpen, type Errand, type ErrandKind } from './errands.js'
 import { listPlans, savePlan } from './plans.js'
-import { askReminder, bossPrompt, employeePrompt, oneLine, planReminder, type Channel, type GroupInfo } from './prompts.js'
+import { askReminder, bossPrompt, employeePrompt, errandPrompt, oneLine, planReminder, type Channel, type GroupInfo } from './prompts.js'
 import { getProvider, takesSystemPrompt, type Effort, type ProviderId } from './providers.js'
 import { checkGroup, groupRepos, type ProjectRepo } from './repo.js'
 import { designFile, readDesignTool, setDesignFile, writeDesign } from './design.js'
 import type { EmployeeState } from './state.js'
 import type { StudioStore } from './store.js'
-import { commitDelivery, createCopy, currentBranch, deliveryDiff, forkPoint, headOf, isAncestor, mergeOffice, nothingToMerge, officeChanges, officeDiff, officePending, removeOffice, repoRoot, restoreOffice, undoDelivery, type FileChange, type Office } from './worktree.js'
+import { aheadBehind, branchChanges, branchDiff, branchExists, branchFiles, commitDelivery, createCopy, createOffice, currentBranch, deleteBranch, deliveryDiff, dirtyCount, diskSize, forkPoint, headOf, isAncestor, listBranches, listWorktrees, mergeInto, mergeOffice, nothingToMerge, officeChanges, officeDiff, officePending, removeOffice, repoRoot, restoreOffice, undoDelivery, type FileChange, type Office } from './worktree.js'
+import { commitDiff, commitFiles, graphLanes, readCommits, readIntegrations, revertMerge, type HistoryView, type IntegrationView, type WorktreeRow } from './history.js'
+import { createPullRequest, forgeStatus, type ForgeStatus, type Runner } from './forge.js'
 
 /** Cuánto se espera a que una CLI se ponga a trabajar tras el Enter antes de dárselo otra vez. */
 const SUBMIT_RETRIES_MS = [1200, 2000, 3000, 4000, 5000, 6000, 8000]
@@ -39,7 +42,7 @@ const EDIT_CALM_MS = 5000
 
 const exists = (path: string) => access(path).then(() => true, () => false)
 
-export type Caller = { kind: 'boss' } | { kind: 'employee'; id: string }
+export type Caller = { kind: 'boss' } | { kind: 'employee'; id: string } | { kind: 'errand'; id: string }
 
 export const BOSS_ID = 'jefe'
 
@@ -100,11 +103,15 @@ export interface StudioOptions {
   burnoutAt?: number
   /** Cuánto se espera el traspaso antes de reiniciar de todos modos. */
   handoffTimeoutMs?: number
+  /** Si en este tiempo el aviso de traspaso ni siquiera le llegó (su CLI no vuelve a su prompt), no se le espera más. */
+  handoffDeliverMs?: number
   /**
    * Comando `orquest`: su URL por token y la carpeta donde está instalado. Con
    * esto una CLI sin MCP usa las herramientas desde su terminal.
    */
   cli?: { url: (token: string) => string; dir: string }
+  /** Cómo se corren `gh`, `glab` y git para los PR (pruebas). */
+  forgeRunner?: Runner
 }
 
 /** Cómo se lanzó un agente: con esto se reinicia igual tras descansar. */
@@ -133,6 +140,8 @@ export class Studio extends EventEmitter<StudioEvents> {
   private launches = new Map<string, Launch>()
   /** Envíos en curso a cada terminal, para que no se encimen. */
   private sending = new Map<string, Promise<void>>()
+  /** Cuántas veces se ha detenido a cada quien: lo que se le estaba escribiendo antes ya no sigue. */
+  private stops = new Map<string, number>()
   /** Quién falta por dejar su corte al cerrar la app. */
   private cuts = new Map<string, () => void>()
   /** Quién está jugando videojuegos (limpiando contexto) y por qué. */
@@ -160,6 +169,8 @@ export class Studio extends EventEmitter<StudioEvents> {
     this.library = opts.library ?? new Library(opts.store)
     const saved = opts.store?.load(opts.repo)
     this.board = saved ? Board.restore(saved) : new Board()
+    // Una QA a medias de alguien ya despedido no se queda esperándolo (tableros de antes de que se limpiara al despedir).
+    for (const m of this.board.staff) if (m.gone) this.board.leftBehind(m.id)
     const onState = (id: string, state: EmployeeState) => {
       if (!this.isOurs(id)) return
       // Entre paso y paso un agente pasa un instante por «en espera»: para editar no cuenta como quieto hasta que dure.
@@ -167,6 +178,7 @@ export class Studio extends EventEmitter<StudioEvents> {
       if (state === 'blocked' && id !== BOSS_ID && this.board.boss?.approveForTeam) this.approveForTeam(id)
       // Se puso a trabajar: la conversación que retomó sí existía.
       if (state === 'working') this.resumeTries.delete(id)
+      if (state === 'idle' && this.errandOf(id)) this.scheduleClashCheck()
       if (state === 'idle') {
         this.flush(id)
         if (this.restPending.has(id)) this.tryRest(id)
@@ -205,6 +217,8 @@ export class Studio extends EventEmitter<StudioEvents> {
       // la primera lectura tras lanzar es su piso, y para volver a descansar
       // tiene que haber trabajado. Si no, entraría en un ciclo.
       if (!this.contextFloor.has(id)) this.contextFloor.set(id, pct)
+      // Las Tareas son cortas y no tienen bitácora que leer al volver: no se mandan a descansar.
+      if (this.errandOf(id)) return this.changed()
       const worked = pct >= this.contextFloor.get(id)! + 10
       if (pct >= this.burnoutAt && worked && !this.resting.has(id)) {
         this.restPending.add(id)
@@ -266,7 +280,7 @@ export class Studio extends EventEmitter<StudioEvents> {
   }
 
   private isOurs(id: string) {
-    return this.known.has(id) || this.board.staff.some((s) => s.id === id)
+    return this.known.has(id) || this.board.staff.some((s) => s.id === id) || this.board.errands.some((e) => e.id === id)
   }
 
   private stopRetry(id: string) {
@@ -341,10 +355,14 @@ export class Studio extends EventEmitter<StudioEvents> {
     const pause = this.opts.submitDelayMs ?? 700
     const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms))
     const previous = this.sending.get(id) ?? Promise.resolve()
+    const round = this.stops.get(id) ?? 0
+    // Si lo detienen a medio envío, no se le sigue tecleando: tras el Esc, un texto o un Enter de más
+    // caen en lo que su CLI haya abierto (en Claude Code, un segundo Esc abre el menú para regresar la conversación).
+    const halted = () => (this.stops.get(id) ?? 0) !== round || !this.opts.manager.isLive(id)
     // Un envío que falle no debe dejar mudos a los siguientes.
     this.sending.set(id, previous.catch(() => {}).then(async () => {
       for (const msg of batch) {
-        if (!this.opts.manager.isLive(id)) return
+        if (halted()) return
         const provider = this.opts.manager.get(id)?.provider
         this.opts.manager.write(id, provider && getProvider(provider).paste ? `\x1b[200~${msg}\x1b[201~` : msg)
         const since = Date.now()
@@ -360,7 +378,7 @@ export class Studio extends EventEmitter<StudioEvents> {
           if (shownAt && (this.opts.manager.quietFor(id) >= 500 || Date.now() - shownAt >= 1500)) break
           await wait(100)
         }
-        if (!this.opts.manager.isLive(id)) return
+        if (halted()) return
         // El Enter puede no entrar a la primera (a Codex le pasa con textos largos: lo toma como un
         // renglón más). Si la CLI no se puso a trabajar, se le da de nuevo, como haría una persona.
         let working = false
@@ -377,8 +395,8 @@ export class Studio extends EventEmitter<StudioEvents> {
           for (const ms of pause > 0 ? SUBMIT_RETRIES_MS : []) {
             await wait(ms)
             const state = this.opts.manager.get(id)?.state
-            // Trabajando, detenido en una pregunta o fuera: ya no hay Enter que dar.
-            if (working || state !== 'idle') break
+            // Trabajando, detenido en una pregunta, fuera o lo detuvieron: ya no hay Enter que dar.
+            if (working || state !== 'idle' || halted()) break
             this.opts.manager.write(id, '\r')
           }
         } finally {
@@ -521,10 +539,11 @@ export class Studio extends EventEmitter<StudioEvents> {
    */
   async resume(): Promise<void> {
     const boss = this.board.boss
-    if (this.resuming || !boss || this.bossOnline) return
+    if (this.resuming) return
     this.resuming = true
     try {
-      await this.resumeAll(boss)
+      if (boss && !this.bossOnline) await this.resumeAll(boss)
+      await this.resumeErrands()
     } finally {
       this.resuming = false
       this.changed()
@@ -564,7 +583,7 @@ export class Studio extends EventEmitter<StudioEvents> {
     const check = this.rule(slot)
     if (!check.ok) throw new RuleError(check.reason)
     const adapter = getProvider(slot.provider)
-    const manual = this.library.manual(slot.role)
+    const manual = this.manualFor(slot)
     const id = again?.id ?? `${slug(slot.name)}-${slot.role}`
     const token = this.newToken({ kind: 'employee', id })
     this.known.add(id)
@@ -607,6 +626,312 @@ export class Studio extends EventEmitter<StudioEvents> {
     return { id, name: slot.name, warnings: [...warnings, ...emp.warnings] }
   }
 
+  // ── Tareas: encargos directos del usuario, sin el jefe ─────────────────────
+
+  private errandOf(id: string): Errand | undefined {
+    return this.board.errands.find((e) => e.id === id)
+  }
+
+  private errandOrThrow(id: string): Errand {
+    const e = this.errandOf(id)
+    if (!e) throw new RuleError(T`No existe la tarea ${id}.`)
+    return e
+  }
+
+  /** Carpeta del repositorio de una tarea: el del proyecto o, si agrupa varios, el suyo. */
+  private errandRepo(e: Pick<Errand, 'repo'>): string {
+    if (!this.grouped) return this.root
+    const r = this.repos.find((x) => x.name === e.repo)
+    if (!r) throw new RuleError(T`No existe el repositorio "${e.repo ?? ''}" en este proyecto.`)
+    return r.path
+  }
+
+  /** Ramas del repositorio (en un proyecto que agrupa varios, del que se nombre) para elegir de dónde sale una tarea. */
+  async branches(repo?: string): Promise<{ branches: string[]; current: string }> {
+    const path = this.grouped ? (await this.repoNamed(repo)).path : this.root
+    return listBranches(path)
+  }
+
+  private log(e: Errand, by: Errand['log'][number]['by'], text: string, kind?: 'done' | 'stop') {
+    e.log.push({ at: Date.now(), by, text, ...(kind && { kind }) })
+    // El chat de una tarea es corto: lo de hace mucho sobra.
+    if (e.log.length > 200) e.log.splice(0, e.log.length - 200)
+  }
+
+  /**
+   * Crea una Tarea y pone a trabajar a su agente: worktree propio con una rama
+   * (`fix/…`, `feature/…`) que sale de la rama que eligió el usuario.
+   */
+  async createErrand(req: { title: string; brief: string; kind: ErrandKind; provider: ProviderId; model?: string; effort?: Effort; account?: string; repo?: string; base?: string }): Promise<Errand> {
+    const title = req.title?.trim()
+    const brief = req.brief?.trim()
+    if (!title) throw new RuleError(T`Ponle título a la tarea.`)
+    if (!brief) throw new RuleError(T`Di qué hay que hacer.`)
+    if (!ERRAND_KINDS.includes(req.kind)) throw new RuleError(T`Tipo de tarea desconocido: ${req.kind}.`)
+    const base = req.base?.trim()
+    if (!base) throw new RuleError(T`Elige de qué rama sale la tarea: ahí vuelve al aprobarla.`)
+    const repo = this.grouped ? (await this.repoNamed(req.repo)).name : undefined
+    const repoPath = this.errandRepo({ repo })
+    if (!(await branchExists(repoPath, base))) throw new RuleError(T`No existe la rama ${base}.`)
+    if (!this.channel(req.provider)) throw new RuleError(T`${getProvider(req.provider).name} aún no sabe conectarse a las herramientas de Orquest; elige otra CLI.`)
+    const { branches } = await listBranches(repoPath)
+    const taken = new Set([...this.board.errands.map((e) => e.id), ...this.board.staff.map((m) => m.id), BOSS_ID])
+    const id = errandIdFor(title, taken)
+    const branch = branchFor(req.kind, title, [...branches, ...this.board.errands.map((e) => e.branch)])
+    const office = this.grouped
+      ? await createCopy(repoPath, join(this.root, '.orquest', 'oficinas', id), branch, base)
+      : await createOffice(repoPath, id, base, branch)
+    const e: Errand = {
+      id,
+      title,
+      brief,
+      kind: req.kind,
+      provider: req.provider,
+      model: req.model,
+      effort: req.effort,
+      account: req.account,
+      repo,
+      base,
+      branch,
+      office,
+      status: 'working',
+      createdAt: Date.now(),
+      log: [{ at: Date.now(), by: 'user', text: brief }],
+    }
+    this.board.errands.push(e)
+    try {
+      await this.launchErrand(e, false)
+    } catch (err) {
+      // Sin agente no hay tarea: no se deja una rama ni una carpeta huérfanas.
+      this.board.errands = this.board.errands.filter((x) => x.id !== id)
+      await removeOffice(repoPath, office, true).catch(() => {})
+      await deleteBranch(repoPath, branch).catch(() => {})
+      this.changed()
+      throw err
+    }
+    this.changed()
+    return e
+  }
+
+  private async launchErrand(e: Errand, resume: boolean) {
+    const adapter = getProvider(e.provider)
+    const manual = this.library.manual(ERRAND_ROLE)
+    const channel = this.channel(e.provider)
+    const token = this.newToken({ kind: 'errand', id: e.id })
+    this.known.add(e.id)
+    const owner: JournalOwner = { id: e.id, name: e.title, role: ERRAND_ROLE, provider: e.provider, model: e.model }
+    await this.journal.open(owner)
+    const prompt = (office: Office) => errandPrompt(manual, { title: e.title, brief: e.brief, base: e.base, branch: e.branch, office: office.path }, channel, e.provider)
+    const emp = await this.launch(e.id, {
+      token,
+      owner,
+      req: {
+        id: e.id,
+        provider: e.provider,
+        model: e.model,
+        effort: e.effort,
+        env: { ...accountEnv(e.provider, e.account, this.opts.home), ...this.connectEnv(e.provider, token, manual.permissions) },
+        files: { ...adapter.workspaceFiles?.({ url: this.opts.mcpUrl(token), permissions: manual.permissions }), ...await bundledWorkspaceFiles(this.opts.skillsDir, manual.skills) },
+        role: ERRAND_ROLE,
+        repo: this.errandRepo(e),
+        office: e.office,
+        binary: this.opts.binaries?.[e.provider],
+        extraArgs: this.connectArgs(e.provider, token, manual.permissions),
+      },
+      intro: (office) => [prompt(office)],
+    }, (emp) => (resume ? [emp.resumed ? T`La app se reabrió y retomaste tu sesión. Sigue con la tarea donde ibas.` : T`La app se reabrió. Sigue con la tarea: revisa tu rama (git status, git log) para ver dónde ibas.`] : []), resume)
+    e.sessionId = emp.sessionId
+    e.office = emp.office
+    for (const w of [...(adapter.permissionGaps?.(manual.permissions) ?? []), ...emp.warnings]) this.log(e, 'orquest', w)
+    return emp
+  }
+
+  /** Al reabrir el proyecto: las Tareas abiertas vuelven a su carpeta, retomando su conversación. */
+  private async resumeErrands() {
+    for (const e of this.board.errands) {
+      if (!isOpen(e) || !e.office || this.opts.manager.isLive(e.id)) continue
+      try {
+        await this.launchErrand(e, true)
+      } catch (err) {
+        this.emit('notice', T`No se pudo retomar la tarea «${e.title}»: ${(err as Error).message}`)
+      }
+    }
+  }
+
+  /** Lo que el usuario le escribe a una tarea desde su chat. */
+  errandSay(id: string, text: string) {
+    const e = this.errandOrThrow(id)
+    if (!isOpen(e)) throw new RuleError(T`La tarea «${e.title}» ya está cerrada.`)
+    const msg = text.trim()
+    if (!msg) return
+    this.log(e, 'user', msg)
+    // Escribirle es seguir: si estaba lista o detenida, vuelve a trabajar.
+    if (e.status !== 'working') {
+      e.status = 'working'
+      e.stopReason = undefined
+    }
+    this.say(id, msg)
+  }
+
+  /** El usuario detiene a la tarea (Esc), como a cualquier agente. */
+  async stopErrand(id: string): Promise<{ restored?: string }> {
+    const e = this.errandOrThrow(id)
+    const r = await this.stop(id)
+    if (isOpen(e)) {
+      e.status = 'stopped'
+      e.stopReason = T`La detuviste tú.`
+      this.log(e, 'orquest', e.stopReason, 'stop')
+    }
+    this.changed()
+    return r
+  }
+
+  private async errandTool(id: string, tool: string, a: Record<string, any>): Promise<string> {
+    const e = this.errandOrThrow(id)
+    if (!isOpen(e)) throw new RuleError(T`Esta tarea ya está cerrada.`)
+    switch (tool) {
+      case 'contar_avance': {
+        const text = String(a.texto ?? '').trim()
+        if (!text) throw new RuleError(T`Falta el texto.`)
+        this.log(e, 'agent', text)
+        this.scheduleClashCheck()
+        return T`Anotado.`
+      }
+      case 'responder_al_usuario': {
+        const text = String(a.mensaje ?? '').trim()
+        if (!text) throw new RuleError(T`Falta el mensaje.`)
+        this.log(e, 'agent', text)
+        return T`El usuario lo verá en el chat de la tarea.`
+      }
+      case 'tarea_lista': {
+        const entry = String(a.registro ?? '').trim()
+        const summary = String(a.resumen ?? '').trim()
+        if (!entry) throw new RuleError(T`Falta la línea para el registro de cambios.`)
+        if (!e.office) throw new RuleError(T`La tarea no tiene carpeta de trabajo.`)
+        // Se guarda en su rama ya, para que no se pierda aunque se cierre la app.
+        await commitDelivery(e.office, `${e.kind}: ${e.title}`)
+        e.changelog = entry
+        e.status = 'ready'
+        e.stopReason = undefined
+        this.log(e, 'agent', summary || entry, 'done')
+        this.emit('notice', T`La tarea «${e.title}» está lista para que la revises.`)
+        await this.checkClashes()
+        return T`Listo. El usuario la revisa; si pide ajustes te los escribirá aquí.`
+      }
+    }
+    throw new RuleError(T`Herramienta desconocida: ${tool}`)
+  }
+
+  private clashTimer?: ReturnType<typeof setTimeout>
+  private clashRun?: Promise<void>
+
+  /** Revisa los choques un momento después: los avisos de varias tareas llegan juntos. */
+  private scheduleClashCheck() {
+    clearTimeout(this.clashTimer)
+    this.clashTimer = setTimeout(() => void this.checkClashes(), 1500)
+    this.clashTimer.unref?.()
+  }
+
+  /**
+   * Dos tareas abiertas que tocan los mismos archivos se pisarían al integrarse: la que llegó
+   * después se detiene y se le dice al usuario con cuál choca. Él decide si sigue.
+   */
+  private async checkClashes(): Promise<void> {
+    if (this.clashRun) return this.clashRun
+    this.clashRun = (async () => {
+      const open = this.board.errands.filter((e) => isOpen(e) && e.office)
+      if (open.length < 2) return
+      const withFiles = await Promise.all(open.map(async (e) => ({ id: e.id, createdAt: e.createdAt, repo: e.repo, stopped: e.status === 'stopped', files: await branchFiles(e.office!, e.base).catch(() => []) })))
+      for (const c of clashes(withFiles)) {
+        const e = this.errandOf(c.stop)!
+        const other = this.errandOf(c.with)!
+        e.status = 'stopped'
+        e.stopReason = T`Toca ${c.files.join(', ')}, igual que «${other.title}». Espera a que esa se integre o cámbiale el alcance; cuando le escribas, sigue.`
+        this.log(e, 'orquest', e.stopReason, 'stop')
+        if (this.opts.manager.isLive(e.id)) {
+          const state = this.opts.manager.get(e.id)?.state
+          if (state === 'working') await this.stop(e.id).catch(() => {})
+          this.notify(e.id, T`Detente: tu tarea toca ${c.files.join(', ')}, igual que otra tarea abierta («${other.title}»). No sigas hasta que el usuario te escriba.`)
+        }
+        this.emit('notice', T`Se detuvo la tarea «${e.title}»: toca los mismos archivos que «${other.title}».`)
+      }
+      this.changed()
+    })().finally(() => {
+      this.clashRun = undefined
+    })
+    return this.clashRun
+  }
+
+  /**
+   * El usuario aprueba una tarea: se une a su rama de origen con su línea en el registro de
+   * cambios, en un solo commit, y se cierra. Si choca con lo que la rama de origen tiene ahora
+   * (otra tarea o un empleado integró antes), la tarea lo resuelve en su rama y vuelve a avisar.
+   */
+  async approveErrand(id: string): Promise<{ merged: boolean; reason?: string }> {
+    const e = this.errandOrThrow(id)
+    if (!isOpen(e)) throw new RuleError(T`La tarea «${e.title}» ya está cerrada.`)
+    if (!e.office) throw new RuleError(T`La tarea no tiene carpeta de trabajo.`)
+    if (this.opts.manager.get(id)?.state === 'working') throw new RuleError(T`«${e.title}» sigue trabajando: espera a que termine o detenla.`)
+    const repoPath = this.errandRepo(e)
+    await commitDelivery(e.office, `${e.kind}: ${e.title}`)
+    const entry = e.changelog || e.title
+    const message = `${e.kind}: ${e.title} (${e.branch} → ${e.base})`
+    const r = await mergeInto(repoPath, e.base, e.branch, message, async (dir) => {
+      const file = join(dir, 'CHANGELOG.md')
+      const current = await readFile(file, 'utf8').catch(() => null)
+      await writeFile(file, addChangelogEntry(current, e.kind, entry))
+      return ['CHANGELOG.md']
+    })
+    if (!r.ok) {
+      if (!r.conflicts.length) throw new RuleError(r.reason)
+      // Integra segundo quien choca: la tarea trae la rama de origen y resuelve.
+      e.status = 'working'
+      this.log(e, 'orquest', T`Tu rama choca con ${e.base} en ${r.conflicts.join(', ')}. La tarea lo resuelve y vuelve a avisar.`)
+      if (this.opts.manager.isLive(id)) {
+        this.notify(id, T`No se pudo integrar: tu rama choca con ${e.base} en ${r.conflicts.join(', ')}. Trae ${e.base} a tu rama (git merge ${e.base}), resuelve los conflictos, prueba y vuelve a llamar tarea_lista.`)
+      }
+      this.changed()
+      return { merged: false, reason: r.reason }
+    }
+    e.commit = r.commit
+    await this.closeErrand(e, 'merged')
+    this.emit('notice', T`Integrada: «${e.title}» en ${e.base}.`)
+    return { merged: true }
+  }
+
+  /** Lo que la tarea cambia respecto de su rama de origen (commits y lo no guardado), con +/−. */
+  async errandChanges(id: string) {
+    const e = this.errandOrThrow(id)
+    return e.office ? branchChanges(e.office, e.base) : []
+  }
+
+  /** El diff de la tarea (o de uno de sus archivos) contra su rama de origen. */
+  async errandDiff(id: string, path?: string): Promise<string> {
+    const e = this.errandOrThrow(id)
+    return e.office ? branchDiff(e.office, e.base, path) : ''
+  }
+
+  /** El usuario descarta una tarea: se cierra sin unirse; su rama y su carpeta se quitan. */
+  async discardErrand(id: string): Promise<void> {
+    const e = this.errandOrThrow(id)
+    if (!isOpen(e)) throw new RuleError(T`La tarea «${e.title}» ya está cerrada.`)
+    await this.closeErrand(e, 'discarded')
+  }
+
+  private async closeErrand(e: Errand, status: 'merged' | 'discarded') {
+    const repoPath = this.errandRepo(e)
+    if (this.opts.manager.get(e.id)) await this.opts.manager.fire(e.id, repoPath).catch(() => {})
+    this.queues.delete(e.id)
+    this.stopRetry(e.id)
+    if (e.office) await removeOffice(repoPath, e.office, true).catch(() => {})
+    await deleteBranch(repoPath, e.branch).catch(() => {})
+    e.status = status
+    e.closedAt = Date.now()
+    e.office = undefined
+    this.log(e, 'orquest', status === 'merged' ? T`Integrada en ${e.base}.` : T`Descartada: no se unió a ${e.base}.`)
+    this.changed()
+  }
+
   // ── Bitácora y descanso ──────────────────────────────────────────────────
 
   private owner(id: string): JournalOwner | undefined {
@@ -624,6 +949,8 @@ export class Studio extends EventEmitter<StudioEvents> {
 
   private nameOf(id: string): string {
     if (id === BOSS_ID) return T`el jefe`
+    const e = this.errandOf(id)
+    if (e) return T`la tarea «${e.title}»`
     return this.board.staff.find((m) => m.id === id)?.name ?? id
   }
 
@@ -690,8 +1017,11 @@ export class Studio extends EventEmitter<StudioEvents> {
   get resumable(): string[] {
     // Mientras el jefe siga contratado y su terminal esté cerrada (al reabrir la app, o porque
     // se cerró por error), se puede retomar.
-    if (this.resuming || this.bossOnline || !this.board.boss) return []
-    return [T`Jefe`, ...this.board.staff.filter((m) => !m.gone && m.office && this.board.slots.some((x) => x.employeeId === m.id)).map((m) => m.name)]
+    if (this.resuming) return []
+    // Las Tareas abiertas también vuelven, haya jefe o no.
+    const errands = this.board.errands.filter((e) => isOpen(e) && e.office && !this.opts.manager.isLive(e.id)).map((e) => T`Tarea «${e.title}»`)
+    const team = this.bossOnline || !this.board.boss ? [] : [T`Jefe`, ...this.board.staff.filter((m) => !m.gone && m.office && this.board.slots.some((x) => x.employeeId === m.id)).map((m) => m.name)]
+    return [...team, ...errands]
   }
 
   /** El usuario prefirió no retomar: se queda sin jefe hasta que contrate uno. */
@@ -812,7 +1142,20 @@ export class Studio extends EventEmitter<StudioEvents> {
     const wrote = new Promise<void>((ok) => this.handoffWaiters.set(id, ok))
     const timeout = new Promise<void>((ok) => setTimeout(ok, this.opts.handoffTimeoutMs ?? 180_000).unref?.())
     this.notify(id, message)
-    await Promise.race([wrote, timeout])
+    // Una terminal que ya no contesta (se cerró o no vuelve a su prompt) no va a escribir nada:
+    // esperarla los tres minutos dejaba la interfaz como trabada. Si el aviso no le llega pronto, se sigue sin él.
+    const msg = `[Orquest] ${oneLine(message)}`
+    const deadline = Date.now() + (this.opts.handoffDeliverMs ?? 20_000)
+    let watch: ReturnType<typeof setInterval> | undefined
+    const unreachable = new Promise<void>((ok) => {
+      watch = setInterval(() => {
+        const pending = this.queues.get(id)?.includes(msg)
+        if (!this.opts.manager.isLive(id) || (pending && Date.now() >= deadline)) ok()
+      }, 250)
+      watch.unref?.()
+    })
+    await Promise.race([wrote, timeout, unreachable])
+    clearInterval(watch)
     this.handoffWaiters.delete(id)
   }
 
@@ -822,7 +1165,16 @@ export class Studio extends EventEmitter<StudioEvents> {
    * Si está en la oficina, se hace como un descanso: deja su traspaso, se cierra
    * y entra de nuevo con lo nuevo, leyendo su bitácora. No espera a que termine.
    */
-  async retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }): Promise<void> {
+  /**
+   * El manual con que trabaja alguien: el de su puesto y, si el usuario lo prendió en Plantilla,
+   * sin pedir permisos (lo prohibido del manual sigue negado).
+   */
+  private manualFor(slot: Pick<Slot, 'role' | 'unattended'>) {
+    const manual = this.library.manual(slot.role)
+    return slot.unattended ? { ...manual, permissions: { ...manual.permissions, unattended: true } } : manual
+  }
+
+  async retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string; unattended?: boolean }): Promise<void> {
     const model = change.model?.trim() || undefined
     const effort = change.effort || undefined
     if (id === BOSS_ID) return this.retuneBoss(change.provider, model, effort, change.account)
@@ -832,6 +1184,26 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (change.provider && change.provider !== slot.provider) throw new RuleError(T`El proveedor de ${m.name} no se cambia: para otro proveedor, contrata a alguien más.`)
     // La cuenta la elige el usuario, igual que al contratar ('' es la principal). Nadie la rota solo.
     const account = change.account === undefined ? slot.account : change.account || undefined
+    const unattended = change.unattended === undefined ? !!slot.unattended : change.unattended
+    if (unattended !== !!slot.unattended) {
+      slot.unattended = unattended || undefined
+      const l = this.launches.get(id)
+      if (l) {
+        // Sus permisos van en los argumentos y el entorno con que nace su terminal: se rearman.
+        const manual = this.manualFor(slot)
+        const adapter = getProvider(slot.provider)
+        l.req.extraArgs = this.connectArgs(slot.provider, l.token, manual.permissions, slot.role)
+        l.req.env = { ...l.req.env, ...this.connectEnv(slot.provider, l.token, manual.permissions) }
+        l.req.files = { ...adapter.workspaceFiles?.({ url: this.opts.mcpUrl(l.token), permissions: manual.permissions }), ...await bundledWorkspaceFiles(this.opts.skillsDir, manual.skills) }
+        for (const gap of adapter.permissionGaps?.(manual.permissions) ?? []) this.emit('notice', `${m.name}: ${gap}`)
+      }
+      this.fact(id, unattended ? T`el usuario le quitó las preguntas de permiso (lo prohibido de su manual sigue negado)` : T`el usuario le devolvió las preguntas de permiso`)
+      this.changed()
+      if (l && this.opts.manager.isLive(id) && model === slot.model && effort === slot.effort && account === slot.account) {
+        void this.rest(id, T`cambio de permisos`).catch((err) => this.emit('notice', T`No se pudo cambiar el permiso de ${m.name}: ${(err as Error).message}`))
+        return
+      }
+    }
     if (model === slot.model && effort === slot.effort && account === slot.account) return
     const check = this.rule({ ...slot, model })
     if (!check.ok) throw new RuleError(check.reason)
@@ -1015,8 +1387,10 @@ export class Studio extends EventEmitter<StudioEvents> {
    */
   private async restoreOffice(id: string, office: Office) {
     try {
-      if (!this.grouped) {
-        if (await restoreOffice(this.root, office)) this.warnRestored(id)
+      // Una tarea es un solo worktree de su repositorio, también en un proyecto que agrupa varios.
+      const errand = this.errandOf(id)
+      if (!this.grouped || errand) {
+        if (await restoreOffice(errand ? this.errandRepo(errand) : this.root, office)) this.warnRestored(id)
         return
       }
       // Agrupado: la oficina es una carpeta y adentro va su copia de cada repositorio en que tiene tareas.
@@ -1132,6 +1506,15 @@ export class Studio extends EventEmitter<StudioEvents> {
     }
     // Todos programan a partir del diseño: lo leen el jefe y cualquier empleado.
     if (tool === 'leer_diseno') return readDesignTool(await designFile(this.root), args)
+    if (caller.kind === 'errand') {
+      if (!ERRAND_TOOLS.has(tool)) throw new RuleError(T`${tool} no es una herramienta de las Tareas.`)
+      try {
+        return await this.errandTool(caller.id, tool, args)
+      } finally {
+        this.changed()
+      }
+    }
+    if (ERRAND_TOOLS.has(tool) && tool !== 'responder_al_usuario') throw new RuleError(T`${tool} es una herramienta de las Tareas.`)
     const boss = BOSS_TOOLS.has(tool)
     const employee = EMPLOYEE_TOOLS.has(tool)
     if (!boss && !employee) throw new RuleError(T`Herramienta desconocida: ${tool}`)
@@ -1260,6 +1643,16 @@ export class Studio extends EventEmitter<StudioEvents> {
         }
         const where = this.grouped ? ` ${T`Repositorio: ${t.repo}.`}` : ''
         return `${t.status === 'waiting' ? T`${t.id} → ${t.assignee}: esperando a ${b.openDeps(t).map((d) => d.id).join(', ')}.` : `${t.id} → ${t.assignee}: ${t.status}.`}${where}`
+      }
+
+      case 'cancelar_tarea': {
+        const t = b.task(String(a.tarea ?? ''))
+        const was = t.assignee
+        const released = b.cancel(t.id, String(a.motivo ?? ''))
+        if (this.opts.manager.isLive(was)) this.notify(was, T`El jefe canceló ${t.id} (${t.title}); ya no la trabajes.`)
+        this.fact(was, T`${t.id} cancelada por el jefe`)
+        for (const r of released) this.notify(r.assignee, T`${r.id} ya no espera a ${t.id} (se canceló) y está lista: usa leer_tarea.`)
+        return released.length ? T`${t.id} cancelada. Quedaron listas: ${released.map((r) => r.id).join(', ')}.` : T`${t.id} cancelada.`
       }
 
       case 'preguntar_al_usuario': {
@@ -1639,9 +2032,16 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (!this.opts.manager.isLive(id)) throw new RuleError(T`${this.nameOf(id)} no está en la oficina.`)
     this.queues.set(id, [])
     this.stopRetry(id)
+    this.stops.set(id, (this.stops.get(id) ?? 0) + 1)
     const last = [...this.board.messages].reverse().find((m) => m.from === 'usuario' && m.to === id)
-    this.opts.manager.write(id, '\x1b')
-    await new Promise((r) => setTimeout(r, this.opts.stopSettleMs ?? 800))
+    // Esc solo si está trabajando o detenido en una pantalla. En su prompt no hace falta, y dos Esc
+    // seguidos en Claude Code abren el menú para regresar la conversación: lo que se le escribía
+    // después caía ahí y la terminal dejaba de contestar.
+    const state = this.opts.manager.get(id)?.state
+    if (state === 'working' || state === 'blocked') {
+      this.opts.manager.write(id, '\x1b')
+      await new Promise((r) => setTimeout(r, this.opts.stopSettleMs ?? 800))
+    }
     let restored: string | undefined
     if (last && this.opts.manager.inputHolds(id, last.text)) {
       // Se vacía la caja; si no, lo próximo que se le escriba se pegaría detrás. Ctrl+U borra un
@@ -1795,7 +2195,16 @@ export class Studio extends EventEmitter<StudioEvents> {
     if (id === BOSS_ID) this.board.boss = undefined
     else this.board.dismiss(id, context)
     if (office) await this.vacate(id, office)
-    if (id !== BOSS_ID) this.notify(BOSS_ID, T`El usuario despidió a ${this.nameOf(id)} (${id}). Reasigna sus tareas abiertas si hace falta; quien ocupe su puesto recibirá su bitácora.`)
+    if (id !== BOSS_ID) {
+      // Lo que dejó abierto no se queda a su nombre esperándolo: su QA a medias se cancela (la entrega
+      // vuelve a esperar QA) y al jefe se le dice qué tareas quedaron sin dueño.
+      const { reviews, open } = this.board.leftBehind(id)
+      const parts = [
+        ...reviews.map((r) => T`${r.id} (su QA de ${r.reviewOf}) se canceló y ${r.reviewOf} vuelve a estar entregada: mándala a otro QA con mandar_a_qa`),
+        ...(open.length ? [T`quedaron sin dueño ${open.map((t) => t.id).join(', ')}: pásalas a otro con asignar_tarea (tarea_id y empleado) o cancélalas con cancelar_tarea si ya no hacen falta`] : []),
+      ]
+      this.notify(BOSS_ID, `${T`El usuario despidió a ${this.nameOf(id)} (${id}); quien ocupe su puesto recibirá su bitácora.`}${parts.length ? ` ${parts.join('; ')}.` : ''}`)
+    }
     this.changed()
   }
 
@@ -1805,27 +2214,37 @@ export class Studio extends EventEmitter<StudioEvents> {
    * archivos sin entregar o entregas sin integrar, se conserva y se avisa.
    * Sus capturas se copian antes a `.orquest/capturas/<id>`.
    */
-  private async vacate(id: string, office: { path: string; branch: string }) {
+  /** Las copias de una oficina (una por repositorio en un proyecto agrupado; si no, la oficina misma) y dónde guardar sus capturas. */
+  private async officeCopies(id: string, office: { path: string; branch: string }) {
+    const shots = join(this.root, '.orquest', 'capturas', id)
+    return this.grouped ? (await this.copiesIn(office)).map((c) => ({ ...c, shots: join(shots, c.name) })) : [{ repo: this.root, office, shots }]
+  }
+
+  /** Lo que se perdería al quitar una oficina, en palabras («2 archivos sin entregar y 1 commit sin integrar»); '' si nada. */
+  private async leftIn(copies: { repo: string; office: { path: string; branch: string } }[]): Promise<string> {
+    const left = { files: 0, commits: 0 }
+    for (const c of copies) {
+      const pending = await officePending(c.repo, c.office)
+      left.files += pending.files
+      left.commits += pending.commits
+    }
+    const files = left.files ? (left.files === 1 ? T`${left.files} archivo sin entregar` : T`${left.files} archivos sin entregar`) : ''
+    const commits = left.commits ? (left.commits === 1 ? T`${left.commits} commit sin integrar` : T`${left.commits} commits sin integrar`) : ''
+    return files && commits ? T`${files} y ${commits}` : files || commits
+  }
+
+  /** Desocupa la oficina; devuelve true si se quitó. */
+  private async vacate(id: string, office: { path: string; branch: string }): Promise<boolean> {
     try {
-      if (!(await exists(office.path))) return
+      if (!(await exists(office.path))) return false
       // Con varios repositorios hay una copia por cada uno en que trabajó; con uno solo, la oficina es la copia.
       const shots = join(this.root, '.orquest', 'capturas', id)
-      const copies = this.grouped
-        ? (await this.copiesIn(office)).map((c) => ({ ...c, shots: join(shots, c.name) }))
-        : [{ repo: this.root, office, shots }]
-      const left = { files: 0, commits: 0 }
-      for (const c of copies) {
-        const pending = await officePending(c.repo, c.office)
-        left.files += pending.files
-        left.commits += pending.commits
-      }
-      if (left.files || left.commits) {
-        const files = left.files ? (left.files === 1 ? T`${left.files} archivo sin entregar` : T`${left.files} archivos sin entregar`) : ''
-        const commits = left.commits ? (left.commits === 1 ? T`${left.commits} commit sin integrar` : T`${left.commits} commits sin integrar`) : ''
-        const what = files && commits ? T`${files} y ${commits}` : files || commits
+      const copies = await this.officeCopies(id, office)
+      const what = await this.leftIn(copies)
+      if (what) {
         this.fact(id, T`su oficina se conserva: tiene ${what}`)
         this.emit('notice', T`La oficina de ${this.nameOf(id)} se conserva: tiene ${what} (${office.path}).`)
-        return
+        return false
       }
       // Sus capturas suelen estar en carpetas que git ignora: se guardan antes de quitar la oficina.
       const attached = this.board.tasks.filter((t) => t.assignee === id).flatMap((t) => [...(t.delivery?.screenshots ?? []), ...(t.qa?.screenshots ?? [])])
@@ -1837,9 +2256,222 @@ export class Studio extends EventEmitter<StudioEvents> {
       // La carpeta que juntaba las copias se va con ellas, si no le queda nada dentro.
       if (this.grouped) await rmdir(office.path).catch(() => {})
       this.fact(id, saved ? T`su oficina se desocupó: todo lo suyo ya estaba integrado; sus ${saved} capturas quedaron en ${shots}` : T`su oficina se desocupó: todo lo suyo ya estaba integrado`)
+      return true
     } catch (err) {
       this.emit('notice', T`No se pudo desocupar la oficina de ${this.nameOf(id)}: ${(err as Error).message}`)
+      return false
     }
+  }
+
+  // ── Historial: el grafo, las integraciones, los PR y las copias de trabajo ──
+  // Para el panel Historial. Con varios repositorios, todo es de uno: el que se nombre (o el primero).
+
+  /** La carpeta de un repositorio del proyecto por su nombre; sin varios repositorios, la del proyecto. */
+  private repoPath(name?: string): { name: string; path: string } {
+    if (!this.grouped) return { name: '', path: this.root }
+    const repo = name ? this.repos.find((r) => r.name === name) : this.repos[0]
+    if (!repo) throw new RuleError(T`No existe el repositorio "${name}" en este proyecto. Los que hay: ${this.repos.map((r) => r.name).join(', ')}.`)
+    return repo
+  }
+
+  /** Quién trabaja en una rama de Orquest (`orquest/<id>`), si es de alguien de la plantilla. */
+  private ownerOfBranch(branch?: string): StaffMember | undefined {
+    return branch ? this.board.staff.find((m) => m.office?.branch === branch) : undefined
+  }
+
+  /**
+   * El grafo del repositorio (commits de sus ramas con los carriles para
+   * dibujarlos) y las integraciones a su rama actual: de quién fueron (tarea
+   * de Orquest o externa) y si ya se revirtieron.
+   */
+  async history(name?: string): Promise<HistoryView> {
+    const repo = this.repoPath(name)
+    const branch = await currentBranch(repo.path).catch(() => '')
+    const commits = await readCommits(repo.path)
+    const { rows, width } = graphLanes(commits, commits.find((c) => c.head)?.sha)
+    const integrations: IntegrationView[] = (await readIntegrations(repo.path)).map((i) => {
+      const who = i.assignee ? this.board.staff.find((m) => m.id === i.assignee) : this.ownerOfBranch(i.branch)
+      const task = i.task ? this.board.tasks.find((t) => t.id === i.task) : undefined
+      return {
+        ...i,
+        // Las ramas de Orquest se llaman por quien las trabaja; sin rama en el asunto, la de su oficina.
+        branch: i.branch ?? who?.office?.branch,
+        ...(who ? { who: { id: who.id, name: who.name, role: who.role, provider: who.provider, gone: !!who.gone } } : {}),
+        ...(task ? { taskKind: task.kind, report: task.delivery?.report } : {}),
+      }
+    })
+    const reverts = new Set(integrations.map((i) => i.revertedBy).filter(Boolean))
+    const owners: HistoryView['owners'] = {}
+    for (const c of commits) {
+      for (const b of c.branches) {
+        const m = this.ownerOfBranch(b)
+        if (m) owners[b] = { id: m.id, name: m.name, provider: m.provider }
+      }
+    }
+    return {
+      repos: this.repos.map((r) => r.name),
+      repo: repo.name,
+      branch,
+      width,
+      owners,
+      rows: commits.map((c, k) => ({ ...c, lane: rows[k], ...(reverts.has(c.sha) ? { reverts: true } : {}) })),
+      integrations,
+    }
+  }
+
+  /** Los archivos que cambió un commit del historial (un merge: lo que trajo). */
+  historyFiles(name: string | undefined, sha: string) {
+    return commitFiles(this.repoPath(name).path, sha)
+  }
+
+  /** El diff de un commit del historial. */
+  historyDiff(name: string | undefined, sha: string) {
+    return commitDiff(this.repoPath(name).path, sha)
+  }
+
+  /** Lo último que se leyó de GitHub o GitLab por repositorio: preguntarle a su CLI tarda. */
+  private forges = new Map<string, { at: number; status: ForgeStatus }>()
+
+  /** Los PR/MR del repositorio, con la CLI del usuario (`gh`, `glab`). Se reusa lo leído hace menos de un minuto. */
+  async forge(name?: string, refresh = false): Promise<ForgeStatus> {
+    const repo = this.repoPath(name)
+    const cached = this.forges.get(repo.path)
+    if (cached && !refresh && Date.now() - cached.at < 60_000) return cached.status
+    const status = await forgeStatus(repo.path, this.opts.forgeRunner)
+    this.forges.set(repo.path, { at: Date.now(), status })
+    return status
+  }
+
+  /**
+   * El usuario revierte una integración: un commit nuevo que la deshace (la
+   * historia no se reescribe). Si choca, no se toca nada y se dice por qué. Se
+   * le avisa al jefe y queda en la bitácora de quien la hizo.
+   */
+  async revertIntegration(name: string | undefined, sha: string): Promise<string> {
+    const repo = this.repoPath(name)
+    const integration = (await readIntegrations(repo.path)).find((i) => i.sha.startsWith(sha))
+    const commit = await revertMerge(repo.path, sha)
+    const what = integration?.task ? `${integration.task} (${integration.title})` : (integration?.title ?? sha.slice(0, 7))
+    const where = repo.name ? T`${await currentBranch(repo.path)} de ${repo.name}` : await currentBranch(repo.path)
+    if (integration?.assignee) this.fact(integration.assignee, T`el usuario revirtió la integración de ${what}`)
+    this.notify(BOSS_ID, T`El usuario revirtió la integración de ${what} en ${where}: el commit ${commit.slice(0, 7)} deshace lo que trajo. Si hace falta, reasigna o ajusta lo que dependía de ella.`)
+    this.changed()
+    return commit
+  }
+
+  /**
+   * Abre un PR (GitHub) o MR (GitLab) para una integración que se hizo en
+   * local: sube su rama a origin y lo abre hacia la rama donde se integró.
+   */
+  async createPullRequest(name: string | undefined, sha: string): Promise<string> {
+    const repo = this.repoPath(name)
+    const all = await this.history(name)
+    const integration = all.integrations.find((i) => i.sha === sha || i.sha.startsWith(sha))
+    if (!integration) throw new RuleError(T`Ese commit no es una integración de la rama actual.`)
+    if (!integration.branch) throw new RuleError(T`No se sabe de qué rama vino esa integración: ábrelo desde GitHub o GitLab.`)
+    const forge = await this.forge(name)
+    const open = forge.prs.find((p) => p.head === integration.branch && p.state === 'open')
+    if (open) throw new RuleError(T`La rama ${integration.branch} ya tiene abierto el #${open.number}: ${open.url}`)
+    const body = [
+      integration.report,
+      T`Integrada en local por Orquest (${integration.sha.slice(0, 7)} en ${integration.target}).`,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+    const url = await createPullRequest(repo.path, { branch: integration.branch, base: integration.target, title: integration.task ? `${integration.task}: ${integration.title}` : integration.title, body }, this.opts.forgeRunner)
+    this.forges.delete(repo.path)
+    this.changed()
+    return url
+  }
+
+  /**
+   * Cada copia de trabajo (worktree) del repositorio, la haya creado Orquest o
+   * no: de quién es, su rama y cuánto se separó de la rama donde se integra, si
+   * tiene archivos sin entregar o su agente trabaja, y si se puede quitar.
+   */
+  async worktrees(name?: string): Promise<WorktreeRow[]> {
+    const repo = this.repoPath(name)
+    const base = await currentBranch(repo.path).catch(() => '')
+    const offices = resolve(this.root, '.orquest', 'oficinas')
+    const same = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
+    const rows: WorktreeRow[] = []
+    for (const w of await listWorktrees(repo.path)) {
+      const member = this.board.staff.find((m) => m.office && same(this.grouped ? join(m.office.path, repo.name) : m.office.path, w.path))
+      const live = !!member && this.opts.manager.isLive(member.id)
+      const owner: WorktreeRow['owner'] = same(w.path, repo.path)
+        ? { kind: 'project' }
+        : member
+          ? { kind: 'employee', id: member.id, name: member.name, role: member.role, provider: member.provider, gone: !!member.gone, live }
+          : resolve(w.path).toLowerCase().startsWith(offices.toLowerCase())
+            ? { kind: 'orphan' }
+            : { kind: 'foreign' }
+      const task = member ? (this.board.current(member.id) ?? [...this.board.tasks].reverse().find((t) => t.assignee === member.id)) : undefined
+      const files = w.prunable ? undefined : await dirtyCount(w.path).catch(() => undefined)
+      const apart = w.branch && base && w.branch !== base ? await aheadBehind(repo.path, base, w.branch) : undefined
+      const working = live && this.opts.manager.get(member!.id)?.state === 'working'
+      let releaseWhy: string | undefined
+      if (owner.kind !== 'employee') releaseWhy = T`Solo se quitan desde aquí las oficinas de Orquest.`
+      else if (live) releaseWhy = T`${member!.name} sigue en la oficina: despídelo o espera a que se vaya.`
+      else if (files === undefined) releaseWhy = T`Su carpeta ya no está.`
+      else if (files) releaseWhy = files === 1 ? T`Tiene ${files} archivo sin entregar.` : T`Tiene ${files} archivos sin entregar.`
+      else if (apart?.ahead) releaseWhy = apart.ahead === 1 ? T`Tiene ${apart.ahead} commit sin integrar.` : T`Tiene ${apart.ahead} commits sin integrar.`
+      rows.push({
+        path: w.path,
+        head: w.head,
+        ...(w.branch ? { branch: w.branch } : {}),
+        base,
+        ...(apart ?? {}),
+        owner,
+        ...(task ? { task: { id: task.id, title: task.title } } : {}),
+        ...(files !== undefined ? { files } : {}),
+        working,
+        ...(w.prunable ? { missing: true } : {}),
+        canRelease: !releaseWhy,
+        ...(releaseWhy ? { releaseWhy } : {}),
+      })
+    }
+    return rows
+  }
+
+  /** Una carpeta que sí es una copia de trabajo de algún repositorio del proyecto (lo que llega de la interfaz se revisa). */
+  async worktreeAt(path: string): Promise<string> {
+    const same = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
+    for (const repo of this.grouped ? this.repos.map((r) => r.path) : [this.root]) {
+      const found = (await listWorktrees(repo).catch(() => [])).find((w) => same(w.path, path))
+      if (found) return found.path
+    }
+    throw new RuleError(T`${path} no es una copia de trabajo de este proyecto.`)
+  }
+
+  /** Cuánto pesa en disco cada copia: tarda con dependencias instaladas, así que se pide aparte y se recuerda un rato. */
+  private sizes = new Map<string, { at: number; size: Promise<number> }>()
+  async worktreeSize(path: string): Promise<number> {
+    const dir = await this.worktreeAt(path)
+    const known = this.sizes.get(dir)
+    if (known && Date.now() - known.at < 5 * 60_000) return known.size
+    const size = diskSize(dir)
+    this.sizes.set(dir, { at: Date.now(), size })
+    size.catch(() => this.sizes.delete(dir))
+    return size
+  }
+
+  /**
+   * «Quitar y liberar»: el usuario quita la oficina de alguien que ya no está
+   * en ella, solo si no deja nada pendiente (archivos sin entregar, commits sin
+   * integrar). Es lo mismo que pasa al despedir a alguien con todo integrado.
+   */
+  async releaseWorktree(path: string): Promise<void> {
+    const dir = await this.worktreeAt(path)
+    const same = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
+    const member = this.board.staff.find((m) => m.office && (same(m.office.path, dir) || (this.grouped && this.repos.some((r) => same(join(m.office!.path, r.name), dir)))))
+    if (!member?.office) throw new RuleError(T`Esa copia no es la oficina de nadie de Orquest: quítala con la herramienta que la creó.`)
+    if (this.opts.manager.isLive(member.id)) throw new RuleError(T`${member.name} sigue en la oficina: despídelo o espera a que se vaya antes de quitar su copia.`)
+    const what = await this.leftIn(await this.officeCopies(member.id, member.office))
+    if (what) throw new RuleError(T`La oficina de ${member.name} tiene ${what}: no se quita para no perderlo.`)
+    if (!(await this.vacate(member.id, member.office))) throw new RuleError(T`No se pudo quitar la oficina de ${member.name}.`)
+    this.sizes.delete(dir)
+    this.emit('notice', T`Se quitó la oficina de ${member.name}; su rama ${member.office.branch} sigue en git.`)
+    this.changed()
   }
 
   /** Los planes guardados del jefe, el más reciente primero. */
@@ -1893,6 +2525,16 @@ export class Studio extends EventEmitter<StudioEvents> {
         esperando_desde_hace_min: Math.max(0, Math.round((Date.now() - q.askedAt) / 60000)),
       })),
       respuestas_del_usuario: b.questions.filter((q) => q.status === 'answered').slice(-8).map((q) => ({ id: q.id, pregunta: q.text, respuesta: q.answer })),
+      // Tareas a nombre de alguien que ya no está: pásalas a otro o cancélalas.
+      tareas_sin_dueno: (() => {
+        const gone = new Set(b.staff.filter((m) => m.gone).map((m) => m.id))
+        const orphan = b.tasks.filter((t) => gone.has(t.assignee) && ['waiting', 'ready', 'in_progress'].includes(t.status))
+        return orphan.length ? orphan.map((t) => ({ id: t.id, titulo: t.title, era_de: t.assignee, estado: t.status, como: T`asignar_tarea con tarea_id y empleado, o cancelar_tarea` })) : undefined
+      })(),
+      // Lo que el usuario encargó directo, sin ti: solo para que sepas qué cambia en el repo. No les mandas nada.
+      tareas_directas: b.errands.length
+        ? b.errands.slice(-12).map((e) => ({ titulo: e.title, tipo: e.kind, rama: e.branch, sale_de: e.base, repositorio: e.repo, estado: e.status, registro: e.changelog }))
+        : undefined,
     }
   }
 
@@ -1950,6 +2592,7 @@ function bossName(raw?: string): string | undefined {
 }
 
 export const BOSS_TOOLS = new Set([
+  'cancelar_tarea',
   'leer_proyecto',
   'leer_expedientes',
   'proponer_plantilla',
@@ -1964,4 +2607,5 @@ export const BOSS_TOOLS = new Set([
   'mandar_a_qa',
   'ejecutar_revision',
 ])
+export const ERRAND_TOOLS = new Set(['contar_avance', 'tarea_lista', 'responder_al_usuario'])
 export const EMPLOYEE_TOOLS = new Set(['responder_al_usuario', 'leer_tarea', 'preguntar_al_jefe', 'reportar_estado', 'entregar', 'revision_lista'])

@@ -44,15 +44,25 @@ onMounted(async () => {
 // ── El editor es opcional: bajarlo o actualizarlo ──────────────────────────
 const offer = ref<EditorOffer | null>(null)
 const offerError = ref('')
+const checking = ref(false)
 const progress = ref<{ received: number; total: number } | null>(null)
 async function check() {
   offerError.value = ''
+  checking.value = true
   try {
     offer.value = await window.orquest.trazoOffer()
   } catch (e) {
     offerError.value = (e as Error).message
+  } finally {
+    checking.value = false
   }
 }
+/** El botón dice si está consultando, si no hay editor que bajar o cuál se baja. */
+const downloadLabel = computed(() => {
+  const o = offer.value
+  if (o) return o.bytes ? T`Descargar Trazo ${o.version} (${mb(o.bytes)} MB)` : T`Descargar Trazo ${o.version}`
+  return checking.value ? T`Consultando Trazo…` : T`Trazo no disponible`
+})
 const offProgress = window.orquest.onTrazoProgress((p) => (progress.value = p))
 async function install() {
   error.value = ''
@@ -303,9 +313,9 @@ onBeforeUnmount(() => {
       </template>
       <div v-else class="row">
         <button class="btn primary" :disabled="!offer" @click="install">
-          <Download /> {{ offer ? (offer.bytes ? T`Descargar Trazo ${offer.version} (${mb(offer.bytes)} MB)` : T`Descargar Trazo ${offer.version}`) : T`Consultando Trazo…` }}
+          <Download /> {{ downloadLabel }}
         </button>
-        <button v-if="offerError" class="btn" @click="check">{{ T`Reintentar` }}</button>
+        <button v-if="offerError || checking" class="btn" :disabled="checking" @click="check">{{ T`Reintentar` }}</button>
       </div>
       <p v-if="offerError" class="stop">{{ offerError }}</p>
     </div>

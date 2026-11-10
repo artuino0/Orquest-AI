@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * La oficina de píxel con la gente del estudio. La oficina es una página
- * aparte (oficina.html) que solo dibuja; aquí se le manda quién está, en qué
- * anda y qué va pasando con las tareas, ya traducido por core/officefeed.
+ * La oficina con la gente del estudio, de píxel (oficina.html) o en 3D
+ * (oficina3d.html): una página aparte que solo dibuja; aquí se le manda quién
+ * está, en qué anda y qué va pasando con las tareas, ya traducido por
+ * core/officefeed. Las dos hablan el mismo contrato; el usuario elige cuál ver.
  */
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Minus, Plus } from 'lucide-vue-next'
 import { officeEvents, officeState } from '../../../core/officefeed'
 import type { Task } from '../../../shared/ipc'
@@ -22,6 +23,30 @@ let ready = false
 const scale = ref(1)
 /** Tareas de la foto anterior, para saber qué cambió; null hasta ver la primera. */
 let before: Task[] | null = null
+
+/** Qué oficina se ve: se recuerda en este navegador (es una preferencia de quien mira, no del proyecto). */
+const VIEW_KEY = 'orquest:oficina:vista'
+const readView = (): '2d' | '3d' => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === '3d' ? '3d' : '2d'
+  } catch {
+    return '2d'
+  }
+}
+const view = ref<'2d' | '3d'>(readView())
+const page = computed(() => `${view.value === '3d' ? 'oficina3d' : 'oficina'}.html?fuente=app&lang=${getLang()}`)
+function setView(v: '2d' | '3d') {
+  if (v === view.value) return
+  // La otra página arranca de cero: avisa con «listo» y ahí se le manda todo otra vez.
+  ready = false
+  scale.value = 1
+  view.value = v
+  try {
+    localStorage.setItem(VIEW_KEY, v)
+  } catch {
+    // Sin almacenamiento se queda la elegida mientras la app esté abierta.
+  }
+}
 
 const send = (msg: Record<string, unknown>) => {
   frame.value?.contentWindow?.postMessage({ orquest: 'oficina', ...msg }, '*')
@@ -124,7 +149,11 @@ watch(
 
 <template>
   <div class="pixel-office">
-    <iframe ref="frame" :src="`oficina.html?fuente=app&lang=${getLang()}`" :title="T`Oficina`" />
+    <iframe ref="frame" :key="view" :src="page" :title="T`Oficina`" />
+    <div class="views">
+      <button :class="{ on: view === '2d' }" :title="T`Oficina de píxel`" @click="setView('2d')">2D</button>
+      <button :class="{ on: view === '3d' }" :title="T`Oficina 3D, con un robot por puesto`" @click="setView('3d')">3D</button>
+    </div>
     <div class="zoom">
       <button :title="T`Alejar`" @click="send({ type: 'zoom', delta: -0.25 })"><Minus /></button>
       <span>{{ scale }}×</span>
@@ -136,6 +165,9 @@ watch(
 <style scoped>
 .pixel-office { position: absolute; inset: 0; }
 iframe { width: 100%; height: 100%; border: 0; background: transparent; display: block; }
+.views { position: absolute; right: 150px; bottom: 14px; display: flex; background: var(--surface); border: 3px solid var(--border); box-shadow: 3px 3px 0 var(--shadow); }
+.views button { border: 0; background: none; padding: 6px 10px; color: var(--text-secondary); font: 700 11px var(--font); cursor: pointer; }
+.views button.on { background: var(--accent); color: var(--on-accent); }
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; background: var(--surface); border: 3px solid var(--border); box-shadow: 3px 3px 0 var(--shadow); }
 .zoom button { border: 0; background: none; padding: 6px 10px; display: grid; color: var(--text-primary); }
 .zoom svg { width: 12px; height: 12px; }

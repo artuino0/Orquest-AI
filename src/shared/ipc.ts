@@ -21,8 +21,35 @@ import type { RecentProject } from '../core/recents.js'
 import type { MobileStatus } from '../core/mobile.js'
 import type { TrazoRequest, TrazoResponse, TrazoSession } from '../core/trazomcp.js'
 import type { EditorOffer } from '../core/trazoeditor.js'
+import type { Errand, ErrandKind } from '../core/errands.js'
+import type { CommitFile, HistoryRow, HistoryView, IntegrationView, WorktreeRow } from '../core/history.js'
+import type { ForgeStatus, PullRequest } from '../core/forge.js'
+
+export type { CommitFile, ForgeStatus, HistoryRow, HistoryView, IntegrationView, PullRequest, WorktreeRow }
 
 export type { Check, Dossier, Manual, Role, Stats }
+export type { Errand, ErrandKind }
+
+/** Lo que pide el formulario de una Tarea nueva. */
+export interface ErrandRequest {
+  title: string
+  brief: string
+  kind: ErrandKind
+  provider: ProviderId
+  model?: string
+  effort?: Effort
+  account?: string
+  /** Repositorio, si el proyecto agrupa varios. */
+  repo?: string
+  /** Rama de la que sale y a la que vuelve. */
+  base?: string
+}
+
+/** Un archivo que cambia una tarea, con sus líneas agregadas y quitadas. */
+export interface ErrandChange extends FileChange {
+  added: number
+  removed: number
+}
 export type { Activity, Capture, InstalledTool, ProjectDocument }
 export type { FileEntry, FileSides, FileText, RecentProject }
 export type { Requirement, CliStatus, Effort, Employee, EmployeeState, FileChange, ProjectSummary, ProviderId, Slot, StudioSnapshot, Task }
@@ -144,12 +171,43 @@ export interface OrquestApi {
   answerQuestion(id: string, text: string): Promise<void>
   approveTemplate(slots: SlotEdit[]): Promise<void>
   /** Cambia modelo y esfuerzo de alguien (al jefe, también el proveedor): deja su traspaso y vuelve a entrar con lo nuevo. */
-  retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }): Promise<void>
+  retune(id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string; unattended?: boolean }): Promise<void>
   mergeTask(id: string): Promise<void>
   returnTask(id: string, notes: string): Promise<void>
   /** Descarta una entrega: no se integra y sale de la rama de quien la hizo. */
   discardTask(id: string, reason?: string): Promise<'reset' | 'reverted' | 'failed' | 'none'>
   taskDiff(id: string): Promise<string>
+  // Tareas: encargos directos, sin el jefe.
+  /** Ramas del repositorio (o del que se nombre, si el proyecto agrupa varios) y cuál está abierta. */
+  branches(repo?: string): Promise<{ branches: string[]; current: string }>
+  createErrand(req: ErrandRequest): Promise<Errand>
+  errandSay(id: string, text: string): Promise<void>
+  stopErrand(id: string): Promise<{ restored?: string }>
+  /** La une a su rama de origen con su línea en el registro; si choca, la tarea lo resuelve y avisa. */
+  approveErrand(id: string): Promise<{ merged: boolean; reason?: string }>
+  discardErrand(id: string): Promise<void>
+  errandChanges(id: string): Promise<ErrandChange[]>
+  errandDiff(id: string, path?: string): Promise<string>
+  // Historial: `repo` es el nombre del repositorio cuando el proyecto agrupa varios; sin él, el del proyecto (o el primero).
+  /** El grafo de commits con sus carriles y las integraciones a la rama actual. */
+  history(repo?: string): Promise<HistoryView>
+  /** Los archivos que cambió un commit (un merge: lo que trajo a su rama). */
+  historyFiles(repo: string | undefined, sha: string): Promise<CommitFile[]>
+  historyDiff(repo: string | undefined, sha: string): Promise<string>
+  /** Los PR/MR de GitHub o GitLab leídos con `gh`/`glab`; `refresh` no usa lo leído hace poco. */
+  forge(repo?: string, refresh?: boolean): Promise<ForgeStatus>
+  /** Revierte una integración con un commit nuevo (`git revert -m 1`); devuelve ese commit. */
+  revertIntegration(repo: string | undefined, sha: string): Promise<string>
+  /** Sube la rama de una integración y abre su PR/MR; devuelve su dirección. */
+  createPullRequest(repo: string | undefined, sha: string): Promise<string>
+  /** Cada copia de trabajo (worktree) del repositorio, también las que no hizo Orquest. */
+  worktrees(repo?: string): Promise<WorktreeRow[]>
+  /** Cuánto pesa en disco una copia, en bytes (tarda: se pide aparte). */
+  worktreeSize(path: string): Promise<number>
+  /** Abre la carpeta de una copia en el explorador del sistema. */
+  openWorktree(path: string): Promise<void>
+  /** Quita la oficina de alguien que ya no está en ella, si no deja nada pendiente. */
+  releaseWorktree(path: string): Promise<void>
   // Biblioteca del estudio: expedientes y manuales (compartidos entre proyectos).
   library(): Promise<LibraryView>
   saveDossier(d: Dossier): Promise<void>

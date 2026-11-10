@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Ban, Bell, Check, FileText, Plug, Save, Sparkles, X } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import type { DossierView, InstalledTool, Manual, Role } from '../../../shared/ipc'
+import type { ManualRole } from '../../../core/library'
 import { T } from '../../../core/i18n'
 import PanelFrame from './PanelFrame.vue'
 
@@ -11,7 +12,8 @@ import PanelFrame from './PanelFrame.vue'
  * estudio y se reusan entre proyectos; el jefe los lee al proponer.
  */
 const ROLES: Role[] = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno', 'arquitecto', 'seguridad']
-const ROLE_NAME: Record<Role, [string, string]> = {
+const ROLE_NAME: Record<ManualRole, [string, string]> = {
+  tarea: [T`Tareas`, T`encargos sin el jefe`],
   desarrollo: [T`Desarrollo`, T`generalista`],
   backend: ['Backend', T`API y servicios`],
   frontend: ['Frontend', T`interfaz y capturas`],
@@ -29,7 +31,7 @@ const tab = ref<'expedientes' | 'manuales'>('expedientes')
 const dossiers = ref<Row[]>([])
 const manuals = ref<Manual[]>([])
 const picked = ref('') // proveedor::modelo
-const role = ref<Role>('backend')
+const role = ref<ManualRole>('backend')
 const saved = ref<string | null>(null)
 const newModel = ref('')
 
@@ -100,6 +102,10 @@ const manual = computed(() => manuals.value.find((m) => m.role === role.value))
 const lines = (v: string[]) => v.join('\n')
 const split = (v: string) => v.split('\n').map((l) => l.trim()).filter(Boolean)
 const users = computed(() => {
+  if (role.value === 'tarea') {
+    const open = (studio.board?.errands ?? []).filter((e) => e.status === 'working' || e.status === 'ready' || e.status === 'stopped').length
+    return open ? (open === 1 ? T`${open} tarea abierta` : T`${open} tareas abiertas`) : T`ninguna tarea abierta`
+  }
   const who = (studio.board?.staff ?? []).filter((m) => m.role.toLowerCase() === role.value).map((m) => m.name)
   if (!who.length) return T`nadie lo usa todavía`
   return who.length === 1 ? T`lo usa ${who[0]}` : T`lo usan ${who.slice(0, -1).join(', ')} y ${who.at(-1)}`
@@ -241,12 +247,16 @@ async function saveManual() {
 
         <span class="cap">{{ T`Permisos` }}</span>
         <div class="perms">
-          <div class="perm edit">
+          <div v-if="manual.permissions.unattended" class="perm edit">
+            <span class="cap">{{ T`Sin pedir permisos` }}</span>
+            <p class="dim">{{ T`Las Tareas trabajan solas: todo pasa sin preguntarte, salvo los comandos prohibidos, que siguen bloqueados donde la CLI sabe bloquearlos.` }}</p>
+          </div>
+          <div v-else class="perm edit">
             <span class="cap">{{ T`Puede editar` }}</span>
             <label class="check"><input v-model="manual.permissions.edit" type="checkbox" /><i><Check /></i>{{ T`Archivos de su oficina, sin pedir permiso` }}</label>
             <label class="check" :title="T`npm, pnpm, yarn, bun, pip y similares. Lo que pongas en prohibidos sigue mandando.`"><input v-model="manual.permissions.install" type="checkbox" /><i><Check /></i>{{ T`Instalar dependencias, sin pedir permiso` }}</label>
           </div>
-          <label class="perm allow">
+          <label v-if="!manual.permissions.unattended" class="perm allow">
             <span class="cap">{{ T`Comandos permitidos` }}</span>
             <textarea :value="lines(manual.permissions.allow)" rows="4" placeholder="npm test" @change="manual.permissions.allow = split(($event.target as HTMLTextAreaElement).value)" />
           </label>
@@ -258,7 +268,7 @@ async function saveManual() {
 
         <div class="two">
           <label class="field"><span class="cap">{{ T`Formato de entrega` }}</span><textarea v-model="manual.delivery" rows="5" /></label>
-          <div class="side">
+          <div v-if="manual.role !== 'tarea'" class="side">
             <span class="cap">{{ T`Capturas obligatorias` }}</span>
             <label class="check"><input v-model="manual.requireScreenshots" type="checkbox" /><i><Check /></i>{{ T`Exigir capturas para entregar` }}</label>
           </div>

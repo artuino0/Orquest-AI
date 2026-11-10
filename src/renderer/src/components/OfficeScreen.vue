@@ -10,7 +10,7 @@
  * Ctrl + rueda acerca y aleja. Clic derecho en el fondo: el menú del lienzo.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlertTriangle, Bell, ChevronDown, ChevronUp, Crown, FileText, FolderOpen, FolderTree, Gauge, PenTool, Download, Inbox, Kanban, LayoutGrid, Loader2, Maximize, Minimize2, Minus, Plus, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
+import { AlertTriangle, Bell, ChevronDown, ChevronUp, Crown, FileText, FolderOpen, FolderTree, Gauge, GitBranch, PenTool, Download, Inbox, Kanban, LayoutGrid, ListChecks, Loader2, Maximize, Minimize2, Minus, Plus, RotateCcw, Smartphone, Users } from 'lucide-vue-next'
 import { T } from '../../../core/i18n'
 import { toWorld, wheelOwner, type Panel, type PanelKind, type Point } from '../canvas/layout'
 import { useCanvas } from '../stores/canvas'
@@ -38,6 +38,9 @@ import PixelOffice from './PixelOffice.vue'
 import PlansPanel from './PlansPanel.vue'
 import AccountsPanel from './AccountsPanel.vue'
 import MobilePanel from './MobilePanel.vue'
+import TasksPanel from './TasksPanel.vue'
+import ErrandPanel from './ErrandPanel.vue'
+import HistoryPanel from './HistoryPanel.vue'
 import LangToggle from './LangToggle.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import CHAR1 from '../../../../assets/herdr-oficina/sprites/char1.png'
@@ -67,7 +70,8 @@ function look(e: (typeof studio.employees)[number]) {
 /** Cuántos hay en cada estado, para la leyenda de la barra. */
 const legend = computed(() => {
   const n: Record<string, number> = {}
-  for (const e of studio.employees) n[look(e)] = (n[look(e)] ?? 0) + 1
+  // Las Tareas no son de la oficina: se ven en su panel.
+  for (const e of studio.employees) if (e.role !== 'tarea') n[look(e)] = (n[look(e)] ?? 0) + 1
   const s = (k: string) => n[k] ?? 0
   return [
     { n: s('working'), color: 'work', text: T`trabajando` },
@@ -183,6 +187,8 @@ function headOf(p: Panel): { title: string; subtitle?: string; color?: string } 
       return { title: T`Estudio`, subtitle: T`diseño en Trazo` }
     case 'usage':
       return { title: T`Uso`, subtitle: T`límites por proveedor` }
+    case 'history':
+      return { title: T`Historial`, subtitle: T`ramas, integraciones y worktrees` }
     default:
       return { title: '' }
   }
@@ -245,6 +251,23 @@ function down(ev: PointerEvent) {
     pan(ev)
   }
 }
+/**
+ * El botón de en medio es del lienzo (arrastrar). En Linux, además, pega lo último que se
+ * seleccionó en el campo o la terminal que quede debajo, y en Windows abre el autodesplazamiento:
+ * ninguno de los dos se deja pasar sobre el lienzo.
+ */
+function middle(ev: MouseEvent) {
+  if (ev.button === 1) ev.preventDefault()
+}
+/**
+ * El área del lienzo no se desplaza nunca: lo mueve la cámara. Si algo la desplazó (enfocar un
+ * campo medio fuera de la vista), se regresa a su lugar; si no, todo se veía corrido hasta volver.
+ */
+function unscroll(ev: Event) {
+  const el = ev.currentTarget as HTMLElement
+  if (el.scrollLeft || el.scrollTop) el.scrollTo(0, 0)
+}
+
 function wheel(ev: WheelEvent) {
   if (canvas.focus) return
   const owner = wheelOwner(panelOver(ev.target), canvas.active, lastCanvasAt, Date.now())
@@ -307,6 +330,8 @@ onMounted(() => {
   // En captura: cuando el lienzo se queda con la rueda, la corta antes de que llegue al contenido (xterm, Monaco);
   // no pasiva, para que Ctrl + rueda no haga zoom a toda la ventana.
   viewEl.value!.addEventListener('wheel', wheel, { passive: false, capture: true })
+  for (const type of ['mousedown', 'mouseup', 'auxclick'] as const) viewEl.value!.addEventListener(type, middle, { capture: true })
+  viewEl.value!.addEventListener('scroll', unscroll)
   window.addEventListener('keydown', keydown)
   window.addEventListener('keyup', keyup)
   window.addEventListener('blur', blur)
@@ -315,6 +340,8 @@ onBeforeUnmount(() => {
   stopTrazo?.()
   observer?.disconnect()
   viewEl.value?.removeEventListener('wheel', wheel, { capture: true })
+  for (const type of ['mousedown', 'mouseup', 'auxclick'] as const) viewEl.value?.removeEventListener(type, middle, { capture: true })
+  viewEl.value?.removeEventListener('scroll', unscroll)
   window.removeEventListener('keydown', keydown)
   window.removeEventListener('keyup', keyup)
   window.removeEventListener('blur', blur)
@@ -324,7 +351,28 @@ onBeforeUnmount(() => {
 watch(() => studio.repo, () => ide.reset())
 onBeforeUnmount(() => ide.reset())
 
-const world = computed(() => ({ transform: `translate3d(${canvas.camera.x}px, ${canvas.camera.y}px, 0) scale(${canvas.camera.zoom})` }))
+/**
+ * Mientras la cámara se mueve, el plano va como capa de GPU (fluido, pero
+ * Chromium estira la imagen ya dibujada: al acercar, el texto se pixelea).
+ * Quieta un momento, deja de serlo y se vuelve a dibujar nítido a su zoom.
+ */
+const moving = ref(false)
+let still: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => [canvas.camera.x, canvas.camera.y, canvas.camera.zoom],
+  () => {
+    moving.value = true
+    clearTimeout(still)
+    // Con `glide` la transición dura 0.3 s: se espera a que termine.
+    still = setTimeout(() => (moving.value = false), canvas.glide ? 400 : 150)
+  },
+)
+onBeforeUnmount(() => clearTimeout(still))
+const world = computed(() =>
+  moving.value
+    ? { transform: `translate3d(${canvas.camera.x}px, ${canvas.camera.y}px, 0) scale(${canvas.camera.zoom})`, willChange: 'transform' }
+    : { transform: `translate(${canvas.camera.x}px, ${canvas.camera.y}px) scale(${canvas.camera.zoom})` },
+)
 const name = (p: string | null) => p?.split(/[\\/]/).filter(Boolean).pop() ?? ''
 const NAV: { kind: PanelKind; icon: unknown; label?: string; title?: string }[] = [
   { kind: 'boss', icon: Crown, label: T`Jefe` },
@@ -333,8 +381,12 @@ const NAV: { kind: PanelKind; icon: unknown; label?: string; title?: string }[] 
   { kind: 'plans', icon: FileText, label: T`Planes`, title: T`Planes y documentos que el jefe deja en el repo` },
   { kind: 'library', icon: FolderOpen, label: T`Expedientes` },
   { kind: 'inbox', icon: Inbox, label: T`Entregas` },
+  { kind: 'tasks', icon: ListChecks, label: T`Tareas`, title: T`Encargos directos, sin el jefe` },
+  { kind: 'history', icon: GitBranch, label: T`Historial`, title: T`Historial: ramas, integraciones y worktrees` },
 ]
-const badge = (k: PanelKind) => (k === 'hire' ? studio.proposal.length : k === 'inbox' ? studio.inbox.length : 0)
+/** Tareas listas para que las revises. */
+const errandsReady = computed(() => (studio.board?.errands ?? []).filter((e) => e.status === 'ready').length)
+const badge = (k: PanelKind) => (k === 'hire' ? studio.proposal.length : k === 'inbox' ? studio.inbox.length : k === 'tasks' ? errandsReady.value : 0)
 </script>
 
 <template>
@@ -389,6 +441,9 @@ const badge = (k: PanelKind) => (k === 'hire' ? studio.proposal.length : k === '
             <LibraryPanel v-else-if="p.kind === 'library'" />
             <AccountsPanel v-else-if="p.kind === 'accounts'" />
             <MobilePanel v-else-if="p.kind === 'mobile'" />
+            <TasksPanel v-else-if="p.kind === 'tasks'" />
+            <ErrandPanel v-else-if="p.kind === 'errand' && p.ref" :id="p.ref" />
+            <HistoryPanel v-else-if="p.kind === 'history'" />
           </CanvasPanel>
         </div>
 
@@ -445,7 +500,7 @@ const badge = (k: PanelKind) => (k === 'hire' ? studio.proposal.length : k === '
 </template>
 
 <style scoped>
-.office { height: 100%; display: grid; grid-template-rows: 48px 1fr; background: var(--bg); }
+.office { height: 100%; display: grid; grid-template-rows: 48px 1fr; background: var(--bg); overflow: clip; }
 .bar { display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--surface); border-bottom: 3px solid var(--border); min-width: 0; z-index: 4; }
 .repo { font: 700 16px var(--font-pixel); color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .legend { display: flex; gap: 10px; font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; min-width: 0; }
@@ -458,14 +513,14 @@ nav .btn.on { background: var(--accent); color: var(--on-accent); }
 nav .btn.icon { padding: 7px 9px; }
 .badge { position: absolute; top: -7px; right: -7px; min-width: 16px; padding: 0 4px; font: 700 10px/16px var(--font); text-align: center; background: var(--st-block); color: var(--on-danger); border: 2px solid var(--border); }
 
-.body { min-height: 0; display: flex; }
-.viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; touch-action: none; }
+.body { min-height: 0; display: flex; overflow: clip; }
+.viewport { position: relative; flex: 1; min-width: 0; overflow: clip; touch-action: none; }
 .viewport.space, .viewport.panning { cursor: grabbing; }
 .viewport.space :deep(.cpanel) { pointer-events: none; }
 /* Arrastrando o recorriendo: las páginas incrustadas (oficina, su versión) no se quedan con el puntero. */
 .viewport.busy :deep(iframe) { pointer-events: none; }
 .viewport.busy { user-select: none; }
-.world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform; }
+.world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
 .world.glide { transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1); }
 @media (prefers-reduced-motion: reduce) { .world.glide { transition: none; } }
 .hint { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); margin: 0; padding: 10px 14px; font-size: 12px; color: var(--text-secondary); background: var(--surface); border: 3px solid var(--border); }

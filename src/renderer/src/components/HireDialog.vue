@@ -38,7 +38,7 @@ watch(
   () => studio.proposal.map((s) => s.id).join(),
   (key) => {
     // Lo que ya ajustaste de esta misma propuesta se conserva aunque cierres el panel y vuelvas.
-    rows.value = kept?.key === key ? (kept.rows as Row[]) : studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, account: s.account ?? '', reason: s.reason }))
+    rows.value = kept?.key === key ? (kept.rows as Row[]) : studio.proposal.map((s) => ({ id: s.id, name: s.name, role: s.role, provider: s.provider, model: s.model ?? '', effort: s.effort, account: s.account ?? '', reason: s.reason, unattended: true }))
   },
   { immediate: true },
 )
@@ -84,7 +84,7 @@ function pickModel(r: Row, value: string) {
 const OTHER = '\u0000otro'
 
 function add() {
-  rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '' })
+  rows.value.push({ name: '', role: 'desarrollo', provider: first(), model: '', unattended: true })
 }
 
 async function approve() {
@@ -109,7 +109,7 @@ const staff = computed(() =>
     const slot = studio.board?.slots.find((s) => s.employeeId === m.id)
     // De quien ya no está, el contexto es el que llevaba al irse.
     const context = e ? studio.board?.context[m.id] ?? e.context : m.leftContext
-    return { ...m, look, out: !e, known: context !== undefined, context: Math.round(context ?? 0), effort: slot?.effort ?? e?.effort }
+    return { ...m, look, out: !e, known: context !== undefined, context: Math.round(context ?? 0), effort: slot?.effort ?? e?.effort, unattended: !!slot?.unattended }
   }),
 )
 // Filtros de los ya contratados: por área (su puesto) y por estado.
@@ -133,16 +133,16 @@ const bossRow = computed(() => {
 // Cambiar modelo y esfuerzo de quien ya trabaja: se elige en la fila y se aplica con su botón,
 // porque aplicar le pide su traspaso y lo hace entrar de nuevo.
 // La cuenta también: la elige el usuario, igual que al contratar ('' es la principal).
-interface Tune { provider: ProviderId; model: string; effort?: Effort; account: string; custom?: boolean }
-type Tunable = { id: string; provider: ProviderId; model?: string; effort?: Effort; account?: string }
+interface Tune { provider: ProviderId; model: string; effort?: Effort; account: string; unattended?: boolean; custom?: boolean }
+type Tunable = { id: string; provider: ProviderId; model?: string; effort?: Effort; account?: string; unattended?: boolean }
 const tunes = ref<Record<string, Tune>>({})
-const tuneOf = (m: Tunable): Tune => tunes.value[m.id] ?? { provider: m.provider, model: m.model ?? '', effort: m.effort, account: m.account ?? '' }
+const tuneOf = (m: Tunable): Tune => tunes.value[m.id] ?? { provider: m.provider, model: m.model ?? '', effort: m.effort, account: m.account ?? '', unattended: !!m.unattended }
 function edit(m: Tunable, patch: Partial<Tune>) {
   tunes.value = { ...tunes.value, [m.id]: { ...tuneOf(m), ...patch } }
 }
 const tuned = (m: Tunable) => {
   const t = tunes.value[m.id]
-  return !!t && (t.provider !== m.provider || t.model !== (m.model ?? '') || (t.effort ?? '') !== (m.effort ?? '') || t.account !== (m.account ?? ''))
+  return !!t && (t.provider !== m.provider || t.model !== (m.model ?? '') || (t.effort ?? '') !== (m.effort ?? '') || t.account !== (m.account ?? '') || !!t.unattended !== !!m.unattended)
 }
 function forget(m: Tunable) {
   const next = { ...tunes.value }
@@ -162,7 +162,7 @@ async function applyTune(m: Tunable) {
   const t = tunes.value[m.id]
   if (!t) return
   applying.value = m.id
-  const ok = await studio.retune(m.id, { provider: m.id === 'jefe' ? t.provider : undefined, model: t.model || undefined, effort: t.effort, account: t.account })
+  const ok = await studio.retune(m.id, { provider: m.id === 'jefe' ? t.provider : undefined, model: t.model || undefined, effort: t.effort, account: t.account, ...(m.id === 'jefe' ? {} : { unattended: !!t.unattended }) })
   applying.value = ''
   if (ok) forget(m)
 }
@@ -180,7 +180,7 @@ const subtitle = computed(() => {
     <template v-if="rows.length">
       <table class="tbl proposal">
         <thead>
-          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Motivo del jefe` }}</th><th>{{ T`Regla del expediente` }}</th><th /></tr>
+          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th class="yolo" :title="T`Trabaja sin pedirte permisos; lo prohibido de su manual sigue bloqueado. Lo decides tú, no el jefe.`">YOLO</th><th>{{ T`Motivo del jefe` }}</th><th>{{ T`Regla del expediente` }}</th><th /></tr>
         </thead>
         <tbody>
           <tr v-for="(r, i) in rows" :key="r.id ?? i" :class="rule(checks[i], r).kind">
@@ -219,6 +219,7 @@ const subtitle = computed(() => {
                 <option v-if="r.effort && !cliOf(r.provider)?.efforts?.includes(r.effort)" :value="r.effort">{{ T`${EFFORT_LABEL[r.effort].toLowerCase()} (no lo recibe)` }}</option>
               </select>
             </td>
+            <td class="yolo"><input v-model="r.unattended" type="checkbox" :title="T`Sin pedirte permisos`" /></td>
             <td class="dim why">{{ r.reason || '—' }}</td>
             <td class="rule">
               <span class="chip">{{ rule(checks[i], r).chip }}</span>
@@ -265,7 +266,7 @@ const subtitle = computed(() => {
       </div>
       <table class="tbl">
         <thead>
-          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th>{{ T`Estado` }}</th><th>{{ T`Contexto` }}</th><th /></tr>
+          <tr><th>{{ T`Nombre` }}</th><th>{{ T`Puesto` }}</th><th>{{ T`Proveedor` }}</th><th>{{ T`Modelo` }}</th><th>{{ T`Esf.` }}</th><th class="yolo" :title="T`Trabaja sin pedirte permisos; lo prohibido de su manual sigue bloqueado. Al aplicar, deja su traspaso y vuelve a entrar.`">YOLO</th><th>{{ T`Estado` }}</th><th>{{ T`Contexto` }}</th><th /></tr>
         </thead>
         <tbody>
           <!-- El jefe: se le cambia hasta el proveedor; aplicar lo releva (deja su traspaso y entra otro con lo nuevo). -->
@@ -298,6 +299,7 @@ const subtitle = computed(() => {
                 <option v-for="f in cliOf(tuneOf(bossRow).provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
               </select>
             </td>
+            <td class="yolo dim">—</td>
             <td><span class="chip" :style="{ color: `var(--st-${bossRow.look.color})` }">■ {{ bossRow.look.label }}</span></td>
             <td>
               <span v-if="bossRow.known" class="meter" :class="{ hot: bossRow.context >= (studio.board?.burnoutAt ?? 80) }"><i><b :style="{ width: `${bossRow.context}%` }" /></i>{{ bossRow.context }}%</span>
@@ -336,6 +338,10 @@ const subtitle = computed(() => {
                 <option v-for="f in cliOf(m.provider)?.efforts ?? []" :key="f" :value="f">{{ EFFORT_LABEL[f].toLowerCase() }}</option>
               </select>
             </td>
+            <td class="yolo" @click.stop>
+              <span v-if="m.gone" class="dim">{{ m.unattended ? '✓' : '—' }}</span>
+              <input v-else type="checkbox" :checked="tuneOf(m).unattended" :title="T`Sin pedirte permisos`" @change="edit(m, { unattended: ($event.target as HTMLInputElement).checked })" />
+            </td>
             <td>
               <span class="chip" :style="{ color: `var(--st-${m.look.color})` }">■ {{ m.gone ? T`Despedido` : m.look.label }}</span>
               <button v-if="m.out && !m.gone" class="btn back" :title="T`Su CLI se cerró: vuelve a abrirla en su misma oficina`" @click.stop="studio.bringBack(m.id)">{{ T`Traer de vuelta` }}</button>
@@ -358,6 +364,8 @@ const subtitle = computed(() => {
 </template>
 
 <style scoped>
+.yolo { text-align: center; font-weight: 700; }
+.yolo input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 .proposal tr.warn td { background: var(--tint-warn); }
 .proposal tr.no td { background: var(--tint-danger); }
 .name { display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--surface); border: 2px solid var(--border-light); width: 112px; }

@@ -207,7 +207,7 @@ export const useCanvas = defineStore('canvas', () => {
 
   /** De qué panel sale uno nuevo: la gente junto a la oficina, su versión junto a su panel. */
   function anchorOf(kind: PanelKind, ref?: string): Rect | undefined {
-    const from = kind === 'version' && ref ? get(panelId('employee', ref)) : kind === 'employee' ? get('office') : undefined
+    const from = kind === 'version' && ref ? get(panelId('employee', ref)) : kind === 'employee' ? get('office') : kind === 'errand' ? get('tasks') : undefined
     return from ? shapeOf(from) : undefined
   }
 

@@ -76,6 +76,8 @@ export async function fetchManifest(url = MANIFEST_URL, fetcher: typeof fetch = 
   } catch {
     throw new RuleError(T`No se pudo consultar el editor de Trazo: revisa tu conexión.`)
   }
+  // 404: la última versión de Trazo no trae el editor para Orquest (aún no lo publica).
+  if (res.status === 404) throw new RuleError(T`Trazo todavía no publica el editor para Orquest. Prueba más tarde.`)
   if (!res.ok) throw new RuleError(T`No se pudo consultar el editor de Trazo (${res.status}).`)
   return parseManifest(await res.json().catch(() => null))
 }

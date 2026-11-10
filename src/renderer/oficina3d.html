@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orquest AI · oficina 3D</title>
+<!-- Las texturas (letreros, piso, pizarrones) se dibujan en un canvas: no se carga nada de fuera. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:">
+<link rel="stylesheet" href="oficina3d/estilos.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="c" tabindex="0"></canvas>
+  <div id="plates"></div>
+  <div id="err" hidden></div>
+  <div class="hud">
+    <div class="top">
+      <div class="box brand"><h1 id="tTitle"></h1><p id="clock"></p></div>
+      <div class="box cam">
+        <button id="rotL">⟲</button><button id="rotR">⟳</button><button id="zOut">−</button><button id="zIn">+</button>
+      </div>
+    </div>
+    <div class="bottom">
+      <aside class="box" id="card" hidden aria-live="polite">
+        <div class="tx"><h2><span class="badge" id="cBadge"></span><span id="cName"></span></h2><div class="r" id="cRole"></div><div class="s" id="cStatus"></div><div class="k" id="cTask"></div></div>
+        <button id="cClose">✕</button>
+      </aside>
+      <div class="box" id="ticker" hidden></div>
+      <div class="box bar" id="demoBar">
+        <span class="demo" id="tDemo"></span>
+        <button id="fast" aria-pressed="false"></button>
+        <label><span id="tHour"></span><select id="hour"></select></label>
+        <label><span id="tEmp"></span><button id="empLess">−</button><output id="empN"></output><button id="empMore">+</button></label>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="oficina3d/main.js"></script>
+</body>
+</html>

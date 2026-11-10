@@ -4,10 +4,11 @@
  * valores y van también en la traducción. Un archivo por grupo de pantallas.
  */
 import biblioteca from './en/biblioteca'
+import historial from './en/historial'
 import empleado from './en/empleado'
 import jefe from './en/jefe'
 import oficina from './en/oficina'
 
-const en: Record<string, string> = { ...oficina, ...jefe, ...empleado, ...biblioteca }
+const en: Record<string, string> = { ...oficina, ...jefe, ...empleado, ...biblioteca, ...historial }
 
 export default en

@@ -39,7 +39,7 @@ import { existsSync } from 'node:fs'
 import { basename, extname, isAbsolute, normalize, sep } from 'node:path'
 import { hostname } from 'node:os'
 import { headOf, officeChanges, officeDiff, repoRoot } from '../core/worktree.js'
-import type { BossRequest, SlotEdit } from '../shared/ipc.js'
+import type { BossRequest, ErrandRequest, SlotEdit } from '../shared/ipc.js'
 
 /**
  * Cada proyecto tiene sus propias terminales: los ids se repiten entre proyectos
@@ -301,6 +301,29 @@ handle('task:merge', async (id: string) => void (await studio().merge(id)))
 handle('task:return', (id: string, notes: string) => studio().userReturn(id, notes))
 handle('task:discard', (id: string, reason?: string) => studio().discard(id, reason))
 handle('task:diff', (id: string) => studio().diff(id))
+handle('project:branches', (repo?: string) => studio().branches(repo))
+handle('errand:create', (req: ErrandRequest) => studio().createErrand(req))
+handle('errand:say', (id: string, text: string) => studio().errandSay(id, text))
+handle('errand:stop', (id: string) => studio().stopErrand(id))
+handle('errand:approve', (id: string) => studio().approveErrand(id))
+handle('errand:discard', (id: string) => studio().discardErrand(id))
+handle('errand:changes', (id: string) => studio().errandChanges(id))
+handle('errand:diff', (id: string, path?: string) => studio().errandDiff(id, path))
+// Historial: grafo, integraciones, PR (con gh o glab del usuario) y copias de trabajo. `repo` es el nombre del repositorio si el proyecto agrupa varios.
+handle('history:graph', (repo?: string) => studio().history(repo))
+handle('history:files', (repo: string | undefined, sha: string) => studio().historyFiles(repo, sha))
+handle('history:diff', (repo: string | undefined, sha: string) => studio().historyDiff(repo, sha))
+handle('history:forge', (repo?: string, refresh?: boolean) => studio().forge(repo, !!refresh))
+handle('history:revert', (repo: string | undefined, sha: string) => studio().revertIntegration(repo, sha))
+handle('history:create-pr', (repo: string | undefined, sha: string) => studio().createPullRequest(repo, sha))
+handle('history:worktrees', (repo?: string) => studio().worktrees(repo))
+handle('history:worktree-size', (path: string) => studio().worktreeSize(path))
+handle('history:worktree-release', (path: string) => studio().releaseWorktree(path))
+// Solo carpetas que git lista como copias de trabajo del proyecto.
+handle('history:worktree-open', async (path: string) => {
+  const error = await shell.openPath(await studio().worktreeAt(path))
+  if (error) throw new Error(error)
+})
 
 handle('library:get', () => {
   // Un expediente por proveedor, más los que el usuario haya hecho por modelo.
@@ -331,7 +354,7 @@ handle('employee:fire', (id: string) => {
 handle('employee:review', (id: string) => studio().requestReview(id))
 handle('employee:review-stop', (id: string) => studio().stopReview(id))
 handle('boss:team-approval', (on: boolean) => studio().setTeamApproval(on))
-handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string }) => studio().retune(id, change))
+handle('employee:retune', (id: string, change: { provider?: ProviderId; model?: string; effort?: Effort; account?: string; unattended?: boolean }) => studio().retune(id, change))
 // El descanso tarda lo que tarda el traspaso; la UI no espera a que termine.
 handle('employee:say', (id: string, text: string) => studio().say(id, text))
 handle('employee:back', (id: string) => studio().bringBack(id))

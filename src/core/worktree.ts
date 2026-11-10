@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
-import { access, lstat, appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { access, lstat, appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { dirname, join, normalize } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
@@ -39,11 +39,10 @@ export async function repoRoot(dir: string): Promise<string> {
  * que el usuario dio al repo (Claude Code no vuelve a preguntar) y queda fuera
  * de git con `.git/info/exclude`, sin tocar el .gitignore del proyecto.
  */
-export async function createOffice(repo: string, employeeId: string, base = 'HEAD'): Promise<Office> {
+export async function createOffice(repo: string, employeeId: string, base = 'HEAD', branch = `orquest/${employeeId}`): Promise<Office> {
   const root = await repoRoot(repo)
   await excludeOrquest(root)
   const path = join(root, '.orquest', 'oficinas', employeeId)
-  const branch = `orquest/${employeeId}`
   await mkdir(dirname(path), { recursive: true })
   const sha = await git(root, 'rev-parse', base)
   await git(root, 'worktree', 'add', '-b', branch, path, sha)
@@ -198,9 +197,11 @@ export interface FileChange {
 
 /** Archivos tocados en la oficina (git status --porcelain), para el drawer. */
 export async function officeChanges(office: Office): Promise<FileChange[]> {
-  const out = await git(office.path, 'status', '--porcelain', '--untracked-files=all')
-  return out
-    .split('\n')
+  // Sin recortar el principio: el primer renglón empieza con espacio (« M api.ts») y, recortado, perdía la primera letra del archivo.
+  await git(office.path, 'rev-parse', '--git-dir')
+  const { stdout } = await run('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: office.path })
+  return stdout
+    .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => ({ status: line.slice(0, 2).trim(), path: line.slice(3) }))
 }
@@ -308,7 +309,177 @@ export async function forkPoint(office: Office, commit: string, main?: string): 
   return sinceMain(office, commit, main)
 }
 
-export type MergeResult = { ok: true; commit: string } | { ok: false; conflicts: string[]; reason: string }
+export interface WorktreeInfo {
+  path: string
+  /** Commit en que está. */
+  head: string
+  /** Rama que tiene sacada (sin `refs/heads/`); sin ella está en un commit suelto. */
+  branch?: string
+  bare?: boolean
+  locked?: boolean
+  /** Git la sigue apuntando pero su carpeta ya no está. */
+  prunable?: boolean
+}
+
+/** Pasa la salida de `git worktree list --porcelain` a una lista. */
+export function parseWorktrees(out: string): WorktreeInfo[] {
+  const list: WorktreeInfo[] = []
+  for (const block of out.split(/\r?\n\r?\n/)) {
+    const lines = block.split(/\r?\n/).filter(Boolean)
+    const path = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length)
+    if (!path) continue
+    const w: WorktreeInfo = { path, head: lines.find((l) => l.startsWith('HEAD '))?.slice(5) ?? '' }
+    const branch = lines.find((l) => l.startsWith('branch '))?.slice('branch '.length)
+    if (branch) w.branch = branch.replace(/^refs\/heads\//, '')
+    if (lines.includes('bare')) w.bare = true
+    if (lines.some((l) => l === 'locked' || l.startsWith('locked '))) w.locked = true
+    if (lines.some((l) => l === 'prunable' || l.startsWith('prunable '))) w.prunable = true
+    list.push(w)
+  }
+  return list
+}
+
+/** Todas las copias de trabajo (worktrees) del repositorio de `repo`, las haya hecho Orquest o no. La primera es la principal. */
+export async function listWorktrees(repo: string): Promise<WorktreeInfo[]> {
+  // En Windows git da las rutas con «/»: se pasan a las del sistema para compararlas con las nuestras.
+  return parseWorktrees(await git(repo, 'worktree', 'list', '--porcelain')).map((w) => ({ ...w, path: normalize(w.path) }))
+}
+
+/** Cuántos commits lleva `branch` que `base` no tiene (adelante) y al revés (atrás). */
+export async function aheadBehind(repo: string, base: string, branch: string): Promise<{ ahead: number; behind: number } | undefined> {
+  const out = await git(repo, 'rev-list', '--left-right', '--count', `${base}...${branch}`).catch(() => '')
+  const [behind, ahead] = out.split(/\s+/).map(Number)
+  return out ? { ahead: ahead || 0, behind: behind || 0 } : undefined
+}
+
+/** Cuántos archivos tiene sin commit una copia de trabajo (también los nuevos). */
+export async function dirtyCount(path: string): Promise<number> {
+  return (await git(path, 'status', '--porcelain', '--untracked-files=all')).split('\n').filter(Boolean).length
+}
+
+/**
+ * Cuánto pesa una carpeta en disco, contando todo (también lo que git ignora:
+ * dependencias, compilados). Recorre con E/S asíncrona y de a poco, para no
+ * trabar la app; no sigue enlaces. Lo que no se puede leer no cuenta.
+ */
+export async function diskSize(dir: string, opts: { concurrency?: number } = {}): Promise<number> {
+  const pending = [dir]
+  let total = 0
+  const limit = opts.concurrency ?? 16
+  const worker = async () => {
+    for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+      const entries = await readdir(next, { withFileTypes: true }).catch(() => [])
+      for (const e of entries) {
+        const full = join(next, e.name)
+        if (e.isDirectory()) pending.push(full)
+        else if (!e.isSymbolicLink()) total += await lstat(full).then((s) => s.size, () => 0)
+      }
+    }
+  }
+  // Varios recorriendo a la vez; cuando uno se queda sin carpetas, los demás pueden seguir sumando.
+  for (;;) {
+    const before = pending.length
+    if (!before) break
+    await Promise.all(Array.from({ length: Math.min(limit, before) }, worker))
+  }
+  return total
+}
+
+export type MergeResult ={ ok: true; commit: string } | { ok: false; conflicts: string[]; reason: string }
+
+/** Ramas locales del repositorio y cuál está abierta en su carpeta. */
+export async function listBranches(repo: string): Promise<{ branches: string[]; current: string }> {
+  const root = await repoRoot(repo)
+  const out = await git(root, 'for-each-ref', '--format=%(refname:short)', 'refs/heads/')
+  const current = await git(root, 'rev-parse', '--abbrev-ref', 'HEAD').catch(() => '')
+  return { branches: out.split('\n').filter(Boolean), current }
+}
+
+/** true si la rama existe en el repositorio. */
+export async function branchExists(repo: string, branch: string): Promise<boolean> {
+  return git(repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`).then(() => true, () => false)
+}
+
+/** En qué carpeta está abierta una rama (la del proyecto o un worktree); undefined si en ninguna. */
+async function checkedOutAt(root: string, branch: string): Promise<string | undefined> {
+  const out = await git(root, 'worktree', 'list', '--porcelain')
+  let path: string | undefined
+  for (const line of out.split('\n')) {
+    if (line.startsWith('worktree ')) path = normalize(line.slice(9).trimEnd())
+    else if (line === `branch refs/heads/${branch}` && path) return path
+  }
+  return undefined
+}
+
+/**
+ * Archivos que toca una rama respecto de la rama de la que salió: lo que ya
+ * tiene en commits más lo que hay sin guardar en su carpeta. Sirve para ver si
+ * dos tareas se pisan.
+ */
+export async function branchFiles(office: Office, base: string): Promise<string[]> {
+  const fork = await git(office.path, 'merge-base', base, 'HEAD').catch(() => office.base ?? '')
+  const committed = fork ? (await git(office.path, 'diff', '--name-only', fork, 'HEAD').catch(() => '')).split('\n') : []
+  const pending = (await officeChanges(office).catch(() => [])).map((c) => c.path.replace(/^.* -> /, ''))
+  return [...new Set([...committed, ...pending].filter(Boolean))]
+}
+
+/**
+ * Integra `source` en `target` con merge `--no-ff`, aunque `target` no sea la
+ * rama abierta en la carpeta del proyecto: se integra donde esté abierta (si
+ * está limpia) o, si no está abierta en ninguna, en una carpeta de paso que se
+ * quita al terminar. `before` corre con la integración a medias, antes del
+ * commit (p. ej. para anotar el registro de cambios) y devuelve los archivos
+ * que tocó, que entran en el mismo commit. Si hay conflicto, aborta y no deja
+ * nada a medias.
+ */
+export async function mergeInto(repo: string, target: string, source: string, message: string, before?: (dir: string) => Promise<string[]>): Promise<MergeResult> {
+  const root = await repoRoot(repo)
+  let dir = await checkedOutAt(root, target)
+  let temp = false
+  if (dir) {
+    const dirty = await git(dir, 'status', '--porcelain', '--untracked-files=no')
+    if (dirty) return { ok: false, conflicts: [], reason: T`La rama ${target} tiene cambios sin commit en ${dir}; guárdalos antes de integrar.` }
+  } else {
+    await excludeOrquest(root)
+    dir = join(root, '.orquest', 'integrar', `${target.replace(/[^\w.-]+/g, '-')}-${Date.now().toString(36)}`)
+    await mkdir(dirname(dir), { recursive: true })
+    await git(root, 'worktree', 'add', dir, target)
+    temp = true
+  }
+  const as = ['-c', 'user.name=Orquest', '-c', 'user.email=orquest@localhost']
+  try {
+    try {
+      await run('git', [...as, 'merge', '--no-ff', '--no-commit', source], { cwd: dir })
+    } catch {
+      const conflicts = (await git(dir, 'diff', '--name-only', '--diff-filter=U').catch(() => '')).split('\n').filter(Boolean)
+      await git(dir, 'merge', '--abort').catch(() => {})
+      return {
+        ok: false,
+        conflicts,
+        reason: conflicts.length ? T`Conflicto al integrar ${source} en ${target}: ${conflicts.join(', ')}.` : T`Conflicto al integrar ${source} en ${target}.`,
+      }
+    }
+    // Sin MERGE_HEAD no hubo nada que unir: la rama ya estaba en la de destino.
+    const merging = await git(dir, 'rev-parse', '--verify', '--quiet', 'MERGE_HEAD').then(() => true, () => false)
+    if (!merging) return { ok: false, conflicts: [], reason: T`${source} no trae nada que ${target} no tenga.` }
+    try {
+      const touched = before ? await before(dir) : []
+      if (touched.length) await git(dir, 'add', '--', ...touched)
+      await run('git', [...as, 'commit', '-q', '--no-verify', '-m', message], { cwd: dir })
+    } catch (err) {
+      await git(dir, 'merge', '--abort').catch(() => {})
+      return { ok: false, conflicts: [], reason: (err as Error).message }
+    }
+    return { ok: true, commit: await git(dir, 'rev-parse', 'HEAD') }
+  } finally {
+    if (temp) await removeOffice(root, { path: dir }, true).catch(() => {})
+  }
+}
+
+/** Borra una rama local (la de una tarea cerrada). */
+export async function deleteBranch(repo: string, branch: string): Promise<void> {
+  await git(await repoRoot(repo), 'branch', '-D', branch)
+}
 
 /**
  * Integra la rama de un empleado en la rama actual del repo principal. Si hay
@@ -332,4 +503,41 @@ export async function mergeOffice(repo: string, office: Office, message: string)
       reason: conflicts.length ? T`Conflicto al integrar ${office.branch}: ${conflicts.join(', ')}.` : T`Conflicto al integrar ${office.branch}.`,
     }
   }
+}
+
+/** Desde dónde se mide una rama: donde se separó de `base` (o el commit del que partió su oficina). */
+async function forkOf(office: Office, base: string): Promise<string> {
+  return git(office.path, 'merge-base', base, 'HEAD').catch(() => office.base ?? 'HEAD')
+}
+
+/**
+ * Lo que una rama cambia respecto de la rama de la que salió: lo que ya tiene en commits y lo que
+ * hay sin guardar en su carpeta, con líneas agregadas y quitadas por archivo.
+ */
+export async function branchChanges(office: Office, base: string): Promise<(FileChange & { added: number; removed: number })[]> {
+  const fork = await forkOf(office, base)
+  const { stdout: numstat } = await run('git', ['diff', '--numstat', fork], { cwd: office.path })
+  const { stdout: names } = await run('git', ['diff', '--name-status', fork], { cwd: office.path })
+  const status = new Map(names.split(/\r?\n/).filter(Boolean).map((l) => { const [s, ...p] = l.split('\t'); return [p.at(-1)!, s[0]] as const }))
+  const out = numstat.split(/\r?\n/).filter(Boolean).map((l) => {
+    const [a, r, ...p] = l.split('\t')
+    const path = p.join('\t').replace(/^.*\{.* => (.*)\}.*$/, '$1')
+    return { status: status.get(path) ?? 'M', path, added: Number(a) || 0, removed: Number(r) || 0 }
+  })
+  // Los archivos nuevos que todavía no están en git no salen en el diff.
+  for (const c of await officeChanges(office)) {
+    if (c.status !== '??') continue
+    const text = await readFile(join(office.path, c.path), 'utf8').catch(() => '')
+    out.push({ status: 'A', path: c.path, added: text ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0, removed: 0 })
+  }
+  return out
+}
+
+/** El diff de una rama (o de uno de sus archivos) contra la rama de la que salió, con lo no guardado. */
+export async function branchDiff(office: Office, base: string, path?: string): Promise<string> {
+  const fork = await forkOf(office, base)
+  const tracked = (await run('git', ['diff', fork, ...(path ? ['--', path] : [])], { cwd: office.path })).stdout
+  const untracked = (await officeChanges(office)).filter((c) => c.status === '??' && (!path || c.path === path))
+  const extra = await Promise.all(untracked.map((c) => officeDiff(office, c.path)))
+  return [tracked.trimEnd(), ...extra].filter(Boolean).join('\n')
 }
