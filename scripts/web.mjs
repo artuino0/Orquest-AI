@@ -41,7 +41,7 @@ console.log(`Oficina de demostración al día en ${out}`)
 // ── La página en inglés (web/en/index.html): la misma de web/index.html con sus textos
 // cambiados por los de scripts/web-en.mjs. Si un texto se queda sin inglés, falla aquí.
 const { EN, IGUALES } = await import('./web-en.mjs')
-const URL_ES = 'https://orquest.dydasites.com/'
+const URL_ES = 'https://orquest.dydasoftware.com/'
 const es = (await readFile(resolve('web/index.html'), 'utf8')).replace(/\r\n/g, '\n')
 let en = es
   .replace('<html lang="es">', '<html lang="en">')

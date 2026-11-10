@@ -118,7 +118,7 @@ import ThemeToggle from './ThemeToggle.vue'
 <template>
   <div class="home">
     <div class="theme-corner">
-      <button class="btn support" :title="T`Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.`" @click="openLink(`https://orquest.dydasites.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`)"><Heart />{{ T`Apoyar` }}</button>
+      <button class="btn support" :title="T`Orquest AI es gratis. Si te sirve, puedes invitar un café o reservar una asesoría.`" @click="openLink(`https://orquest.dydasoftware.com/${getLang() === 'en' ? 'en/' : ''}#apoyo`)"><Heart />{{ T`Apoyar` }}</button>
       <LangToggle /><ThemeToggle />
     </div>
     <section class="left">
