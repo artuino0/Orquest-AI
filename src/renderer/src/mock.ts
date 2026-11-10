@@ -155,6 +155,24 @@ export function installMock(caso: string) {
     returnTask: todo('entregas'),
     discardTask: todo('entregas'),
     taskDiff: async () => '',
+    branches: async () => ({ branches: ['main', 'develop'], current: 'main' }),
+    createErrand: todo('tareas'),
+    errandSay: todo('tareas'),
+    stopErrand: todo('tareas'),
+    approveErrand: todo('tareas'),
+    discardErrand: todo('tareas'),
+    errandChanges: async () => [],
+    errandDiff: async () => '',
+    history: async () => ({ repos: [], repo: '', branch: 'main', width: 1, rows: [], integrations: [], owners: {} }),
+    historyFiles: async () => [],
+    historyDiff: async () => '',
+    forge: async () => ({ kind: null, state: 'no-remote', prs: [] }),
+    revertIntegration: todo('historial'),
+    createPullRequest: todo('historial'),
+    worktrees: async () => [],
+    worktreeSize: async () => 0,
+    openWorktree: async () => {},
+    releaseWorktree: todo('historial'),
     library: async () => ({ dossiers: [], manuals: [] }),
     saveDossier: async () => {},
     saveManual: async () => {},
@@ -199,7 +217,12 @@ export function installMock(caso: string) {
     trazoRespond: async () => {},
     trazoStatus: async () => ({ url: '', error: null, sessions: [] }),
     onTrazoSessions: nothing,
-    trazoOffer: async () => ({ version: '0.2.8', bytes: 6_100_000, compatible: true, newer: true }),
+    // ?trazo=404: como si Trazo aún no publicara el editor (tarda un poco, para ver «Consultando…»).
+    trazoOffer: async () => {
+      if (new URLSearchParams(location.search).get('trazo') !== '404') return { version: '0.2.8', bytes: 6_100_000, compatible: true, newer: true }
+      await new Promise((r) => setTimeout(r, 1500))
+      throw new Error('Trazo todavía no publica el editor para Orquest. Prueba más tarde.')
+    },
     trazoInstall: async () => Promise.reject(new Error('La vista previa no baja el editor.')),
     onTrazoProgress: nothing,
     journal: async () => '',

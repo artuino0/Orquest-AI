@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { AlertTriangle, ChevronDown, ChevronRight, Crown, GitMerge, Inbox, Trash2, Undo2 } from 'lucide-vue-next'
 import { useStudio } from '../stores/studio'
 import { qaOf } from './taskLabels'
+import { diffMark, parseDiff } from '../diff'
 import PanelFrame from './PanelFrame.vue'
 import { T } from '../../../core/i18n'
 
@@ -70,25 +71,8 @@ const askBoss = (id: string) => studio.sayToBoss(T`No se pudo integrar ${id}: ${
 
 const member = (id: string) => studio.board?.staff.find((m) => m.id === id)
 const cli = (id: string) => studio.clis.find((c) => c.id === member(id)?.provider)?.name ?? member(id)?.provider ?? ''
-/** El diff partido por archivo, con sus cuentas. */
-function parse(text: string) {
-  const files: { name: string; lines: string[] }[] = []
-  let added = 0
-  let removed = 0
-  for (const l of text.split('\n')) {
-    const head = /^diff --git a\/(.+?) b\//.exec(l)
-    if (head) files.push({ name: head[1], lines: [] })
-    else if (/^(index |--- |\+\+\+ |new file|deleted file|similarity|rename )/.test(l)) continue
-    else if (files.length) {
-      files.at(-1)!.lines.push(l)
-      if (l.startsWith('+')) added++
-      else if (l.startsWith('-')) removed++
-    }
-  }
-  return { files, added, removed }
-}
-const parsed = computed(() => (open.value ? parse(diffs.value[open.value] ?? '') : null))
-const mark = (l: string) => (l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '')
+const parsed = computed(() => (open.value ? parseDiff(diffs.value[open.value] ?? '') : null))
+const mark = diffMark
 const count = computed(() => studio.inbox.length)
 const subtitle = computed(() => {
   const n = count.value

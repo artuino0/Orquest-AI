@@ -12,8 +12,8 @@ export default defineConfig({
     build: {
       // Los sprites van como archivo: la CSP no deja cargar imágenes incrustadas (data:).
       assetsInlineLimit: 0,
-      // Dos páginas: la app y la oficina de píxel, que la app muestra en un marco.
-      rollupOptions: { input: { index: resolve('src/renderer/index.html'), oficina: resolve('src/renderer/oficina.html') } },
+      // Tres páginas: la app y las dos oficinas (de píxel y 3D), que la app muestra en un marco.
+      rollupOptions: { input: { index: resolve('src/renderer/index.html'), oficina: resolve('src/renderer/oficina.html'), oficina3d: resolve('src/renderer/oficina3d.html') } },
     },
   },
 })

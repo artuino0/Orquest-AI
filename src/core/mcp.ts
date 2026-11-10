@@ -21,8 +21,9 @@ const PROVIDERS = ['claude', 'codex', 'antigravity', 'opencode', 'commandcode', 
 const roles = () => T`desarrollo, backend, frontend, dba, infra, qa, diseno, arquitecto o seguridad`
 
 interface ToolDef {
-  who: Caller['kind'] | 'both'
-  /** Solo para empleados de este puesto. */
+  /** Quién la ve: 'both' es jefe y empleados; una lista, cada uno de esos. */
+  who: Caller['kind'] | 'both' | readonly Caller['kind'][]
+  /** Solo para empleados de este puesto (no aplica a las Tareas). */
   role?: string
   readonly description: string
   readonly input: z.ZodRawShape
@@ -77,7 +78,7 @@ export const TOOLS: Record<string, ToolDef> = {
   asignar_tarea: {
     who: 'boss',
     get description() {
-      return T`Crea una tarea para un empleado, con dependencias. Con tarea_id cambia el responsable o las dependencias de una existente. Rechaza dependencias circulares.`
+      return T`Crea una tarea para un empleado, con dependencias. Con tarea_id y empleado se la pasas a otro (también las de alguien que se fue); con tarea_id y depende_de cambias sus dependencias. Rechaza dependencias circulares.`
     },
     get input() {
       return {
@@ -88,6 +89,15 @@ export const TOOLS: Record<string, ToolDef> = {
         depende_de: z.array(z.string()).optional().describe(T`Ids de tareas que deben integrarse antes`),
         tarea_id: z.string().optional().describe(T`Para modificar una tarea existente`),
       }
+    },
+  },
+  cancelar_tarea: {
+    who: 'boss',
+    get description() {
+      return T`Cancela una tarea que ya no hace falta (aún sin entregar), también una revisión de QA. Quien dependía de ella deja de esperarla. Una entrega no se cancela: se regresa o la descarta el usuario.`
+    },
+    get input() {
+      return { tarea: z.string().describe(T`Id de la tarea, p. ej. T12`), motivo: z.string().optional().describe(T`Por qué ya no hace falta`) }
     },
   },
   decir_al_usuario: {
@@ -237,7 +247,7 @@ export const TOOLS: Record<string, ToolDef> = {
     },
   },
   responder_al_usuario: {
-    who: 'employee',
+    who: ['employee', 'errand'],
     role: 'diseno',
     get description() {
       return T`Le contestas al usuario en el chat del Estudio: qué hiciste, qué decidiste o qué necesitas de él. No ve tu terminal: es lo único que lee de ti.`
@@ -247,7 +257,7 @@ export const TOOLS: Record<string, ToolDef> = {
     },
   },
   leer_diseno: {
-    who: 'both',
+    who: ['boss', 'employee', 'errand'],
     get description() {
       return T`Lee el diseño del proyecto (Trazo). Sin campos: páginas, pantallas, componentes y variables (colores y medidas). Con pagina: el árbol de esa página, un renglón por nodo con su id. Con nodo: todo lo de ese nodo y sus hijos (medidas, acomodo, rellenos, tipografía, textos). Construye a partir de esto, no de capturas ni al tanteo.`
     },
@@ -255,6 +265,27 @@ export const TOOLS: Record<string, ToolDef> = {
       return {
         pagina: z.string().optional().describe(T`Id o nombre de la página`),
         nodo: z.string().optional().describe(T`Id del nodo, como sale en el árbol`),
+      }
+    },
+  },
+  contar_avance: {
+    who: 'errand',
+    get description() {
+      return T`Una línea al chat del usuario con lo que hiciste o encontraste. Una por paso importante, no por archivo ni por comando. Él no ve tu terminal.`
+    },
+    get input() {
+      return { texto: z.string().describe(T`Una línea`) }
+    },
+  },
+  tarea_lista: {
+    who: 'errand',
+    get description() {
+      return T`Avisa que terminaste la tarea para que el usuario la revise. La app guarda tus cambios en tu rama; al aprobarla, la une a la rama de origen con tu línea en el registro de cambios.`
+    },
+    get input() {
+      return {
+        registro: z.string().describe(T`Una frase para el registro de cambios: qué cambia para quien usa el proyecto`),
+        resumen: z.string().describe(T`Qué hiciste y cómo probarlo, breve`),
       }
     },
   },
@@ -276,8 +307,8 @@ export const TOOLS: Record<string, ToolDef> = {
 function buildServer(studio: Studio, caller: Caller): McpServer {
   const server = new McpServer({ name: 'orquest', version: '0.2.0' })
   for (const [name, def] of Object.entries(TOOLS)) {
-    if (def.who !== 'both' && def.who !== caller.kind) continue
-    if (def.role && (caller.kind !== 'employee' || studio.board.staff.find((m) => m.id === caller.id)?.role !== def.role)) continue
+    if (!visible(def, caller)) continue
+    if (def.role && caller.kind === 'employee' && studio.board.staff.find((m) => m.id === caller.id)?.role !== def.role) continue
     server.registerTool(name, { description: def.description, inputSchema: def.input }, async (args: Record<string, unknown>) => {
       try {
         const text = await studio.call(caller, name, args ?? {})
@@ -298,12 +329,13 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : undefined
 }
 
-const visible = (def: ToolDef, caller: Caller) => def.who === 'both' || def.who === caller.kind
+const visible = (def: ToolDef, caller: Caller) =>
+  def.who === 'both' ? caller.kind !== 'errand' : Array.isArray(def.who) ? def.who.includes(caller.kind) : def.who === caller.kind
 
 /** Quién es esta terminal y qué herramientas tiene: lo que imprime `orquest ayuda`. */
 function cliWhoAmI(caller: Caller) {
   return {
-    quien: caller.kind === 'boss' ? 'jefe' : 'empleado',
+    quien: caller.kind === 'boss' ? 'jefe' : caller.kind === 'errand' ? 'tarea' : 'empleado',
     id: caller.kind === 'boss' ? 'jefe' : caller.id,
     herramientas: Object.entries(TOOLS)
       .filter(([, def]) => visible(def, caller))

@@ -74,7 +74,8 @@ export function officeState(input: OfficeInput): OfficeState {
   const people: OfficePerson[] = []
   const activities: Record<string, OfficeActivity> = {}
   for (const e of input.employees) {
-    if (e.state === 'exited') continue
+    // Las Tareas no tienen personaje: no entran a la oficina.
+    if (e.state === 'exited' || e.role === 'tarea') continue
     const hint = input.hints[e.id]?.state
     let status: OfficeStatus = 'idle'
     // Descansando (se está reiniciando) cuenta como libre, haga lo que haga su terminal.

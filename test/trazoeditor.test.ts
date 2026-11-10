@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { HOST_API, installedEditor, installEditor, offerFor, parseManifest, verifyMinisign, type EditorManifest } from '../src/core/trazoeditor.js'
+import { fetchManifest, HOST_API, installedEditor, installEditor, offerFor, parseManifest, verifyMinisign, type EditorManifest } from '../src/core/trazoeditor.js'
 import { zip } from './trazozip.js'
 
 /** Una llave de minisign de prueba, con la forma en que Tauri da llave y firmas (el archivo entero en base64). */
@@ -49,6 +49,15 @@ describe('editor de Trazo opcional', () => {
     expect(() => parseManifest({ ...ok, version: '../x' })).toThrow(/no es válido/)
     expect(offerFor(parseManifest(ok), null)).toEqual({ version: '0.2.8', bytes: 1500000, compatible: true, newer: true })
     expect(offerFor(parseManifest({ ...ok, hostApi: HOST_API + 1 }), { version: '0.2.8', root: '' })).toMatchObject({ compatible: false, newer: false })
+  })
+
+  it('consultar: sin manifiesto publicado lo dice claro; otro error, con su código; sin red, que revises la conexión', async () => {
+    const ok = { version: '0.5.2', hostApi: 1, url: 'https://x/y.zip', sha256: 'b'.repeat(64), firma: 'f' }
+    const answer = (status: number, body: unknown = {}) => (async () => new Response(JSON.stringify(body), { status })) as typeof fetch
+    await expect(fetchManifest('https://x/m.json', answer(404))).rejects.toThrow(/todavía no publica el editor/)
+    await expect(fetchManifest('https://x/m.json', answer(503))).rejects.toThrow(/\(503\)/)
+    await expect(fetchManifest('https://x/m.json', (async () => { throw new Error('offline') }) as typeof fetch)).rejects.toThrow(/conexión/)
+    await expect(fetchManifest('https://x/m.json', answer(200, ok))).resolves.toMatchObject({ version: '0.5.2' })
   })
 
   it('se baja, se revisa y queda como el actual; la versión anterior se quita', async () => {

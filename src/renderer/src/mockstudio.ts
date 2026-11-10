@@ -8,9 +8,10 @@
  *   /preview.html?proyecto=1&jefe=0       oficina vacía, sin jefe
  *   /preview.html?proyecto=1&rapido=1     todo cinco veces más rápido
  */
-import type { DossierView, Employee, EmployeeState, Manual, OrquestApi, ProviderId, Role, Slot, StudioSnapshot, Task } from '../../shared/ipc'
+import type { DossierView, Employee, EmployeeState, Errand, ErrandChange, Manual, OrquestApi, ProviderId, Role, Slot, StudioSnapshot, Task } from '../../shared/ipc'
 import { defaultManual } from '../../core/library'
 import { dockEntry } from '../../core/dock'
+import { mockHistory } from './mockhistory'
 
 export const MOCK_REPO = 'E:\\desarrollo\\tienda-en-linea'
 
@@ -118,6 +119,73 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   let reviews: NonNullable<StudioSnapshot['reviews']> = []
   /** Quiénes van llegando (su terminal arrancando). */
   const arriving = new Set<string>()
+
+  // ── Tareas de ejemplo: una lista para revisar, una trabajando y una cerrada ──
+  const ago = (min: number) => Date.now() - min * 60_000
+  const errands: Errand[] = [
+    {
+      id: 'tarea-boton-estudio', title: 'Botón de Estudio se queda en «Consultando»', brief: 'El botón de Descargar se queda en «Consultando Trazo…» cuando la consulta falla. Que diga que no está disponible.',
+      kind: 'fix', provider: 'claude', model: 'opus', base: 'main', branch: 'fix/boton-estudio-404', status: 'ready', createdAt: ago(25),
+      office: { path: `${MOCK_REPO}\\.orquest\\oficinas\\tarea-boton-estudio`, branch: 'fix/boton-estudio-404' },
+      changelog: 'El botón de Estudio ya no se queda en «Consultando Trazo…» cuando la consulta falla.',
+      log: [
+        { at: ago(25), by: 'user', text: 'El botón de Descargar se queda en «Consultando Trazo…» cuando la consulta falla. Que diga que no está disponible.' },
+        { at: ago(22), by: 'agent', text: 'Encontré la causa: el botón muestra «Consultando…» siempre que no tiene la versión de Trazo, también cuando hubo error.' },
+        { at: ago(15), by: 'agent', text: 'Lo corregí en el panel Estudio: con error dice «Trazo no disponible» y el 404 lleva un mensaje claro.' },
+        { at: ago(9), by: 'agent', text: 'Agregué una prueba de la consulta. Corrí todas: pasan.' },
+        { at: ago(8), by: 'agent', text: 'Lista para que la revises: 4 archivos, +38 −6.', kind: 'done' },
+      ],
+    },
+    {
+      id: 'tarea-exportar-csv', title: 'Exportar pedidos a CSV', brief: 'Que la lista de pedidos se pueda exportar a CSV, con las columnas que se ven en pantalla.',
+      kind: 'feature', provider: 'codex', model: 'gpt-5', base: 'develop', branch: 'feature/exportar-pedidos-a-csv', status: 'working', createdAt: ago(12),
+      office: { path: `${MOCK_REPO}\\.orquest\\oficinas\\tarea-exportar-csv`, branch: 'feature/exportar-pedidos-a-csv' },
+      log: [
+        { at: ago(12), by: 'user', text: 'Que la lista de pedidos se pueda exportar a CSV, con las columnas que se ven en pantalla.' },
+        { at: ago(9), by: 'agent', text: 'La tabla de pedidos arma sus columnas en PedidosTabla.vue; exporto las mismas.' },
+      ],
+    },
+    {
+      id: 'tarea-iva', title: 'Corrige el total con IVA', brief: 'El total no suma el IVA.', kind: 'fix', provider: 'claude', base: 'main', branch: 'fix/total-con-iva',
+      status: 'merged', createdAt: ago(60 * 26), closedAt: ago(60 * 24), changelog: 'El total ya incluye el IVA.',
+      log: [{ at: ago(60 * 26), by: 'user', text: 'El total no suma el IVA.' }, { at: ago(60 * 24), by: 'orquest', text: 'Integrada en main.' }],
+    },
+  ]
+  const ERRAND_FILES: ErrandChange[] = [
+    { status: 'M', path: 'src/renderer/src/components/EstudioPanel.vue', added: 14, removed: 3 },
+    { status: 'M', path: 'src/core/trazoeditor.ts', added: 2, removed: 0 },
+    { status: 'M', path: 'test/trazoeditor.test.ts', added: 18, removed: 1 },
+    { status: 'M', path: 'src/renderer/src/lang/en/oficina.ts', added: 4, removed: 2 },
+  ]
+  const ERRAND_DIFF = `@@ -305,4 +305,4 @@\n         <button class="btn primary" :disabled="!offer" @click="install">\n-          <Download /> {{ offer ? descargar : T\`Consultando Trazo…\` }}\n+          <Download /> {{ downloadLabel }}\n         </button>\n-        <button v-if="offerError" class="btn" @click="check">\n+        <button v-if="offerError || checking" class="btn" :disabled="checking" @click="check">`
+  /** El agente de mentira de una tarea: trabaja un rato, cuenta pasos y termina. */
+  async function runErrand(e: Errand, steps: string[]) {
+    if (!employees.some((x) => x.id === e.id)) {
+      employees.push({ id: e.id, provider: e.provider, model: e.model, role: 'tarea', office: e.office!, state: 'idle', pid: 4000 + employees.length, warnings: [] })
+      // Una copia, como llega por IPC: si no, el estado se cambia por debajo de Vue y el panel no se entera.
+      listeners.hired.forEach((fn) => fn({ ...employees.at(-1)! }))
+    }
+    setState(e.id, 'working')
+    publish()
+    for (const text of steps) {
+      await wait(between(5000, 9000))
+      if (e.status !== 'working') return setState(e.id, 'idle')
+      e.log.push({ at: Date.now(), by: 'agent', text })
+      publish()
+    }
+    await wait(4000)
+    if (e.status !== 'working') return setState(e.id, 'idle')
+    e.status = 'ready'
+    e.changelog ??= e.title
+    e.log.push({ at: Date.now(), by: 'agent', text: 'Lista para que la revises.', kind: 'done' })
+    setState(e.id, 'idle')
+    publish()
+  }
+  const errandOf = (id: string) => {
+    const e = errands.find((x) => x.id === id)
+    if (!e) throw new Error(`No existe la tarea ${id}.`)
+    return e
+  }
   const snapshot = (): StudioSnapshot => {
     const hints: StudioSnapshot['hints'] = {}
     for (const e of employees) {
@@ -129,7 +197,7 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
       slots: [...PEOPLE.map((p, i): Slot => ({ id: `s${i + 1}`, name: p.name, role: p.role, provider: p.provider, model: p.model, effort: 'medium', status: 'hired', employeeId: p.id })), ...(bossOnline ? proposed : [])],
       staff: PEOPLE.filter((p) => employees.some((e) => e.id === p.id)).map((p) => ({ ...p, online: true })),
       tasks: JSON.parse(JSON.stringify(tasks)) as Task[],
-      messages, questions: JSON.parse(JSON.stringify(questions)), seq: { task: seq, slot: PEOPLE.length },
+      messages, questions: JSON.parse(JSON.stringify(questions)), errands: JSON.parse(JSON.stringify(errands)), seq: { task: seq, slot: PEOPLE.length },
       hints, context: Object.fromEntries(employees.map((e, i) => [e.id, 20 + i * 11])), burnoutAt: 80,
     }
   }
@@ -212,6 +280,8 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
     }, (1500 + i * 1200) * speed))
   }
   if (params.get('jefe') !== '0') start()
+  // La tarea que está trabajando avanza sola.
+  setTimeout(() => void runErrand(errands[1], ['Agregué el botón «Exportar» arriba de la tabla.', 'Escribiendo las pruebas del CSV (acentos y comas).']), 1500 * speed)
 
   const find = (id: string) => {
     const t = tasks.find((x) => x.id === id)
@@ -234,11 +304,58 @@ export function mockStudio(params: URLSearchParams): Partial<OrquestApi> {
   const dockListeners = new Set<(list: ReturnType<typeof openProjects>) => void>()
   listeners.board.add(() => dockListeners.forEach((cb) => cb(openProjects())))
   return {
+    ...mockHistory(MOCK_REPO, DIFF),
     pickRepo: async () => MOCK_REPO,
     openProject: async () => snapshot(),
     openProjects: async () => openProjects(),
     onProjects: on(dockListeners),
     list: async () => employees.map((e) => ({ ...e })),
+    branches: async () => ({ branches: ['main', 'develop', 'release/1.2'], current: 'main' }),
+    createErrand: async (req) => {
+      if (!req.base) throw new Error('Elige de qué rama sale la tarea: ahí vuelve al aprobarla.')
+      const slug = req.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const e: Errand = {
+        id: `tarea-${slug}`, title: req.title, brief: req.brief, kind: req.kind, provider: req.provider, model: req.model, base: req.base, branch: `${req.kind}/${slug}`,
+        status: 'working', createdAt: Date.now(), office: { path: `${MOCK_REPO}\\.orquest\\oficinas\\tarea-${slug}`, branch: `${req.kind}/${slug}` },
+        log: [{ at: Date.now(), by: 'user', text: req.brief }],
+      }
+      errands.push(e)
+      publish()
+      void runErrand(e, ['Leí el código que toca esto.', 'Hice el cambio y sus pruebas.', 'Corrí todas las pruebas: pasan.'])
+      return JSON.parse(JSON.stringify(e))
+    },
+    errandSay: async (id, text) => {
+      const e = errandOf(id)
+      e.log.push({ at: Date.now(), by: 'user', text })
+      e.status = 'working'
+      e.stopReason = undefined
+      publish()
+      void runErrand(e, ['Hecho el ajuste que pediste.'])
+    },
+    stopErrand: async (id) => {
+      const e = errandOf(id)
+      e.status = 'stopped'
+      e.stopReason = 'La detuviste tú.'
+      e.log.push({ at: Date.now(), by: 'orquest', text: e.stopReason, kind: 'stop' })
+      setState(id, 'idle')
+      publish()
+      return {}
+    },
+    approveErrand: async (id) => {
+      const e = errandOf(id)
+      Object.assign(e, { status: 'merged', closedAt: Date.now(), office: undefined })
+      e.log.push({ at: Date.now(), by: 'orquest', text: `Integrada en ${e.base}.` })
+      publish()
+      return { merged: true }
+    },
+    discardErrand: async (id) => {
+      const e = errandOf(id)
+      Object.assign(e, { status: 'discarded', closedAt: Date.now(), office: undefined })
+      e.log.push({ at: Date.now(), by: 'orquest', text: `Descartada: no se unió a ${e.base}.` })
+      publish()
+    },
+    errandChanges: async (id) => (['working', 'ready', 'stopped'].includes(errandOf(id).status) ? ERRAND_FILES.map((f) => ({ ...f })) : []),
+    errandDiff: async () => ERRAND_DIFF,
     activities: async () => ({}),
     hireBoss: async (req) => {
       bossName = req.name

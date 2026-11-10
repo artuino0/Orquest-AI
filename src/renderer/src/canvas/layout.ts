@@ -21,7 +21,7 @@ export interface Camera extends Point {
 }
 
 /** Qué muestra un panel. Los que llevan `ref` son de alguien (un empleado, su versión). */
-export type PanelKind = 'office' | 'boss' | 'employee' | 'version' | 'editor' | 'estudio' | 'usage' | 'hire' | 'board' | 'inbox' | 'library' | 'plans' | 'accounts' | 'mobile'
+export type PanelKind = 'office' | 'boss' | 'employee' | 'version' | 'editor' | 'estudio' | 'usage' | 'hire' | 'board' | 'inbox' | 'library' | 'plans' | 'accounts' | 'mobile' | 'tasks' | 'errand' | 'history'
 
 export interface Panel extends Rect {
   id: string
@@ -62,10 +62,15 @@ export const SIZES: Record<PanelKind, Size> = {
   plans: { w: 864, h: 624 },
   accounts: { w: 752, h: 576 },
   mobile: { w: 672, h: 608 },
+  tasks: { w: 432, h: 656 },
+  // Su chat y, con ancho de sobra, sus cambios al lado.
+  errand: { w: 1008, h: 656 },
+  // El grafo a la izquierda y el detalle de lo elegido a la derecha.
+  history: { w: 1312, h: 736 },
 }
 
 /** Orden al «Ordenar»: la oficina y el jefe primero, luego la gente y lo demás. */
-const ORDER: PanelKind[] = ['office', 'boss', 'employee', 'version', 'editor', 'estudio', 'hire', 'board', 'inbox', 'plans', 'library', 'accounts', 'mobile', 'usage']
+const ORDER: PanelKind[] = ['office', 'boss', 'employee', 'version', 'tasks', 'errand', 'editor', 'estudio', 'hire', 'board', 'inbox', 'history', 'plans', 'library', 'accounts', 'mobile', 'usage']
 
 export const panelId = (kind: PanelKind, ref?: string) => (ref ? `${kind}:${ref}` : kind)
 export const snap = (v: number, g = GRID) => Math.round(v / g) * g

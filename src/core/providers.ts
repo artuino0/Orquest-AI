@@ -55,6 +55,10 @@ const EDIT_TOOLS = ['Edit', 'Write', 'NotebookEdit']
  * para que reglas con espacios ("Bash(git reset --hard:*)") no se partan.
  */
 export function claudePermissions(p: Permissions) {
+  // Sin pedir permisos (las Tareas): todo pasa, pero lo prohibido sigue negado (Claude Code
+  // respeta las reglas «deny» también en este modo).
+  // Un manual que no deja editar sigue sin dejar editar.
+  if (p.unattended) return { defaultMode: 'bypassPermissions', allow: ['mcp__orquest'], deny: [...(p.edit ? [] : EDIT_TOOLS), ...p.deny.map((c) => `Bash(${c}:*)`)] }
   return {
     allow: ['mcp__orquest', ...(p.edit ? EDIT_TOOLS : []), ...[...p.allow, ...(p.install ? INSTALL_COMMANDS : [])].map((c) => `Bash(${c}:*)`)],
     deny: [...(p.edit ? [] : EDIT_TOOLS), ...p.deny.map((c) => `Bash(${c}:*)`)],
@@ -69,6 +73,7 @@ export function claudePermissions(p: Permissions) {
  */
 export function opencodePermissions(p: Permissions) {
   const rules = (cmds: string[], value: 'allow' | 'deny') => Object.fromEntries(cmds.flatMap((c) => [[c, value], [`${c} *`, value]]))
+  if (p.unattended) return { edit: p.edit ? 'allow' : 'deny', bash: { '*': 'allow', ...rules(p.deny, 'deny') } }
   return {
     edit: p.edit ? 'allow' : 'ask',
     bash: { '*': 'ask', ...rules(['orquest', ...p.allow, ...(p.install ? INSTALL_COMMANDS : [])], 'allow'), ...rules(p.deny, 'deny') },
@@ -452,13 +457,18 @@ ${stderr}`
       // Su barra de abajo ya no trae el contexto (visto en 0.162): se le pide. Queda «Context 12% used · 5h 40% left · weekly 84% left».
       '-c',
       'tui.status_line=["model-with-reasoning","context-used","five-hour-limit","weekly-limit"]',
+      // Sin pedir permisos (las Tareas): nunca pregunta, pero sigue aislado en su oficina.
+      ...(permissions?.unattended ? ['-a', 'never'] : []),
       ...(permissions ? ['-s', permissions.edit ? 'workspace-write' : 'read-only'] : []),
       // Instalar dependencias necesita red; en el aislamiento de Codex viene cerrada y por eso pedía permiso.
       // Sigue aislado: solo escribe en su oficina.
       ...(permissions?.edit && permissions.install ? ['-c', 'sandbox_workspace_write.network_access=true'] : []),
     ],
     // Codex solo distingue escribir o no; los comandos los aprueba el usuario.
-    permissionGaps: (p) => (p.allow.length || p.deny.length ? [T`Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.`] : []),
+    permissionGaps: (p) =>
+      p.unattended
+        ? p.deny.length ? [T`Codex no aplica la lista de prohibidos: trabaja sin preguntar, aislado en su carpeta.`] : []
+        : p.allow.length || p.deny.length ? [T`Codex no aplica listas de comandos permitidos o prohibidos; los pide al usuario.`] : [],
     screen: {
       working: [ESC_TO_INTERRUPT, /Working \(/],
       // Al arrancar puede ofrecer actualizarse o preguntar si confías en la carpeta: lo decide el usuario.
@@ -492,7 +502,10 @@ ${stderr}`
       permissions?.deny.length
         ? { '.agents/hooks.json': `${JSON.stringify({ orquest: { PreToolUse: [{ matcher: 'run_command', hooks: [{ type: 'command', command: 'orquest gancho-agy', timeout: 10 }] }] } }, null, 2)}\n` }
         : {},
-    permissionGaps: (p) => (p.allow.length || !p.edit ? [T`Antigravity solo aplica lo prohibido del manual; lo demás depende de su propio ajuste de permisos.`] : []),
+    permissionGaps: (p) =>
+      p.unattended
+        ? [T`Antigravity no deja que Orquest le quite las preguntas de permiso: se hace en su ajuste global («toolPermission»: «always-proceed» en ~/.gemini/antigravity-cli/settings.json). Lo prohibido del manual sí se le niega.`]
+        : p.allow.length || !p.edit ? [T`Antigravity solo aplica lo prohibido del manual; lo demás depende de su propio ajuste de permisos.`] : [],
     // Visto con agy 1.3.6: trabaja con «esc to cancel» y «⣯ Generating...» (tres puntos, no «…»);
     // en una carpeta nueva pregunta si confías en ella («↑/↓ Navigate · enter Confirm»).
     screen: {

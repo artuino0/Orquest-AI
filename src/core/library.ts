@@ -14,6 +14,12 @@ import type { ProviderId } from './providers.js'
 
 export const ROLES = ['desarrollo', 'backend', 'frontend', 'dba', 'infra', 'qa', 'diseno', 'arquitecto', 'seguridad'] as const
 export type Role = (typeof ROLES)[number]
+/**
+ * Lo que tiene manual: los puestos y las Tareas (encargos que el usuario da
+ * directo, sin el jefe). «tarea» no es un puesto: el jefe no la contrata.
+ */
+export type ManualRole = Role | 'tarea'
+export const ERRAND_ROLE = 'tarea' as const
 
 export interface Dossier {
   provider: ProviderId
@@ -38,6 +44,11 @@ export interface Permissions {
    * antes de que existiera este permiso lo trae activado; lo prohibido sigue mandando.
    */
   install?: boolean
+  /**
+   * Trabaja sin pedir permisos (las Tareas): todo pasa salvo lo prohibido, que
+   * sigue bloqueado donde la CLI sabe bloquearlo.
+   */
+  unattended?: boolean
 }
 
 /**
@@ -55,7 +66,7 @@ export const INSTALL_COMMANDS = [
 ]
 
 export interface Manual {
-  role: Role
+  role: ManualRole
   /** Prompt de sistema del rol. */
   prompt: string
   /** Rutas de documentación que lee al entrar (relativas al repo). */
@@ -142,7 +153,22 @@ export function bundledSkillsFor(role: Role): string[] {
   return ['orquest-clean-code', 'orquest-seguridad']
 }
 
-export function defaultManual(role: Role): Manual {
+/** Lo que una Tarea nunca hace sola, aunque trabaje sin pedir permisos. */
+export const ERRAND_DENY = ['git push', 'git reset --hard', 'git checkout', 'git switch', 'git rebase', 'git branch -D', 'rm -rf /', 'rm -rf ~', 'rm -rf ..']
+
+export function defaultManual(role: ManualRole): Manual {
+  if (role === ERRAND_ROLE) {
+    return {
+      role,
+      prompt: T`Tarea: resuelves un encargo completo que el usuario te dio directo, sin el jefe: front, back y pruebas, lo que haga falta. Trabajas sin pedir permisos, así que cuida lo que corres.`,
+      docs: [],
+      skills: bundledSkillsFor('desarrollo'),
+      bundledSkills: true,
+      permissions: { edit: true, allow: [], deny: [...ERRAND_DENY], install: true, unattended: true },
+      delivery: T`Al terminar: una línea para el registro de cambios y un resumen breve de qué hiciste y cómo probarlo.`,
+      requireScreenshots: false,
+    }
+  }
   return {
     role,
     prompt: defaultPrompts()[role],
@@ -186,7 +212,7 @@ export type Check = { ok: true; warning?: string } | { ok: false; reason: string
 
 export class Library {
   private dossiersByKey = new Map<string, Dossier>()
-  private manualsByRole = new Map<Role, Manual>()
+  private manualsByRole = new Map<ManualRole, Manual>()
   private history: HistoryEvent[] = []
 
   constructor(private store?: LibraryStore) {
@@ -197,7 +223,7 @@ export class Library {
     for (const m of store?.loadManuals() ?? []) {
       const migrated: Manual = {
         ...m,
-        skills: !m.bundledSkills && !m.skills.some((id) => id.startsWith('orquest-')) ? [...m.skills, ...bundledSkillsFor(m.role)] : m.skills,
+        skills: !m.bundledSkills && !m.skills.some((id) => id.startsWith('orquest-')) ? [...m.skills, ...bundledSkillsFor(m.role === ERRAND_ROLE ? 'desarrollo' : m.role)] : m.skills,
         bundledSkills: true,
         permissions: { ...m.permissions, install: m.permissions.install ?? true },
       }
@@ -284,16 +310,17 @@ export class Library {
   // ── Manuales ─────────────────────────────────────────────────────────────
 
   manual(role: string): Manual {
-    const r = isRole(role) ? role : 'desarrollo'
+    const r: ManualRole = role === ERRAND_ROLE ? ERRAND_ROLE : isRole(role) ? role : 'desarrollo'
     return this.manualsByRole.get(r) ?? defaultManual(r)
   }
 
+  /** Los manuales de los puestos y, al final, el de las Tareas. */
   manuals(): Manual[] {
-    return ROLES.map((r) => this.manual(r))
+    return [...ROLES.map((r) => this.manual(r)), this.manual(ERRAND_ROLE)]
   }
 
   saveManual(m: Manual) {
-    if (!isRole(m.role)) throw new Error(T`Puesto desconocido: ${m.role}`)
+    if (!isRole(m.role) && m.role !== ERRAND_ROLE) throw new Error(T`Puesto desconocido: ${m.role}`)
     const clean: Manual = {
       ...m,
       bundledSkills: true,
@@ -304,6 +331,8 @@ export class Library {
         allow: m.permissions.allow.map((x) => x.trim()).filter(Boolean),
         deny: m.permissions.deny.map((x) => x.trim()).filter(Boolean),
         install: m.permissions.install ?? true,
+        // Solo las Tareas trabajan sin pedir permisos; un puesto nunca.
+        ...(m.role === ERRAND_ROLE ? { unattended: m.permissions.unattended ?? true } : {}),
       },
     }
     this.manualsByRole.set(clean.role, clean)

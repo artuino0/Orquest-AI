@@ -12,6 +12,7 @@
  *
  * Las tareas de QA terminan en done: no tienen código que integrar.
  */
+import type { Errand } from './errands.js'
 import { T } from './i18n.js'
 import type { Check } from './library.js'
 import { nameKey, pickName } from './names.js'
@@ -78,6 +79,11 @@ export interface Slot {
   reason?: string
   /** Aviso del expediente (permitido, pero con reservas). */
   warning?: string
+  /**
+   * Trabaja sin pedir permisos (como las Tareas): todo pasa salvo lo prohibido de su manual. Lo
+   * prende solo el usuario, en Plantilla; el jefe no lo propone ni lo cambia.
+   */
+  unattended?: boolean
   status: SlotStatus
   employeeId?: string
 }
@@ -187,6 +193,8 @@ export interface BoardSnapshot {
   questions: Question[]
   /** Versiones levantadas para revisión (una por empleado). */
   reviews?: Review[]
+  /** Tareas: encargos que el usuario dio directo, sin el jefe (ver errands.ts). */
+  errands?: Errand[]
   seq: { task: number; slot: number; question?: number }
 }
 
@@ -223,6 +231,7 @@ export class Board {
   messages: Message[] = []
   questions: Question[] = []
   reviews: Review[] = []
+  errands: Errand[] = []
   private seq: { task: number; slot: number; question?: number } = { task: 0, slot: 0, question: 0 }
 
   constructor(private now: () => number = Date.now) {}
@@ -282,6 +291,7 @@ export class Board {
         model: f.model || undefined,
         effort: f.effort,
         account: f.account || undefined,
+        ...(f.unattended ? { unattended: true } : {}),
         reason: base?.reason,
         warning: warnings[final.indexOf(f)],
         status: 'approved' as const,
@@ -509,6 +519,54 @@ export class Board {
     if (t.status === 'in_progress') t.status = 'ready'
     this.log(t, T`reasignada a ${m.id}`)
     return t
+  }
+
+  /**
+   * Lo que deja abierto quien se fue. Sus revisiones de QA a medias se cancelan y la entrega que
+   * revisaba vuelve a «entregada», para mandarla a otro QA; sus tareas de trabajo quedan para
+   * reasignar (lo decide el jefe).
+   */
+  leftBehind(employeeId: string): { reviews: Task[]; open: Task[] } {
+    const pending = (t: Task) => ['waiting', 'ready', 'in_progress'].includes(t.status) && t.assignee === employeeId
+    const reviews = this.tasks.filter((t) => t.kind === 'qa' && pending(t))
+    for (const r of reviews) this.dropReview(r, T`cancelada: ${employeeId} ya no está`)
+    return { reviews, open: this.tasks.filter((t) => t.kind !== 'qa' && pending(t)) }
+  }
+
+  /** Cancela una revisión de QA: la entrega que revisaba vuelve a esperar QA. */
+  private dropReview(r: Task, why: string) {
+    r.status = 'discarded'
+    this.log(r, why)
+    const o = r.reviewOf ? this.tasks.find((t) => t.id === r.reviewOf) : undefined
+    if (o?.status === 'in_qa') {
+      o.status = 'delivered'
+      this.log(o, T`vuelve a esperar QA (${r.id} se canceló)`)
+    }
+  }
+
+  /**
+   * Cancela una tarea que ya no hace falta (aún no entregada). Quien dependía de ella deja de
+   * esperarla; devuelve las que con eso quedan listas para empezar.
+   */
+  cancel(taskId: string, reason: string): Task[] {
+    const t = this.task(taskId)
+    if (!['waiting', 'ready', 'in_progress'].includes(t.status)) {
+      throw new RuleError(T`${t.id} está ${t.status}; solo se cancela una tarea que aún no se entrega. Una entrega se regresa o la descarta el usuario.`)
+    }
+    const why = reason.trim() ? T`cancelada: ${reason.trim()}` : T`cancelada`
+    if (t.kind === 'qa') this.dropReview(t, why)
+    else {
+      t.status = 'discarded'
+      this.log(t, why)
+    }
+    const released: Task[] = []
+    for (const x of this.tasks) {
+      if (!x.deps.includes(t.id)) continue
+      x.deps = x.deps.filter((d) => d !== t.id)
+      this.log(x, T`ya no espera a ${t.id} (se canceló)`)
+      if (this.refresh(x)) released.push(x)
+    }
+    return released
   }
 
   /** Dependencias que aún no se integran. */
@@ -786,6 +844,7 @@ export class Board {
       messages: this.messages,
       questions: this.questions,
       reviews: this.reviews,
+      errands: this.errands,
       seq: this.seq,
     })
   }
@@ -805,6 +864,7 @@ export class Board {
     b.questions = c.questions ?? []
     // Lo levantado para revisión no sobrevive a cerrar la app: los procesos se fueron con ella.
     b.reviews = []
+    b.errands = c.errands ?? []
     b.seq = { question: 0, ...c.seq }
     return b
   }

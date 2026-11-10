@@ -38,10 +38,12 @@ onMounted(async () => {
 const kinds = computed<{ kind: PanelKind; ref?: string; label: string }[]>(() => [
   { kind: 'office', label: T`Oficina` },
   { kind: 'boss', label: T`Jefe` },
-  ...studio.employees.filter((e) => e.id !== 'jefe').map((e) => ({ kind: 'employee' as const, ref: e.id, label: `${studio.nameOf(e.id)} · ${e.role}` })),
+  ...studio.employees.filter((e) => e.id !== 'jefe' && e.role !== 'tarea').map((e) => ({ kind: 'employee' as const, ref: e.id, label: `${studio.nameOf(e.id)} · ${e.role}` })),
   { kind: 'hire', label: T`Plantilla` },
   { kind: 'board', label: T`Tablero` },
   { kind: 'inbox', label: T`Entregas` },
+  { kind: 'history', label: T`Historial` },
+  { kind: 'tasks', label: T`Tareas` },
   { kind: 'plans', label: T`Planes` },
   { kind: 'library', label: T`Expedientes` },
   { kind: 'editor', label: T`Editor` },

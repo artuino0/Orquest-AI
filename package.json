@@ -28,6 +28,7 @@
     "electron-updater": "^6.8.11",
     "node-pty": "^1.1.0",
     "prettier": "^3.9.10",
+    "three": "0.128.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
