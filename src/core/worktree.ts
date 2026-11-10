@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { access, lstat, appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, normalize } from 'node:path'
 import { promisify } from 'node:util'
 import { RuleError } from './board.js'
 import { T } from './i18n.js'
@@ -341,7 +341,8 @@ export function parseWorktrees(out: string): WorktreeInfo[] {
 
 /** Todas las copias de trabajo (worktrees) del repositorio de `repo`, las haya hecho Orquest o no. La primera es la principal. */
 export async function listWorktrees(repo: string): Promise<WorktreeInfo[]> {
-  return parseWorktrees(await git(repo, 'worktree', 'list', '--porcelain'))
+  // En Windows git da las rutas con «/»: se pasan a las del sistema para compararlas con las nuestras.
+  return parseWorktrees(await git(repo, 'worktree', 'list', '--porcelain')).map((w) => ({ ...w, path: normalize(w.path) }))
 }
 
 /** Cuántos commits lleva `branch` que `base` no tiene (adelante) y al revés (atrás). */
@@ -404,7 +405,7 @@ async function checkedOutAt(root: string, branch: string): Promise<string | unde
   const out = await git(root, 'worktree', 'list', '--porcelain')
   let path: string | undefined
   for (const line of out.split('\n')) {
-    if (line.startsWith('worktree ')) path = line.slice(9)
+    if (line.startsWith('worktree ')) path = normalize(line.slice(9).trimEnd())
     else if (line === `branch refs/heads/${branch}` && path) return path
   }
   return undefined
